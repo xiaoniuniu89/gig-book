@@ -46,7 +46,7 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          claude_args: '--allowedTools "Bash(npm ci),Bash(npm run typecheck),Bash(npm run lint)"'
 
       # Work started from an issue goes straight to main: bring in the latest main (Claude resolves any conflicts),
       # check it, open a PR for the record and squash-merge it. Comments on a PR leave that PR to be merged by hand.
@@ -92,6 +92,8 @@ jobs:
           npm ci
           npm run typecheck
           npm run lint
+          # the Claude step left git using its own token, which is revoked by now
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin "HEAD:$BRANCH"
           gh pr view "$BRANCH" >/dev/null 2>&1 || gh pr create --base main --head "$BRANCH" --title "$(git log -1 --no-merges --format=%s)" --body "Closes #$ISSUE"
           gh pr merge "$BRANCH" --squash --delete-branch
