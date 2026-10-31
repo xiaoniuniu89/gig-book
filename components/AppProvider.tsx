@@ -84,6 +84,7 @@ interface Ctx {
   addSetlist(s: Setlist): Promise<void>;
   removeSetlist(s: Setlist): Promise<void>;
   addLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
+  removeLibraryPlaylist(id: string): Promise<void>;
   copyLocalToAccount(): Promise<number>;
   localCounts: { setlists: number; library: number } | null;
 
@@ -305,6 +306,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addLibraryPlaylist = useCallback(async (p: LibraryPlaylist) => {
     try { await storeRef.current.saveLibraryPlaylist(p); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save."); return; }
     setLibrary(prev => prev.filter(x => x.id !== p.id).concat(p)); setRev(r => r + 1);
+  }, [toast]);
+
+  const removeLibraryPlaylist = useCallback(async (id: string) => {
+    try { await storeRef.current.deleteLibraryPlaylist(id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
+    setLibrary(prev => prev.filter(x => x.id !== id)); setRev(r => r + 1);
   }, [toast]);
 
   const copying = useRef(false);
@@ -545,7 +551,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: Ctx = {
     ready, store, account, setlists, library, rev, setlistById, ensureSetlist, commitSetlist, addSetlist, removeSetlist,
-    addLibraryPlaylist, copyLocalToAccount, localCounts,
+    addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
     band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, markBar, lastBar,
