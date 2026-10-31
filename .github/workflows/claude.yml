@@ -48,8 +48,9 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: '--allowedTools "Bash(npm ci),Bash(npm run typecheck),Bash(npm run lint)"'
 
-      # Work started from an issue goes straight to main: bring in the latest main (Claude resolves any conflicts),
-      # check it and push it to main as one commit. Comments on a PR leave that PR to be merged by hand.
+      # Work started from an issue: bring in the latest main (Claude resolves any conflicts) and run the checks.
+      # Then, if the @claude request says "merge", push it to main as one commit; otherwise open a PR for review.
+      # Comments on an existing PR leave that PR to be merged by hand.
       - name: Bring Claude's branch up to date with main
         id: sync
         if: steps.claude.outputs.branch_name != '' && github.event.issue.pull_request == null
@@ -78,12 +79,13 @@ jobs:
             `npm ci`, `npm run typecheck` and `npm run lint` and fix anything they report. Do not commit, push or run other git commands.
           claude_args: '--allowedTools "Read,Edit,Write,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(npm ci),Bash(npm run typecheck),Bash(npm run lint),Bash(gh issue view:*)"'
 
-      - name: Check and merge into main
+      - name: Check, then merge into main or open a PR
         if: steps.sync.outputs.merge == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.claude.outputs.branch_name }}
           ISSUE: ${{ github.event.issue.number }}
+          MERGE: ${{ contains(github.event_name == 'issue_comment' && github.event.comment.body || github.event.issue.body, 'merge') }}
         run: |
           if [ "${{ steps.sync.outputs.conflict }}" = true ]; then
             if git grep -nE '^(<<<<<<<|>>>>>>>)' -- . ':!package-lock.json'; then echo "Conflict markers left."; exit 1; fi
@@ -94,8 +96,13 @@ jobs:
           npm run lint
           # the Claude step left git using its own token, which is revoked by now
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-          # one commit on main per issue; if main moved meanwhile, replay on top and try again
           subject="$(git log -1 --no-merges --format=%s "origin/$BRANCH")"
+          if [ "$MERGE" != true ]; then
+            git push origin "HEAD:$BRANCH"
+            gh pr view "$BRANCH" >/dev/null 2>&1 || gh pr create --base main --head "$BRANCH" --title "$subject" --body "Closes #$ISSUE"
+            exit 0
+          fi
+          # one commit on main per issue; if main moved meanwhile, replay on top and try again
           git fetch origin main
           git reset -q --soft "$(git merge-base HEAD origin/main)"
           git commit -q -m "$subject" -m "Closes #$ISSUE"
