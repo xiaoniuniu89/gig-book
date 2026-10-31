@@ -78,6 +78,8 @@ p { margin: 0; }
 .book .keys { font-family: var(--chord); font-size: 15px; color: var(--muted); }
 
 /* Setlist */
+.rename-btn { margin-left: 12px; vertical-align: middle; font-family: inherit; letter-spacing: normal; }
+.rename { font: inherit; font-family: var(--display); font-size: clamp(28px, 5vw, 44px); letter-spacing: .03em; width: 100%; min-width: 0; box-sizing: border-box; }
 .set-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
 .sets { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
 .set { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; min-width: 0; }

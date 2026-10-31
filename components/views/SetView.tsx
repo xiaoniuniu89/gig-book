@@ -44,6 +44,8 @@ function SetBody({ s }: { s: Setlist }) {
   const [armed, setArmed] = useState<number | null>(null);
   const [delArmed, setDelArmed] = useState(false);
   const [addQ, setAddQ] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState("");
 
   const sets = useMemo(() => [1, 2].map(n => s.items.map((it, i) => ({ it, i })).filter(x => (x.it.set || 1) === n)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,6 +70,15 @@ function SetBody({ s }: { s: Setlist }) {
     if (v && !uri) { toast("That isn't a Spotify playlist, album or track link."); return; }
     s.spotify = uri; save(); toast(uri ? "Playlist linked." : "Playlist removed.");
   };
+  const startRename = () => { setDraft(s.name); setRenaming(true); };
+  const commitRename = () => {
+    if (!renaming) return;
+    setRenaming(false);
+    const v = draft.trim().slice(0, 200);
+    if (!v) { toast("A setlist needs a name."); return; }
+    if (v === s.name) return;
+    s.name = v; save();
+  };
   const setVisibility = (v: Visibility) => { s.visibility = v; save(); };
 
   const all = useMemo(() => {
@@ -88,7 +99,16 @@ function SetBody({ s }: { s: Setlist }) {
       <div className="set-head">
         <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
           <span className="eyebrow">Setlist{s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}</span>
-          <h1>{s.name}</h1>
+          {renaming ? (
+            <input className="rename" aria-label="Setlist name" autoFocus maxLength={200} value={draft}
+              onChange={e => setDraft(e.target.value)} onBlur={commitRename}
+              onKeyDown={e => {
+                if (e.key === "Enter") commitRename();
+                else if (e.key === "Escape") setRenaming(false);
+              }} />
+          ) : (
+            <h1>{s.name}{canEdit && <button className="btn small rename-btn" onClick={startRename}>Rename</button>}</h1>
+          )}
         </div>
         <div className="row-btns">
           <button className="btn primary" data-gig="all" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
