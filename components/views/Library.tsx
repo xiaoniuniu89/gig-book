@@ -7,8 +7,9 @@ import { meta, norm, prettyKey } from "@/lib/songs";
 let lastQuery = ""; // remembered while the app is open, like the static app
 
 export function Library() {
-  const { library, setCrumb, setCurrent, ready } = useApp();
+  const { library, setCrumb, setCurrent, ready, removeLibraryPlaylist } = useApp();
   const [q, setQ] = useState(lastQuery);
+  const [delArmed, setDelArmed] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,6 +31,19 @@ export function Library() {
       <div className="set-head">
         <div><span className="eyebrow">Library</span><h1>{all.length} charts</h1></div>
       </div>
+      {ready && library.length > 0 && (
+        <div className="panel list" id="lib-playlists">
+          {library.map(p => (
+            <div key={p.id} className="tune">
+              <span className="name">{p.name}<span className="sub">{p.songs.length} charts</span></span>
+              <button className="btn small" onClick={() => {
+                if (delArmed !== p.id) { setDelArmed(p.id); return; }
+                setDelArmed(null); removeLibraryPlaylist(p.id);
+              }}>{delArmed === p.id ? "Tap again to remove" : "Remove"}</button>
+            </div>
+          ))}
+        </div>
+      )}
       <input ref={input} id="lib-q" className="search" type="search" placeholder="Search by title, composer or style" autoComplete="off"
         value={q} onChange={e => { setQ(e.target.value); lastQuery = e.target.value; }} />
       <div className="panel list" id="lib-list">
