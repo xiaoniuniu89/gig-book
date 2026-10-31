@@ -10,7 +10,7 @@ import { songLink } from "@/lib/ireal";
 import { song, norm } from "@/lib/songs";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
-import type { Setlist } from "@/lib/data/types";
+import type { Setlist, SetlistItem } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -29,8 +29,9 @@ export function SetSongView() {
     return () => { gone = true; };
   }, [ready, s, id, ensureSetlist]);
 
-  const cur = useMemo<Current | null>(() => (s && item ? { kind: "set", setId: s.id, itemIdx: idx, item, song: song(item.raw) } : null),
-    [s, item, idx]);
+  const setId = s?.id, raw = item?.raw;
+  const cur = useMemo<Current | null>(() => (setId && raw ? { kind: "set", setId, itemIdx: idx, song: song(raw) } : null),
+    [setId, raw, idx]);
   if (!cur) return (missing || (s && !item))
     ? <section className="panel"><h2>Tune not found</h2><Link className="btn" href={s ? "/set/" + encodeURIComponent(s.id) : "/"}>Back</Link></section>
     : <p className="hint">Loading…</p>;
@@ -53,11 +54,12 @@ export function LibrarySongView() {
 
 function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
   const app = useApp();
-  const { prefs, updatePrefs, setCrumb, setCurrent, rev, gig, library } = app;
+  const { prefs, updatePrefs, setCrumb, setCurrent, gig, library } = app;
   const sg = cur.song;
   const shift = app.shiftOf(cur);
   const s = cur.kind === "set" ? setlist : undefined;
   const list = s ? s.items : null;
+  const item = cur.kind === "set" && s ? s.items[cur.itemIdx] : undefined;
   const canEdit = !s || s.role !== "viewer";
 
   // register as the tune on screen (the dock plays it, the band highlights it)
@@ -80,7 +82,7 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
     if (cur.songIdx > 0) prevHref = base + (cur.songIdx - 1);
     if (pl && cur.songIdx < pl.songs.length - 1) nextHref = base + (cur.songIdx + 1);
   }
-  const isOverride = cur.kind === "lib" ? (sg.title + "|" + sg.composer) in prefs.libShift : cur.item.shift !== null && cur.item.shift !== undefined;
+  const isOverride = cur.kind === "lib" ? (sg.title + "|" + sg.composer) in prefs.libShift : item?.shift !== null && item?.shift !== undefined;
   const gigLine = gig && cur.kind === "set" && gig.setId === cur.setId ? <span className="pill">Practice gig · {gig.pos + 1} of {gig.order.length}</span> : null;
 
   const html = useMemo(() => chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn }),
@@ -97,7 +99,7 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
     <>
       <div className="song-head">
         <div className="song-title">
-          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${cur.item.set || 1} · ${cur.itemIdx + 1} of ${list.length}` : "Library"} {gigLine}</span>
+          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} ·${cur.itemIdx + 1} of ${list.length}` : "Library"} {gigLine}</span>
           <h1>{sg.title}</h1>
           <div className="meta">
             <span>{sg.composer}</span><span>·</span><span>{sg.style}</span><span>·</span>
@@ -127,13 +129,13 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
           </div>
         </div>
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
-        {cur.kind === "set" && s && (canEdit
-          ? <NoteEditor key={cur.item.id} item={cur.item} setlist={s} />
-          : cur.item.note && <p className="hint note">{cur.item.note}</p>)}
+        {cur.kind === "set" && s && item && (canEdit
+          ? <NoteEditor key={item.id} item={item} cur={cur} />
+          : item.note && <p className="hint note">{item.note}</p>)}
       </section>
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
-        <Recordings cur={cur} setlist={s} canEdit={canEdit} rev={rev} />
+        <Recordings cur={cur} item={item} canEdit={canEdit} />
         <section className="panel">
           <h2>iReal Pro</h2>
           <a className="btn" href={songLink(sg.raw)}>Open this chart in iReal Pro</a>
@@ -164,13 +166,13 @@ function ChartHost({ html, live }: { html: string; live: boolean }) {
 }
 
 /** Note on a set tune: plain text in a textarea (React renders it as text), saved on blur. */
-function NoteEditor({ item, setlist }: { item: Setlist["items"][number]; setlist: Setlist }) {
+function NoteEditor({ item, cur }: { item: SetlistItem; cur: Extract<Current, { kind: "set" }> }) {
   const app = useApp();
   const [text, setText] = useState(item.note ?? "");
   const save = () => {
     const v = text.trim() || null;
     if (v === (item.note ?? null)) return;
-    item.note = v; app.commitSetlist(setlist);
+    app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, note: v }));
   };
   return (
     <label className="note-edit">
@@ -181,7 +183,7 @@ function NoteEditor({ item, setlist }: { item: Setlist["items"][number]; setlist
   );
 }
 
-function Recordings({ cur, setlist, canEdit }: { cur: Current; setlist?: Setlist; canEdit: boolean; rev: number }) {
+function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; canEdit: boolean }) {
   const app = useApp();
   const [q, setQ] = useState(cur.song.title);
   const [results, setResults] = useState<TrackResult[] | null>(null);
@@ -189,7 +191,7 @@ function Recordings({ cur, setlist, canEdit }: { cur: Current; setlist?: Setlist
   const [saved, setSaved] = useState<Set<string>>(new Set());
   useEffect(() => { setQ(cur.song.title); setResults(null); setStatus(null); setSaved(new Set()); }, [cur.song]);
 
-  const vs = cur.kind === "set" ? (cur.item.versions = cur.item.versions || []) : [];
+  const vs = item?.versions ?? [];
 
   const find = async () => {
     const query = q.trim() || cur.song.title;
@@ -206,14 +208,16 @@ function Recordings({ cur, setlist, canEdit }: { cur: Current; setlist?: Setlist
     }
   };
   const saveVersion = (r: TrackResult) => {
-    if (cur.kind !== "set" || !setlist) return;
-    if (!vs.some(v => v.uri === r.uri)) vs.push({ uri: r.uri, name: r.name, artists: r.artists });
-    app.commitSetlist(setlist);
+    if (cur.kind !== "set") return;
+    app.updateItem(cur.setId, cur.itemIdx, it => {
+      const have = it.versions || [];
+      return have.some(v => v.uri === r.uri) ? it : { ...it, versions: [...have, { uri: r.uri, name: r.name, artists: r.artists }] };
+    });
     setSaved(prev => new Set(prev).add(r.uri));
   };
   const removeVersion = (k: number) => {
-    if (!setlist) return;
-    vs.splice(k, 1); app.commitSetlist(setlist);
+    if (cur.kind !== "set") return;
+    app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, versions: (it.versions || []).filter((_, i) => i !== k) }));
   };
 
   return (
@@ -262,8 +266,7 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
       setTarget(s.id);
     } else {
       s = app.setlistById(target) as Setlist;
-      s.items.push(item);
-      await app.commitSetlist(s);
+      app.updateSetlist(s.id, x => ({ ...x, items: [...x.items, item] }));
     }
     app.toast(`Added to ${s.name}.`);
   };

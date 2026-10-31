@@ -23,8 +23,7 @@ export function Home() {
   const books = useMemo(() => setlists.map(s => ({
     s,
     keys: [...new Set(s.items.slice(0, 8).map(it => keyLabel(song(it.raw), it.shift ?? irealShift(song(it.raw)))))].join("  "),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  })), [setlists, app.rev]);
+  })), [setlists]);
 
   const handle = (t: string) => setFound(splitPlaylists(t));
 

@@ -37,7 +37,8 @@ export function SetView() {
 function SetBody({ s }: { s: Setlist }) {
   const app = useApp();
   const router = useRouter();
-  const { library, commitSetlist, toast, rev } = app;
+  const { library, updateSetlist, toast } = app;
+  const edit = (fn: (s: Setlist) => Setlist) => updateSetlist(s.id, fn);
   const canEdit = s.role !== "viewer";
   const isOwner = !s.role || s.role === "owner";
   const [plLink, setPlLink] = useState(s.spotify ? webUrl(s.spotify) : "");
@@ -48,27 +49,30 @@ function SetBody({ s }: { s: Setlist }) {
   const [draft, setDraft] = useState("");
 
   const sets = useMemo(() => [1, 2].map(n => s.items.map((it, i) => ({ it, i })).filter(x => (x.it.set || 1) === n)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [s, rev]);
+    [s.items]);
   const mins = (xs: typeof sets[number]) => Math.round(xs.reduce((t, x) => t + (feelOf(song(x.it.raw).style) === "ballad" ? 4 : 3.5), 0));
 
-  const save = () => commitSetlist(s);
   const moveUp = (i: number) => {
     const it = s.items[i];
     const prev = s.items.slice(0, i).map((x, k) => ({ x, k })).filter(o => (o.x.set || 1) === (it.set || 1)).pop();
     if (!prev) return;
-    s.items.splice(i, 1); s.items.splice(prev.k, 0, it); setArmed(null); save();
+    const items = s.items.slice();
+    items.splice(i, 1); items.splice(prev.k, 0, it);
+    setArmed(null); edit(x => ({ ...x, items }));
   };
-  const moveSet = (i: number) => { const it = s.items[i]; it.set = (it.set || 1) === 1 ? 2 : 1; setArmed(null); save(); };
+  const moveSet = (i: number) => {
+    setArmed(null);
+    edit(x => ({ ...x, items: x.items.map((it, k) => k === i ? { ...it, set: (it.set || 1) === 1 ? 2 : 1 } : it) }));
+  };
   const del = (i: number) => {
     if (armed !== i) { setArmed(i); return; }
-    s.items.splice(i, 1); setArmed(null); save();
+    setArmed(null); edit(x => ({ ...x, items: x.items.filter((_, k) => k !== i) }));
   };
   const savePl = () => {
     const v = plLink.trim();
     const uri = v ? toUri(v) : null;
     if (v && !uri) { toast("That isn't a Spotify playlist, album or track link."); return; }
-    s.spotify = uri; save(); toast(uri ? "Playlist linked." : "Playlist removed.");
+    edit(x => ({ ...x, spotify: uri })); toast(uri ? "Playlist linked." : "Playlist removed.");
   };
   const startRename = () => { setDraft(s.name); setRenaming(true); };
   const commitRename = () => {
@@ -77,9 +81,9 @@ function SetBody({ s }: { s: Setlist }) {
     const v = draft.trim().slice(0, 200);
     if (!v) { toast("A setlist needs a name."); return; }
     if (v === s.name) return;
-    s.name = v; save();
+    edit(x => ({ ...x, name: v }));
   };
-  const setVisibility = (v: Visibility) => { s.visibility = v; save(); };
+  const setVisibility = (v: Visibility) => edit(x => ({ ...x, visibility: v }));
 
   const all = useMemo(() => {
     const out: { raw: string; m: ReturnType<typeof meta> }[] = [];
@@ -90,8 +94,8 @@ function SetBody({ s }: { s: Setlist }) {
   const hits = nq ? all.filter(x => norm(x.m.title + " " + x.m.composer).includes(nq)).slice(0, 12) : [];
   const add = (k: number, n: 1 | 2) => {
     const h = hits[k];
-    s.items.push({ id: "s" + Date.now(), raw: h.raw, set: n, shift: null, versions: [] });
-    save(); toast(`Added ${h.m.title} to set ${n}.`);
+    const item = { id: "s" + Date.now(), raw: h.raw, set: n, shift: null, versions: [] };
+    edit(x => ({ ...x, items: [...x.items, item] })); toast(`Added ${h.m.title} to set ${n}.`);
   };
 
   return (

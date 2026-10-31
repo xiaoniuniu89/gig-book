@@ -20,7 +20,7 @@ import { SEEDS, cloneSeed } from "@/lib/seeds";
 
 /* ---------------- types ---------------- */
 export type Current =
-  | { kind: "set"; setId: string; itemIdx: number; item: SetlistItem; song: Song }
+  | { kind: "set"; setId: string; itemIdx: number; song: Song }
   | { kind: "lib"; plId: string; songIdx: number; song: Song };
 
 export interface Prefs {
@@ -78,10 +78,12 @@ interface Ctx {
   account: Account | null;
   setlists: Setlist[];
   library: LibraryPlaylist[];
-  rev: number;
   setlistById(id: string): Setlist | undefined;
   ensureSetlist(id: string): Promise<Setlist | null>;
-  commitSetlist(s: Setlist): Promise<void>;
+  /** Replace a setlist with fn(its current state); saved unless you're a viewer. */
+  updateSetlist(id: string, fn: (s: Setlist) => Setlist): void;
+  updateItem(setId: string, idx: number, fn: (it: SetlistItem) => SetlistItem): void;
+  itemOf(c: Current): SetlistItem | undefined;
   addSetlist(s: Setlist): Promise<void>;
   removeSetlist(s: Setlist): Promise<void>;
   addLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
@@ -152,7 +154,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [library, setLibrary] = useState<LibraryPlaylist[]>([]);
-  const [rev, setRev] = useState(0);
   const [localCounts, setLocalCounts] = useState<{ setlists: number; library: number } | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -186,6 +187,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setGig = (g: Gig | null) => { gigRef.current = g; setGigState(g ? { ...g } : null); };
+
+  // the ref moves with every change, so edits in the same tick build on each other
+  const applySetlists = useCallback((fn: (prev: Setlist[]) => Setlist[]) => {
+    const next = fn(setlistsRef.current);
+    setlistsRef.current = next; setSetlists(next);
+  }, []);
 
   /* ---- toast ---- */
   const toast = useCallback((msg: string) => {
@@ -273,7 +280,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (!cancelled) setLocalCounts(unseededLocal.length || pendingLib.length ? { setlists: unseededLocal.length, library: pendingLib.length } : null);
         } else if (!cancelled) setLocalCounts(null);
         if (cancelled) return;
-        setSetlists(sls); setLibrary(lib); setRev(r => r + 1);
+        applySetlists(() => sls); setLibrary(lib);
       } catch (e) {
         console.error(e);
         if (!cancelled) toast(e instanceof Error ? e.message : "Couldn't load your data.");
@@ -281,7 +288,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!cancelled) setReady(true);
     })();
     return () => { cancelled = true; };
-  }, [store, account?.id, toast]);
+  }, [store, account?.id, toast, applySetlists]);
 
   const setlistById = useCallback((id: string) => setlistsRef.current.find(s => s.id === id), []);
 
@@ -294,38 +301,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const sb = getSupabase();
       if (!found && sb && storeRef.current.kind === "local") found = await supabaseStore(sb, "").getSetlist(id);
     } catch (e) { console.warn(e); }
-    if (found) { const f = found; setSetlists(prev => prev.some(s => s.id === f.id) ? prev : prev.concat(f)); setRev(r => r + 1); }
+    if (found) { const f = found; applySetlists(prev => prev.some(s => s.id === f.id) ? prev : prev.concat(f)); }
     return found;
-  }, []);
+  }, [applySetlists]);
 
-  const commitSetlist = useCallback(async (s: Setlist) => {
-    setSetlists(prev => prev.slice());
-    setRev(r => r + 1);
-    if (s.role === "viewer") return; // read-only: changes stay on this screen
-    saves.schedule(storeRef.current, s);
-  }, [saves]);
+  const updateSetlist = useCallback((id: string, fn: (s: Setlist) => Setlist) => {
+    const cur = setlistsRef.current.find(x => x.id === id);
+    if (!cur) return;
+    const next = fn(cur);
+    if (next === cur) return;
+    applySetlists(prev => prev.map(x => x.id === id ? next : x));
+    if (next.role === "viewer") return; // read-only: changes stay on this screen
+    saves.schedule(storeRef.current, next);
+  }, [saves, applySetlists]);
+
+  const updateItem = useCallback((setId: string, idx: number, fn: (it: SetlistItem) => SetlistItem) => {
+    updateSetlist(setId, s => s.items[idx] ? { ...s, items: s.items.map((it, i) => i === idx ? fn(it) : it) } : s);
+  }, [updateSetlist]);
+
+  const itemOf = useCallback((c: Current) => c.kind === "set" ? setlistsRef.current.find(s => s.id === c.setId)?.items[c.itemIdx] : undefined, []);
 
   const addSetlist = useCallback(async (s: Setlist) => {
-    s.role = s.role || "owner";
-    setSetlists(prev => prev.concat(s)); setRev(r => r + 1);
-    saves.schedule(storeRef.current, s);
-    await saves.flush(s.id); // a new setlist saves right away
-  }, [saves]);
+    const n: Setlist = { ...s, role: s.role || "owner" };
+    applySetlists(prev => prev.concat(n));
+    saves.schedule(storeRef.current, n);
+    await saves.flush(n.id); // a new setlist saves right away
+  }, [saves, applySetlists]);
 
   const removeSetlist = useCallback(async (s: Setlist) => {
     await saves.cancel(s.id); // don't let a pending save resurrect it
     try { await storeRef.current.deleteSetlist(s.id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
-    setSetlists(prev => prev.filter(x => x !== s)); setRev(r => r + 1);
-  }, [saves, toast]);
+    applySetlists(prev => prev.filter(x => x.id !== s.id));
+  }, [saves, toast, applySetlists]);
 
   const addLibraryPlaylist = useCallback(async (p: LibraryPlaylist) => {
     try { await storeRef.current.saveLibraryPlaylist(p); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save."); return; }
-    setLibrary(prev => prev.filter(x => x.id !== p.id).concat(p)); setRev(r => r + 1);
+    setLibrary(prev => prev.filter(x => x.id !== p.id).concat(p));
   }, [toast]);
 
   const removeLibraryPlaylist = useCallback(async (id: string) => {
     try { await storeRef.current.deleteLibraryPlaylist(id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
-    setLibrary(prev => prev.filter(x => x.id !== id)); setRev(r => r + 1);
+    setLibrary(prev => prev.filter(x => x.id !== id));
   }, [toast]);
 
   const copying = useRef(false);
@@ -341,7 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       for (const s of ls) {
         if (SEEDS.some(x => x.id === s.id) || done.s.includes(s.id)) continue;
         const copy: Setlist = { ...s, id: st.newId(s.name, () => false), role: "owner", visibility: "private" };
-        await st.saveSetlist(copy); setSetlists(prev => prev.concat(copy)); n++;
+        await st.saveSetlist(copy); applySetlists(prev => prev.concat(copy)); n++;
         done.s.push(s.id); saveCopied(account.id, done);
       }
       for (const p of ll) {
@@ -351,20 +367,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await st.saveLibraryPlaylist(copy); setLibrary(prev => prev.filter(x => x.id !== copy.id).concat(copy)); n++;
         done.l.push(p.id); saveCopied(account.id, done);
       }
-      setLocalCounts(null); setRev(r => r + 1);
+      setLocalCounts(null);
       return n;
     } finally { copying.current = false; }
-  }, [library, account]);
+  }, [library, account, applySetlists]);
 
   /* ---- keys and tempo ---- */
   const shiftOf = useCallback((cur: Current) => {
-    if (cur.kind === "set") return cur.item.shift ?? irealShift(cur.song);
+    if (cur.kind === "set") return itemOf(cur)?.shift ?? irealShift(cur.song);
     return prefsRef.current.libShift[libKey(cur.song)] ?? irealShift(cur.song);
-  }, []);
+  }, [itemOf]);
   const setShift = useCallback((cur: Current, v: number | null) => {
     if (cur.kind === "set") {
-      cur.item.shift = v;
-      const s = setlistById(cur.setId); if (s) commitSetlist(s);
+      updateItem(cur.setId, cur.itemIdx, it => ({ ...it, shift: v }));
     } else {
       const k = libKey(cur.song);
       const libShift = { ...prefsRef.current.libShift };
@@ -372,7 +387,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       prefsRef.current = { ...prefsRef.current, libShift }; // read straight away by a band restart
       setPrefs(p => ({ ...p, libShift }));
     }
-  }, [commitSetlist, setlistById]);
+  }, [updateItem]);
   const tempoFor = useCallback((sg: Song) => prefsRef.current.tempos[tempoKey(sg)] || sg.tempo || defaultTempo(sg.style), []);
 
   /* ---- dock ---- */
@@ -565,7 +580,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [band]);
 
   const value: Ctx = {
-    ready, store, account, setlists, library, rev, setlistById, ensureSetlist, commitSetlist, addSetlist, removeSetlist,
+    ready, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, itemOf, addSetlist, removeSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
