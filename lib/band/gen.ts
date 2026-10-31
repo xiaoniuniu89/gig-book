@@ -4,7 +4,9 @@ import type { Bar } from "../ireal";
 import { pcOf, kind, mod12, hasRoot, type ChordLike } from "../theory";
 import type { DrumName } from "./sounds";
 
-export type Feel = "ballad" | "waltz" | "bossa" | "samba" | "latin" | "even" | "swing";
+export type Feel = "ballad" | "waltz" | "bossa" | "samba" | "latin" | "chacha" | "bolero" | "even" | "swing";
+/** Straight-eighth Latin and Brazilian feels, played from fixed patterns by latinBar(). */
+const LATIN: Feel[] = ["bossa", "samba", "latin", "chacha", "bolero"];
 
 export type BandEvent =
   | { inst: "bass" | "piano"; notes: number[]; beat: number; dur: number; vel: number; roll?: number }
@@ -19,7 +21,9 @@ export function feelOf(style: string): Feel {
   if (/waltz/.test(s)) return "waltz";
   if (/bossa/.test(s)) return "bossa";
   if (/samba/.test(s)) return "samba";
-  if (/latin(?!-swing)|afro|cuban|mambo|salsa|songo|cha|rhumba|rumba|guajira|bolero/.test(s)) return "latin";
+  if (/bolero/.test(s)) return "bolero";
+  if (/cha/.test(s)) return "chacha";
+  if (/latin(?!-swing)|afro|cuban|mambo|salsa|songo|rhumba|rumba|guajira/.test(s)) return "latin";
   if (/even|rock|funk|pop|16ths|calypso/.test(s)) return "even";
   return "swing";
 }
@@ -31,6 +35,8 @@ export function defaultTempo(style: string): number {
   if (/medium up/.test(s)) return 180;
   if (/waltz/.test(s)) return 150;
   if (/bossa/.test(s)) return 136;
+  if (/bolero/.test(s)) return 76;
+  if (/cha/.test(s)) return 120;
   if (/samba/.test(s)) return 200;
   if (/latin/.test(s)) return 180;
   if (/funk|rock|pop|even/.test(s)) return 110;
@@ -150,37 +156,6 @@ export class Generator {
     const scale = chordScale(c);
     const beats = Math.max(1, Math.round(dur));
     const f = this.feel;
-    if (f === "bossa") {
-      const fifth = nearest(mod12(rootPc + 7), R + 5, 28, 52);
-      for (let b = 0; b < beats; b += 2) {
-        out.push({ inst: "bass", notes: [R], beat: start + b, dur: Math.min(1.4, beats - b), vel: 0.85 });
-        if (b + 1.5 < beats) out.push({ inst: "bass", notes: [fifth], beat: start + b + 1.5, dur: 0.45, vel: 0.7 });
-      }
-      this.bassPrev = R; return;
-    }
-    if (f === "samba") {
-      // in two: root on 1 (dotted eighth), a sixteenth pickup, then the fifth leaning on 2, like the surdo
-      const fifth = nearest(mod12(rootPc + 7), R - 5, 28, 52);
-      for (let b = 0; b < beats; b += 2) {
-        out.push({ inst: "bass", notes: [R], beat: start + b, dur: 0.7, vel: 0.75 });
-        if (b + 2 <= beats) {
-          out.push({ inst: "bass", notes: [fifth], beat: start + b + 0.75, dur: 0.2, vel: 0.55 });
-          out.push({ inst: "bass", notes: [fifth], beat: start + b + 1, dur: 0.9, vel: 0.88 });
-        }
-      }
-      this.bassPrev = R; return;
-    }
-    if (f === "latin") {
-      // tumbao: nothing on 1, the fifth on the and of 2, and the next chord's root anticipated on 4
-      const fifth = nearest(mod12(rootPc + 7), R, 28, 50);
-      if (beats >= 4) {
-        out.push({ inst: "bass", notes: [fifth], beat: start + 1.5, dur: 1.4, vel: 0.8 });
-        out.push({ inst: "bass", notes: [T], beat: start + 3, dur: 1.8, vel: 0.88 });
-      } else {
-        out.push({ inst: "bass", notes: [beats >= 2 ? R : T], beat: start + (beats >= 2 ? 0.5 : 0), dur: 0.9, vel: 0.85 });
-      }
-      this.bassPrev = T; return;
-    }
     if (f === "even") {
       for (let b = 0; b < beats; b++) out.push({ inst: "bass", notes: [b % 2 ? R + 7 > 52 ? R - 5 : R + 7 : R], beat: start + b, dur: 0.8, vel: 0.8 });
       this.bassPrev = R; return;
@@ -255,23 +230,6 @@ export class Generator {
       if (dur >= 4 && rnd() < 0.3) hit(2 + sw, 1.2, 0.3);
       return;
     }
-    if (f === "bossa") {
-      const pats = dur >= 4 ? [[[0, 0.4], [1.5, 0.4], [3, 0.4]], [[0.5, 0.4], [2, 0.4], [3.5, 0.4]], [[0, 0.9], [2.5, 0.4]]] : [[[0, 0.4], [1.5, 0.4]], [[0.5, 0.4]]];
-      this.pickComp(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
-      return;
-    }
-    if (f === "samba") {
-      // partido alto-ish: short off-beat stabs
-      const pats = dur >= 4 ? [[[0.5, 0.3], [1.5, 0.3], [2.5, 0.3], [3, 0.4]], [[0, 0.3], [1.5, 0.3], [2.5, 0.3]], [[0.5, 0.3], [2, 0.3], [3.5, 0.3]]] : [[[0.5, 0.3], [1.5, 0.3]], [[0, 0.3]]];
-      this.pickComp(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
-      return;
-    }
-    if (f === "latin") {
-      // a montuno-flavoured figure, every hit short
-      const pats = dur >= 4 ? [[[0, 0.3], [1.5, 0.3], [2.5, 0.3], [3.5, 0.3]], [[0.5, 0.3], [1.5, 0.3], [3, 0.3]], [[0, 0.3], [1, 0.3], [2.5, 0.3], [3.5, 0.3]]] : [[[0, 0.3], [1.5, 0.3]], [[0.5, 0.3]]];
-      this.pickComp(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
-      return;
-    }
     if (f === "even") { hit(0, Math.min(dur, 2) * 0.9, 0.5); if (dur >= 4) hit(2, 1.8, 0.45); return; }
     if (isFirstOfBar && this.anticipated) {
       // the chord was already played on the last off-beat of the previous bar
@@ -327,32 +285,6 @@ export class Generator {
       }
       return;
     }
-    if (f === "bossa") {
-      for (let b = 0; b < beats; b += 0.5) d("hatClosed", b, b % 1 ? 0.25 : 0.4);
-      const rims = this.barNo % 2 === 0 ? [0, 1.5, 3] : [1, 2.5];
-      rims.forEach(b => b < beats && d("rim", b, 0.5));
-      [0, 1.5, 2, 3.5].forEach(b => b < beats && d("kick", b, b % 1 ? 0.3 : 0.45));
-      return;
-    }
-    if (f === "samba") {
-      // eighths on the hat, partido alto on the cross-stick, surdo pattern on the kick
-      for (let b = 0; b < beats; b += 0.5) d("hatClosed", b, b % 1 ? 0.45 : 0.3);
-      const rims = this.barNo % 2 === 0 ? [0, 1.5, 2.5] : [0.5, 1.5, 3];
-      rims.forEach(b => b < beats && d("rim", b, 0.45));
-      for (let b = 0; b < beats; b += 2) { d("kick", b, 0.35); if (b + 1 < beats) { d("kick", b + 0.75, 0.25); d("kick", b + 1, 0.55); } }
-      return;
-    }
-    if (f === "latin") {
-      // 2-3 son clave on the cross-stick, cascara on the ride, kick on the tumbao's beats
-      const two = this.barNo % 2 === 0;
-      const clave = two ? [1, 2] : [0, 1.5, 3];
-      const cascara = two ? [0, 1, 1.5, 2.5, 3.5] : [0, 1, 2, 2.5, 3.5];
-      cascara.forEach(b => b < beats && d("ride", b, b % 1 ? 0.4 : 0.5));
-      clave.forEach(b => b < beats && d("rim", b, 0.5));
-      [1.5, 3].forEach(b => b < beats && d("kick", b, 0.4));
-      for (let b = 1; b < beats; b += 2) d("hat", b, 0.3);
-      return;
-    }
     if (f === "even") {
       for (let b = 0; b < beats; b += 0.5) d("hatClosed", b, b % 1 ? 0.3 : 0.45);
       d("kick", 0, 0.7); if (beats >= 4) d("kick", 2.5, 0.5);
@@ -390,8 +322,9 @@ export class Generator {
 
   // A whole bar. next: first chord of the next bar
   bar(bar: Bar, next: ChordLike | null, shift: number, barInChorus: number): BandEvent[] {
-    const out: BandEvent[] = [];
     const chords: Span[] = bar.chords.filter(hasRoot);
+    if (LATIN.includes(this.feel) && chords.length) { const out = this.latinBar(bar.beats, chords, next, shift, barInChorus); this.barNo++; return out; }
+    const out: BandEvent[] = [];
     chords.forEach((c, i) => {
       const nextC = chords[i + 1] || next;
       this.bassSpan(c, nextC, c.beat, c.dur, shift, out);
@@ -409,6 +342,136 @@ export class Generator {
     }
     this.drums(bar.beats, out, barInChorus, this.anticipated && rnd() < 0.5);
     this.barNo++;
+    return out;
+  }
+
+  // One bar of a straight-eighth Latin or Brazilian groove. Patterns are written on a 16th grid (0–15 per bar) and
+  // locked to the form: even bars of a chorus are the first bar of the 2-bar clave cycle (2-3 son clave for the Cuban
+  // feels, the 3-2 bossa clave for the Brazilian ones), so the clave never drifts. Unlike swing comping these repeat;
+  // the variety comes from the harmony and from anticipations, where an off-beat just before a chord change plays the
+  // new chord.
+  latinBar(beats: number, chords: Span[], next: ChordLike | null, shift: number, barInChorus: number): BandEvent[] {
+    const out: BandEvent[] = [];
+    const f = this.feel, A = barInChorus % 2 === 0;
+    const nextC = next && next.root ? next : chords[0];
+    const at = (beat: number) => chords.filter(c => c.beat <= beat + 1e-6).pop() || chords[0];
+    const changeAt = (beat: number) => chords.find(c => c.beat > 0 && Math.abs(c.beat - beat) < 1e-6) || null;
+    const same = (a: ChordLike, b: ChordLike) => a.root === b.root && a.q === b.q;
+    const nextChanges = !same(at(beats - 0.5), nextC);
+    const chordFor = (beat: number) => beat + 0.5 >= beats ? nextC : at(beat % 1 ? beat + 0.5 : beat);
+    const pos = (ps: number[]) => ps.map(x => x / 4).filter(b => b < beats);
+    const vary = () => 0.9 + rnd() * 0.2;
+    // the percussion sits a little differently in each style (measured, so the drums match the piano and bass)
+    const kit = { latin: 0.8, samba: 0.8, chacha: 1, bossa: 1.3, bolero: 1.5 }[f as "latin"] || 1;
+    const d = (drum: DrumName, ps: number[], vel: number) => pos(ps).forEach(b => out.push({ inst: "drums", drum, beat: b, vel: vel * kit * vary() }));
+    // bass helpers
+    const rootOf = (c: ChordLike) => nearest(mod12(pcOf(c.bass || c.root) + shift), this.bassPrev, 28, 48);
+    const fifthOf = (c: ChordLike, R: number) => nearest(mod12(pcOf(c.root) + shift + 7), R + 3, 28, 50);
+    const approach = (target: number) => target <= 29 ? target + 1 : target + (rnd() < 0.5 ? -1 : 1);
+    const bass = (m: number, beat: number, dur: number, vel: number) => { if (beat < beats) { out.push({ inst: "bass", notes: [m], beat, dur, vel: vel * (0.95 + rnd() * 0.1) }); this.bassPrev = m; } };
+    // piano: short hits, plus a held anticipation of the next bar's chord on the and of 4
+    const skipOne = this.anticipated;
+    this.anticipated = false;
+    const piano = (ps: number[], dur: number, vel: number) => pos(ps).forEach(b => {
+      if (b === 0 && skipOne) return;
+      const v = this.voice(chordFor(b), shift);
+      if (v) out.push({ inst: "piano", notes: v, beat: b, dur, vel: vel * vary() });
+    });
+    const anticipate = (vel: number, always: boolean) => {
+      if (beats < 4 || (!always && !nextChanges)) return;
+      const v = this.voice(nextC, shift);
+      if (v) out.push({ inst: "piano", notes: v, beat: beats - 0.5, dur: nextChanges ? 1.1 : 0.35, vel });
+      this.anticipated = nextChanges;
+    };
+    // conga tumbao (marcha): heel-toe ghosts, a slap on 2, open tones on 4 and the and of 4
+    const conga = (scale: number) => {
+      d("congaMute", [0, 8], 0.16 * scale); d("congaMute", [2, 6, 10], 0.11 * scale);
+      d("congaMute", [4], 0.55 * scale); d("congaOpen", [12], 0.6 * scale);
+      d(A ? "congaOpen" : "tumba", [14], 0.55 * scale);
+    };
+    const son23 = A ? [4, 8] : [0, 6, 12];
+    const bossaClave = A ? [0, 6, 12] : [4, 10];
+    const R = rootOf(at(0));
+
+    if (f === "latin") {
+      // Afro-Cuban / mambo. Cascara on the ride, son clave on the cross-stick, the kick and bass on the tumbao.
+      d("ride", A ? [0, 10, 14] : [4, 10, 14], 0.38); d("ride", A ? [4, 8] : [0, 6], 0.5);
+      d("rim", son23, 0.42);
+      d("kick", [6], A ? 0.3 : 0.38); d("kick", [12], 0.3);
+      d("hat", [4, 12], 0.22);
+      conga(1);
+      // Tumbao: nothing on 1 (apart from the very first bar), the and of 2, then the next chord's root on 4, tied over.
+      if (this.barNo === 0) bass(R, 0, 1.4, 0.85);
+      const mid = changeAt(2);
+      bass(mid ? rootOf(mid) : fifthOf(at(1.5), this.bassPrev), 1.5, 1.4, 0.78);
+      bass(rootOf(nextC), 3, 2.4, 0.9);
+      // 2-3 montuno: on-beats on the 2 side, off-beats on the 3 side
+      piano(A ? [4, 8, 12] : [2, 6, 10], 0.35, 0.45);
+      anticipate(0.5, true);
+      return out;
+    }
+    if (f === "chacha") {
+      d("cowbell", [0, 8], 0.5); d("cowbell", [4, 12], 0.34);
+      d("guiroLong", [0, 8], 0.5); d("guiroShort", [4, 6, 12, 14], 0.34);
+      d("rim", son23, 0.25);
+      d("kick", [0], 0.3); d("hat", [4, 12], 0.18);
+      conga(0.85);
+      // cha-cha-chá: root on 1, then the fifth, then 4 and the and of 4 leading into the next 1
+      bass(R, 0, 0.9, 0.85);
+      const mid = changeAt(2);
+      const R2 = mid ? rootOf(mid) : fifthOf(at(2), R);
+      bass(R2, 2, 0.9, 0.75);
+      bass(mid ? fifthOf(mid, R2) : R2, 3, 0.45, 0.65);
+      bass(approach(rootOf(nextC)), 3.5, 0.45, 0.7);
+      piano(A ? [4, 8, 12] : [2, 6, 10], 0.3, 0.36);
+      anticipate(0.4, true);
+      return out;
+    }
+    if (f === "bolero") {
+      d("shaker", [0, 4, 8, 12], 0.3); d("shaker", [2, 6, 10, 14], 0.17);
+      d("rim", son23, 0.2);
+      d("kick", [0, 8], 0.22);
+      // bongo martillo
+      d("bongoHigh", [0, 2, 6, 8, 10], 0.14); d("bongoHigh", [4], 0.28); d("bongoHigh", [12], 0.42); d("bongoLow", [14], 0.34);
+      // 1, and of 2, 3
+      bass(R, 0, 1.4, 0.85);
+      bass(R, 1.5, 0.4, 0.55);
+      const mid = changeAt(2);
+      bass(mid ? rootOf(mid) : fifthOf(at(2), R), 2, 1.9, 0.78);
+      piano([0], 1.4, 0.42); piano([6], 0.4, 0.32); piano([8], 1.8, 0.38);
+      return out;
+    }
+    if (f === "bossa") {
+      // straight eighths on the hat with a lift on the and of 2 and 4, bossa clave on the cross-stick, soft surdo kick
+      d("hatClosed", [0, 2, 4, 8, 10, 12], 0.3); d("hatClosed", [6, 14], 0.36);
+      d("rim", bossaClave.slice(0, 1), A ? 0.46 : 0.4); d("rim", bossaClave.slice(1), 0.4);
+      d("kick", [0, 8], 0.35); d("kick", [6, 14], 0.14);
+      // root on 1, the fifth on the and of 2 and again on 3 (a held two-feel), maybe an approach on the and of 4
+      bass(R, 0, 1.4, 0.8);
+      const mid = changeAt(2);
+      bass(fifthOf(at(0), R), 1.5, 0.45, 0.58);
+      const R2 = mid ? rootOf(mid) : fifthOf(at(0), R);
+      bass(R2, 2, 1.4, 0.75);
+      if (rnd() < 0.5 || mid) bass(mid ? fifthOf(mid, R2) : approach(rootOf(nextC)), 3.5, 0.45, 0.55);
+      // comping follows the clave; on the 2 side the next bar's chord can be pushed onto the and of 4
+      piano(bossaClave, 0.6, 0.42);
+      if (!A && rnd() < 0.6) anticipate(0.45, false);
+      return out;
+    }
+    // samba, in two: the shaker carries the eighths with the push on the and of 2 and 4 (played a hair early),
+    // the kick plays the surdo with the strong note on 3
+    [[0, 0.3, 0], [2, 0.17, 0], [4, 0.17, 0.03], [6, 0.45, 0.06], [8, 0.3, 0], [10, 0.17, 0], [12, 0.17, 0.03], [14, 0.45, 0.06]]
+      .forEach(([p, v, early]) => p / 4 < beats && out.push({ inst: "drums", drum: "shaker", beat: Math.max(0, p / 4 - early), vel: v * kit * vary() }));
+    d("kick", [0, 6, 14], 0.25); d("kick", [8], 0.55);
+    d("hat", [4, 12], 0.22);
+    d("rim", bossaClave, 0.38);
+    bass(R, 0, 1.0, 0.68);
+    const mid = changeAt(2);
+    bass(mid ? approach(rootOf(mid)) : fifthOf(at(0), R), 1.5, 0.45, 0.58);
+    bass(mid ? rootOf(mid) : fifthOf(at(0), R), 2, 1.3, 0.9);
+    bass(approach(rootOf(nextC)), 3.5, 0.45, 0.6);
+    piano(A ? [0, 6, 10] : [4, 10], 0.3, 0.45);
+    anticipate(0.5, true);
     return out;
   }
 

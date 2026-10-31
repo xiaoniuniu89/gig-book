@@ -35,7 +35,8 @@ async function fetchSample(ctx: BaseAudioContext, url: string): Promise<AudioBuf
   return trimStart(ctx, await ctx.decodeAudioData(await res.arrayBuffer()));
 }
 
-export type DrumName = "ride" | "hat" | "hatClosed" | "hatOpen" | "kick" | "snare" | "rim" | "click" | "clickHi";
+export type DrumName = "ride" | "hat" | "hatClosed" | "hatOpen" | "kick" | "snare" | "rim" | "click" | "clickHi"
+  | "congaMute" | "congaOpen" | "tumba" | "cowbell" | "guiroShort" | "guiroLong" | "bongoHigh" | "bongoLow" | "shaker";
 /** A velocity layer (MIDI 1–127) with its round-robin hits. */
 export interface DrumLayer { lo: number; hi: number; buffers: AudioBuffer[] }
 export type DrumKit = Record<DrumName, DrumLayer[]>;

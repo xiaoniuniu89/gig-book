@@ -31,5 +31,14 @@ played by Austin McMahon, CC0 1.0. Mid (stereo kit) mic only, trimmed with a sho
 | kick | kick, snares on |
 | snare | snare off-centre |
 | rim | snare cross-stick |
+| congaMute, congaOpen | conga (22"), muted and open tones |
+| tumba | tumba (24"), open tone |
+| bongoHigh, bongoLow | bongos |
+| cowbell | cowbell |
+| guiroShort, guiroLong | güiro, fast and slow scrapes |
+| shaker | shaker, down and up strokes alternating |
+
+The hand percussion (also Virtuosity Drums, mid mic) is levelled at encode time so its loudest layer sits near the kit's
+level; the per-style balance is set in `latinBar()` in `lib/band/gen.ts`.
 
 The kit has no brushes, so ballads are played with soft sticks. The count-in clicks are synthesised in `lib/band/sounds.ts`.
