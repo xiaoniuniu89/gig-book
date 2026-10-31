@@ -12,6 +12,7 @@ import { Player, type PlayerEvent } from "@/lib/spotify/embed";
 import { trackName } from "@/lib/spotify/client";
 import { localStore } from "@/lib/data/local";
 import { supabaseStore } from "@/lib/data/supabase";
+import { createSaveQueue } from "@/lib/data/saveQueue";
 import type { DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
@@ -193,6 +194,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toastTimer.current = setTimeout(() => setToastMsg(null), 3500);
   }, []);
 
+  /* ---- setlist saves: one at a time per setlist, bursts collapse to the latest state ---- */
+  const queueRef = useRef<ReturnType<typeof createSaveQueue> | null>(null);
+  if (!queueRef.current) queueRef.current = createSaveQueue(e => toast(e instanceof Error ? e.message : "Couldn't save."));
+  const saves = queueRef.current;
+  useEffect(() => {
+    const flush = () => { void saves.flushAll(); };
+    const onVis = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVis); flush(); };
+  }, [saves]);
+
   /* ---- prefs ---- */
   useEffect(() => {
     const p = loadPrefs();
@@ -289,19 +302,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSetlists(prev => prev.slice());
     setRev(r => r + 1);
     if (s.role === "viewer") return; // read-only: changes stay on this screen
-    try { await storeRef.current.saveSetlist(s); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save."); }
-  }, [toast]);
+    saves.schedule(storeRef.current, s);
+  }, [saves]);
 
   const addSetlist = useCallback(async (s: Setlist) => {
     s.role = s.role || "owner";
     setSetlists(prev => prev.concat(s)); setRev(r => r + 1);
-    try { await storeRef.current.saveSetlist(s); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save."); }
-  }, [toast]);
+    saves.schedule(storeRef.current, s);
+    await saves.flush(s.id); // a new setlist saves right away
+  }, [saves]);
 
   const removeSetlist = useCallback(async (s: Setlist) => {
+    await saves.cancel(s.id); // don't let a pending save resurrect it
     try { await storeRef.current.deleteSetlist(s.id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
     setSetlists(prev => prev.filter(x => x !== s)); setRev(r => r + 1);
-  }, [toast]);
+  }, [saves, toast]);
 
   const addLibraryPlaylist = useCallback(async (p: LibraryPlaylist) => {
     try { await storeRef.current.saveLibraryPlaylist(p); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save."); return; }
