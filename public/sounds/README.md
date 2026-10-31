@@ -32,4 +32,4 @@ played by Austin McMahon, CC0 1.0. Mid (stereo kit) mic only, trimmed with a sho
 | snare | snare off-centre |
 | rim | snare cross-stick |
 
-The kit has no brushes; the ballad sweep and the count-in clicks are synthesised in `lib/band/sounds.ts`.
+The kit has no brushes, so ballads are played with soft sticks. The count-in clicks are synthesised in `lib/band/sounds.ts`.

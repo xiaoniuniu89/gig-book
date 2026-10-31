@@ -35,7 +35,7 @@ async function fetchSample(ctx: BaseAudioContext, url: string): Promise<AudioBuf
   return trimStart(ctx, await ctx.decodeAudioData(await res.arrayBuffer()));
 }
 
-export type DrumName = "ride" | "hat" | "hatClosed" | "hatOpen" | "kick" | "snare" | "swish" | "rim" | "click" | "clickHi";
+export type DrumName = "ride" | "hat" | "hatClosed" | "hatOpen" | "kick" | "snare" | "rim" | "click" | "clickHi";
 /** A velocity layer (MIDI 1–127) with its round-robin hits. */
 export interface DrumLayer { lo: number; hi: number; buffers: AudioBuffer[] }
 export type DrumKit = Record<DrumName, DrumLayer[]>;
@@ -71,12 +71,6 @@ async function render(sampleRate: number, seconds: number, build: (off: OfflineA
   build(off);
   return await off.startRendering();
 }
-function noise(off: OfflineAudioContext, seconds: number): AudioBufferSourceNode {
-  const buf = off.createBuffer(1, Math.ceil(off.sampleRate * seconds), off.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  const s = off.createBufferSource(); s.buffer = buf; return s;
-}
 function env(off: OfflineAudioContext, attack: number, decay: number, peak = 1): GainNode {
   const g = off.createGain();
   g.gain.setValueAtTime(0.0001, 0);
@@ -94,13 +88,8 @@ export async function loadDrums(ctx: AudioContext): Promise<DrumKit> {
   await Promise.all(Object.entries(data).map(async ([name, layers]) => {
     kit[name as DrumName] = await Promise.all(layers.map(async l => ({ lo: l.lo, hi: l.hi, buffers: await Promise.all(l.samples.map(b => decodeB64(ctx, b))) })));
   }));
-  // The kit has no brushes, so the ballad sweep and the count-in clicks are synthesised.
+  // The count-in clicks are synthesised.
   const sr = ctx.sampleRate;
-  kit.swish = one(await render(sr, 0.7, off => {
-    const n = noise(off, 0.7); const bp = off.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 4200; bp.Q.value = 0.4;
-    const g = off.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.35 / DRUM_MAKEUP, 0.18); g.gain.exponentialRampToValueAtTime(0.0001, 0.65);
-    n.connect(bp).connect(g).connect(off.destination); n.start(0);
-  }));
   kit.click = one(await render(sr, 0.06, off => {
     const o = off.createOscillator(); o.frequency.value = 1600; const e = env(off, 0.001, 0.04, 0.6 / DRUM_MAKEUP); o.connect(e).connect(off.destination); o.start(0);
   }));

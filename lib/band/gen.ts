@@ -40,6 +40,7 @@ export function swingRatio(feel: Feel, tempo: number): number {
   if (feel !== "swing" && feel !== "waltz" && feel !== "ballad") return 0.5;
   if (tempo >= 230) return 0.56;
   if (tempo >= 170) return 0.6;
+  if (feel === "ballad") return 0.7;
   return 0.66;
 }
 
@@ -112,6 +113,7 @@ export class Generator {
   /** Swing in two (half notes on the bass) instead of walking: the engine sets it for the head. */
   twoFeel = false;
   private lastComp = -1;
+  private crossRun = 0;
 
   constructor(feel: Feel, tempo: number) {
     this.feel = feel; this.tempo = tempo; this.sw = swingRatio(feel, tempo);
@@ -299,11 +301,29 @@ export class Generator {
     const sw = this.sw, f = this.feel;
     const d = (drum: DrumName, beat: number, vel: number) => out.push({ inst: "drums", drum, beat, vel: vel * (0.85 + rnd() * 0.3) });
     if (f === "ballad") {
-      // soft stick ride and the foot hi-hat, with a quiet sweep under it
+      // Soft stick time (no brushes in the kit): ride on every beat leaning on 2 and 4 with very quiet skip notes,
+      // foot hi-hat on 2 and 4, cross-stick on 4 in some bars, a kick you feel more than hear.
+      const skips = this.tempo >= 56 || this.barNo % 2 === 0;
       for (let b = 0; b < beats; b++) {
-        d("swish", b, 0.22);
-        d("ride", b, b % 2 ? 0.34 : 0.28);
-        if (b % 2 === 1) { d("hat", b, 0.3); if (rnd() < 0.5) d("ride", b + sw, 0.2); }
+        d("ride", b, b % 2 ? 0.4 : 0.3);
+        if (b % 2 === 1) {
+          d("hat", b, 0.28);
+          if (skips && b + sw < beats) d("ride", b + sw, 0.13);
+        }
+      }
+      if (this.barNo % 2 === 0) d("kick", 0, 0.08);
+      // cross-stick on 4, but not in the same bars every time
+      const cross = beats >= 4 && (this.crossRun < 2 ? rnd() < 0.6 : false);
+      this.crossRun = cross ? this.crossRun + 1 : 0;
+      if (cross) d("rim", 3, 0.3);
+      const phrase = barInChorus % 8;
+      if (phrase === 7 && beats >= 4) {
+        // a two- or three-note set-up into the next phrase
+        (rnd() < 0.5 ? [3 + 1 / 3, 3 + 2 / 3] : [3, 3 + 1 / 3, 3 + 2 / 3]).forEach((x, i) => d("snare", x, 0.16 + i * 0.05));
+      } else if (phrase === 3 && rnd() < 0.5) {
+        d("snare", 3 + 2 / 3, 0.12);
+      } else if (rnd() < 0.25) {
+        d("snare", pick([1 + sw, 3 + sw].filter(x => x < beats)), 0.1);
       }
       return;
     }
