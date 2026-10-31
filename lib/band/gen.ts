@@ -244,14 +244,14 @@ export class Generator {
       return;
     }
     if (f === "bossa") {
-      for (let b = 0; b < beats; b += 0.5) d("hat", b, b % 1 ? 0.25 : 0.4);
+      for (let b = 0; b < beats; b += 0.5) d("hatClosed", b, b % 1 ? 0.25 : 0.4);
       const rims = this.barNo % 2 === 0 ? [0, 1.5, 3] : [1, 2.5];
       rims.forEach(b => b < beats && d("rim", b, 0.5));
       [0, 1.5, 2, 3.5].forEach(b => b < beats && d("kick", b, b % 1 ? 0.3 : 0.45));
       return;
     }
     if (f === "even") {
-      for (let b = 0; b < beats; b += 0.5) d("hat", b, b % 1 ? 0.3 : 0.45);
+      for (let b = 0; b < beats; b += 0.5) d("hatClosed", b, b % 1 ? 0.3 : 0.45);
       d("kick", 0, 0.7); if (beats >= 4) d("kick", 2.5, 0.5);
       for (let b = 1; b < beats; b += 2) d("snare", b, 0.55);
       return;

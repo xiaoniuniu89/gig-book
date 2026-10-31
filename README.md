@@ -82,7 +82,7 @@ Next.js (App Router), TypeScript, React, plain CSS.
 - `components/`: `AppProvider` (data, preferences, band, Spotify, practice gig), `Dock`, `TopBar` (sign-in), and the views.
 - `lib/ireal.ts`: iReal Pro link parser and form unrolling (repeats, endings, D.C./D.S., codas).
 - `lib/theory.ts`, `lib/chart.ts`: analysis and chart rendering (framework-free).
-- `lib/band/`: the backing band (generator, Web Audio scheduler, sounds). Piano and bass samples load from smplr (smpldsnds.github.io) on first play.
+- `lib/band/`: the backing band (generator, Web Audio scheduler, sounds). Piano and bass samples load from smplr (smpldsnds.github.io) on first play; drum samples are in `public/sounds/drums.json` (see the README there).
 - `lib/spotify/`: server-side Client Credentials calls with caching, browser helpers, the embed player.
 - `lib/data/`: one `DataStore` interface with two adapters: `local` (IndexedDB) and `supabase`.
 - `supabase/migrations/`: tables and row-level security.

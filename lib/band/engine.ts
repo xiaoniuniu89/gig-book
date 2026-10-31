@@ -1,6 +1,6 @@
 // The Band: schedules generated bars against the Web Audio clock. Browser only.
 import type { Smplr } from "smplr";
-import { loadPiano, loadBass, makeDrums, PIANO_VELOCITY, type DrumKit, type DrumName } from "./sounds";
+import { loadPiano, loadBass, loadDrums, DRUM_MAKEUP, PIANO_VELOCITY, type DrumKit, type DrumName } from "./sounds";
 import { Generator, feelOf, defaultTempo, type Feel } from "./gen";
 import { unroll, type Song } from "../ireal";
 import { detectTonic, hasRoot, type ChordLike } from "../theory";
@@ -36,12 +36,13 @@ export class Band {
   ready: Promise<void> | null = null;
   playing = false;
   mute: Record<Instrument, boolean> = { piano: false, bass: false, drums: false };
-  levels: Record<Instrument, number> = { piano: 0.55, bass: 0.95, drums: 0.7 };
+  levels: Record<Instrument, number> = { piano: 0.75, bass: 0.42, drums: 0.9 };
   private listeners = new Set<(ev: BandMessage) => void>();
   private master: DynamicsCompressorNode | null = null;
   private bus = {} as Record<Instrument, GainNode>;
   private inst = {} as { piano: Smplr; bass: Smplr };
   private drumKit = {} as DrumKit;
+  private roundRobin: Partial<Record<DrumName, number>> = {};
   private song!: Song;
   private shift = 0;
   feel: Feel = "swing";
@@ -70,12 +71,14 @@ export class Band {
     const ctx = this.ctx;
     this.master = ctx.createDynamicsCompressor();
     this.master.threshold.value = -14; this.master.ratio.value = 3;
-    this.master.connect(ctx.destination);
+    // a little headroom: three full-level sampled instruments can push the sum past 0 dBFS
+    const trim = ctx.createGain(); trim.gain.value = 0.8;
+    this.master.connect(trim).connect(ctx.destination);
     for (const k of ["piano", "bass", "drums"] as Instrument[]) {
       const g = ctx.createGain(); g.gain.value = this.mute[k] ? 0 : this.levels[k]; g.connect(this.master); this.bus[k] = g;
     }
     this.emit({ type: "loading" });
-    this.ready = Promise.all([loadPiano(ctx, this.bus.piano), loadBass(ctx, this.bus.bass), makeDrums(ctx.sampleRate)])
+    this.ready = Promise.all([loadPiano(ctx, this.bus.piano), loadBass(ctx, this.bus.bass), loadDrums(ctx)])
       .then(([piano, bass, drums]) => { this.inst = { piano, bass }; this.drumKit = drums; this.emit({ type: "loaded" }); })
       .catch((err: Error) => { this.ready = null; this.emit({ type: "error", message: err.message }); throw err; });
     return this.ready;
@@ -104,11 +107,15 @@ export class Band {
     // a shorter release than the sample set's 0.3s keeps walking lines from smearing
     this.inst[inst].start(inst === "bass" ? { ...note, ampRelease: 0.15 } : note);
   }
+  // vel 0–1 picks the velocity layer (a softer hit sounds different, not just quieter) and shades the level within it.
   private playDrum(name: DrumName, time: number, vel: number) {
     const ctx = this.ctx as AudioContext;
-    const buf = this.drumKit[name]; if (!buf) return;
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const g = ctx.createGain(); g.gain.value = vel;
+    const layers = this.drumKit[name]; if (!layers) return;
+    const v = Math.round(Math.min(127, Math.max(1, vel * 127)));
+    const layer = layers.find(l => v >= l.lo && v <= l.hi) || layers[layers.length - 1];
+    const rr = (this.roundRobin[name] = ((this.roundRobin[name] || 0) + 1) % layer.buffers.length);
+    const src = ctx.createBufferSource(); src.buffer = layer.buffers[rr];
+    const g = ctx.createGain(); g.gain.value = DRUM_MAKEUP * (0.7 + 0.3 * (v - layer.lo + 1) / (layer.hi - layer.lo + 1));
     src.connect(g).connect(this.bus.drums);
     src.start(Math.max(ctx.currentTime, time));
     this.voices.push(src);
