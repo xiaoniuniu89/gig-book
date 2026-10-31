@@ -512,9 +512,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && t.closest && t.closest("input, textarea, select")) return;
+      // leave Space to focused interactive elements (browser default)
+      if (t && t.closest && t.closest("input, textarea, select, button, a[href], summary, [role=button], [contenteditable]:not([contenteditable=false])")) return;
       if (e.code === "Space" && currentRef.current && band) {
         e.preventDefault();
+        if (e.repeat) return;
         if (band.playing) { setGig(null); band.stop(); } else startRef.current(currentRef.current);
       }
     };
