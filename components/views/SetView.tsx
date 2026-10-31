@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import { useApp, songHref } from "../AppProvider";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
@@ -64,6 +64,42 @@ function SetBody({ s }: { s: Setlist }) {
     setArmed(null);
     edit(x => ({ ...x, items: x.items.map((it, k) => k === i ? { ...it, set: (it.set || 1) === 1 ? 2 : 1 } : it) }));
   };
+  const moveDown = (i: number) => {
+    const it = s.items[i];
+    const k = s.items.findIndex((x, j) => j > i && (x.set || 1) === (it.set || 1));
+    if (k < 0) return;
+    const items = s.items.slice();
+    items.splice(i, 1); items.splice(k, 0, it);
+    setArmed(null); edit(x => ({ ...x, items }));
+  };
+  // Drag by the grip (pointer events, so touch works). Nothing saves until the drop.
+  const [drag, setDrag] = useState<{ set: 1 | 2; before: number | null } | null>(null);
+  const hitTest = (e: PointerEvent) => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const sec = el?.closest<HTMLElement>("[data-set]");
+    if (!sec) return null;
+    const row = el?.closest<HTMLElement>("[data-i]");
+    const set = Number(sec.dataset.set) as 1 | 2;
+    if (!row) return { set, before: null };
+    const r = row.getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) return { set, before: Number(row.dataset.i) };
+    const nx = (row.nextElementSibling as HTMLElement | null)?.dataset.i;
+    return { set, before: nx ? Number(nx) : null };
+  };
+  const dragEnd = (e: PointerEvent, i: number) => {
+    const d = e.type === "pointerup" ? hitTest(e) : null;
+    setDrag(null);
+    if (!d) return;
+    const old = s.items, it = old[i];
+    if (!it) return;
+    const rest = old.filter(x => x !== it);
+    const at = d.before === null ? -1 : rest.indexOf(old[d.before]);
+    if (at >= 0) rest.splice(at, 0, it);
+    else rest.splice(rest.map(x => (x.set || 1) === d.set).lastIndexOf(true) + 1, 0, it);
+    if (d.set === (it.set || 1) && rest.every((x, k) => x === old[k])) return; // dropped where it was
+    const items = rest.map(x => x === it ? { ...it, set: d.set } : x);
+    setArmed(null); edit(x => ({ ...x, items }));
+  };
   const del = (i: number) => {
     if (armed !== i) { setArmed(i); return; }
     setArmed(null); edit(x => ({ ...x, items: x.items.filter((_, k) => k !== i) }));
@@ -123,18 +159,23 @@ function SetBody({ s }: { s: Setlist }) {
       </div>
       <div className="sets">
         {[1, 2].map(n => (
-          <section className="set" aria-label={`Set ${n}`} key={n}>
+          <section className={"set" + (drag?.set === n ? " drop" : "")} aria-label={`Set ${n}`} key={n} data-set={canEdit ? n : undefined}>
             <div className="set-title"><h2>Set {n}</h2><span className="dur">{sets[n - 1].length} tunes · about {mins(sets[n - 1])} min</span></div>
             {sets[n - 1].length ? sets[n - 1].map((x, pos) => {
               const sg = song(x.it.raw);
               return (
-                <div className="tune" key={x.i + ":" + x.it.raw.length + ":" + sg.title}>
+                <div className={"tune" + (drag?.before === x.i ? " drop-before" : "")} key={x.i + ":" + x.it.raw.length + ":" + sg.title} data-i={canEdit ? x.i : undefined}>
                   <span className="n">{pos + 1}</span>
                   <Link className="name" href={songHref(s.id, x.i)}>{sg.title}<span className="sub">{sg.composer} · {sg.style}</span>{x.it.note && <span className="sub note">{x.it.note}</span>}</Link>
                   <span className="k">{keyLabel(sg, x.it.shift ?? irealShift(sg))}</span>
                   {canEdit && (
                     <span className="tune-btns">
+                      <span className="grip" title="Drag to reorder" aria-hidden="true"
+                        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); setDrag({ set: n as 1 | 2, before: null }); }}
+                        onPointerMove={e => { if (drag) setDrag(hitTest(e)); }}
+                        onPointerUp={e => dragEnd(e, x.i)} onPointerCancel={e => dragEnd(e, x.i)}>⠿</span>
                       <button className="btn small" title="Move up" aria-label="Move up" onClick={() => moveUp(x.i)}>↑</button>
+                      <button className="btn small" title="Move down" aria-label="Move down" onClick={() => moveDown(x.i)}>↓</button>
                       <button className="btn small" title={`Move to set ${n === 1 ? 2 : 1}`} onClick={() => moveSet(x.i)}>→ {n === 1 ? 2 : 1}</button>
                       <button className="btn small" title="Remove from setlist" aria-label="Remove" onClick={() => del(x.i)}>{armed === x.i ? "Remove?" : "✕"}</button>
                     </span>

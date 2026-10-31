@@ -198,7 +198,10 @@ textarea { resize: vertical; font-family: ui-monospace, Menlo, monospace; font-s
 a.tune { color: var(--ink); text-decoration: none; grid-template-columns: 1fr auto; }
 a.tune:hover { background: var(--brass-soft); }
 .tune .name { min-width: 0; font-weight: 500; }
-.tune-btns { display: inline-flex; gap: 4px; }
+.tune-btns { display: inline-flex; gap: 4px; align-items: center; }
+.grip { cursor: grab; touch-action: none; user-select: none; padding: 4px 8px; color: var(--muted); font-size: 18px; line-height: 1; }
+.set.drop { outline: 2px dashed var(--brass); outline-offset: -2px; }
+.tune.drop-before { box-shadow: inset 0 2px 0 var(--brass); }
 .pad { padding: 12px 14px; }
 .danger-zone { display: flex; justify-content: flex-end; }
 .pill { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; background: var(--brass); color: var(--paper); letter-spacing: .06em; }
