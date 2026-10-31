@@ -15,7 +15,14 @@ export type BandEvent =
 /** A chord the generator can play: a root, quality and optional bass note, with its place in the bar. */
 type Span = ChordLike & { beat: number; dur: number };
 
+// Feels that are written but not live yet: songs in these styles play as bossa until they're signed off.
+const UNRELEASED: Feel[] = ["samba", "latin", "chacha", "bolero"];
+
 export function feelOf(style: string): Feel {
+  const feel = styleFeel(style);
+  return UNRELEASED.includes(feel) ? "bossa" : feel;
+}
+function styleFeel(style: string): Feel {
   const s = (style || "").toLowerCase();
   if (/ballad|medium slow/.test(s)) return "ballad";
   if (/waltz/.test(s)) return "waltz";
