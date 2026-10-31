@@ -48,6 +48,16 @@ function loadPrefs(): Prefs {
   } catch { return { ...DEFAULT_PREFS }; }
 }
 
+// Which local setlists/playlists were already copied into an account, so copying is one-time and retries resume.
+const copiedKey = (accountId: string) => "gigbook-copied:" + accountId;
+function loadCopied(accountId: string): { s: string[]; l: string[] } {
+  try { const r = JSON.parse(localStorage.getItem(copiedKey(accountId)) || "{}"); return { s: r.s || [], l: r.l || [] }; }
+  catch { return { s: [], l: [] }; }
+}
+function saveCopied(accountId: string, c: { s: string[]; l: string[] }) {
+  try { localStorage.setItem(copiedKey(accountId), JSON.stringify(c)); } catch { /* private mode */ }
+}
+
 export interface Gig { setId: string; order: number[]; pos: number }
 export interface Account { email: string | null; id: string }
 
@@ -244,8 +254,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
-          const unseededLocal = ls.filter(s => !SEEDS.some(x => x.id === s.id));
-          if (!cancelled) setLocalCounts(unseededLocal.length || ll.length ? { setlists: unseededLocal.length, library: ll.length } : null);
+          const done = loadCopied(account?.id || "");
+          const unseededLocal = ls.filter(s => !SEEDS.some(x => x.id === s.id) && !done.s.includes(s.id));
+          const pendingLib = ll.filter(p => !done.l.includes(p.id));
+          if (!cancelled) setLocalCounts(unseededLocal.length || pendingLib.length ? { setlists: unseededLocal.length, library: pendingLib.length } : null);
         } else if (!cancelled) setLocalCounts(null);
         if (cancelled) return;
         setSetlists(sls); setLibrary(lib); setRev(r => r + 1);
@@ -301,24 +313,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLibrary(prev => prev.filter(x => x.id !== id)); setRev(r => r + 1);
   }, [toast]);
 
+  const copying = useRef(false);
   const copyLocalToAccount = useCallback(async () => {
     const st = storeRef.current;
-    if (st.kind !== "supabase") return 0;
-    const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
-    let n = 0;
-    for (const s of ls) {
-      if (SEEDS.some(x => x.id === s.id)) continue;
-      const copy: Setlist = { ...s, id: st.newId(s.name, () => false), role: "owner", visibility: "private" };
-      await st.saveSetlist(copy); setSetlists(prev => prev.concat(copy)); n++;
-    }
-    for (const p of ll) {
-      const existing = library.find(x => x.name === p.name);
-      const copy = { ...p, id: existing ? existing.id : st.newId(p.name, () => false) };
-      await st.saveLibraryPlaylist(copy); setLibrary(prev => prev.filter(x => x.id !== copy.id).concat(copy)); n++;
-    }
-    setLocalCounts(null); setRev(r => r + 1);
-    return n;
-  }, [library]);
+    if (st.kind !== "supabase" || !account || copying.current) return 0;
+    copying.current = true; // no two copies at once
+    try {
+      const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
+      const done = loadCopied(account.id);
+      let n = 0;
+      // record each item as it lands so a retry after a failure skips it
+      for (const s of ls) {
+        if (SEEDS.some(x => x.id === s.id) || done.s.includes(s.id)) continue;
+        const copy: Setlist = { ...s, id: st.newId(s.name, () => false), role: "owner", visibility: "private" };
+        await st.saveSetlist(copy); setSetlists(prev => prev.concat(copy)); n++;
+        done.s.push(s.id); saveCopied(account.id, done);
+      }
+      for (const p of ll) {
+        if (done.l.includes(p.id)) continue;
+        const existing = library.find(x => x.name === p.name);
+        const copy = { ...p, id: existing ? existing.id : st.newId(p.name, () => false) };
+        await st.saveLibraryPlaylist(copy); setLibrary(prev => prev.filter(x => x.id !== copy.id).concat(copy)); n++;
+        done.l.push(p.id); saveCopied(account.id, done);
+      }
+      setLocalCounts(null); setRev(r => r + 1);
+      return n;
+    } finally { copying.current = false; }
+  }, [library, account]);
 
   /* ---- keys and tempo ---- */
   const shiftOf = useCallback((cur: Current) => {
@@ -479,22 +500,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     try {
       const t = await trackName(uri);
-      const n = norm(t.name);
+      // norm drops "(Live)" and "- Remastered"; also drop a trailing "take 2" / "live" / "remastered"
+      const tidy = (x: string) => norm(x).replace(/\s+(take \d+|live|remastered( \d{4})?|remaster)$/, "");
+      const n = tidy(t.name);
       const cur = currentRef.current;
       const here = cur && cur.kind === "set" ? sls.find(s => s.id === cur.setId) : undefined;
       const pool = (here ? [here] : sls).concat(sls);
       for (const s of pool) {
-        const i = s.items.findIndex(it => { const m = norm(songOf(it.raw).title); return n === m || n.startsWith(m) || m.startsWith(n); });
-        if (i >= 0) {
-          const it = s.items[i];
-          it.versions = it.versions || [];
-          if (!it.versions.some(v => v.uri === uri)) { it.versions.push({ uri, name: t.name, artists: t.artists }); commitSetlist(s); }
-          openFromSpotify(s, i); return;
-        }
+        const i = s.items.findIndex(it => n !== "" && n === tidy(songOf(it.raw).title));
+        // navigate only: saving a recording is the user's call, never a side effect of following
+        if (i >= 0) { openFromSpotify(s, i); return; }
       }
       setRecStatus(`Playing ${t.name}. Not in your setlists.`);
     } catch { /* Spotify lookups not set up, or offline: just don't follow */ }
-  }, [band, commitSetlist, openFromSpotify]);
+  }, [band, openFromSpotify]);
   const onSpotifyRef = useRef(onSpotify); onSpotifyRef.current = onSpotify;
 
   const playSpotify = useCallback(async (uri: string, play: boolean) => {
@@ -518,9 +537,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && t.closest && t.closest("input, textarea, select")) return;
+      // leave Space to focused interactive elements (browser default)
+      if (t && t.closest && t.closest("input, textarea, select, button, a[href], summary, [role=button], [contenteditable]:not([contenteditable=false])")) return;
       if (e.code === "Space" && currentRef.current && band) {
         e.preventDefault();
+        if (e.repeat) return;
         if (band.playing) { setGig(null); band.stop(); } else startRef.current(currentRef.current);
       }
     };

@@ -127,7 +127,9 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
           </div>
         </div>
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
-        {cur.kind === "set" && cur.item.note && <p className="hint">{cur.item.note}</p>}
+        {cur.kind === "set" && s && (canEdit
+          ? <NoteEditor key={cur.item.id} item={cur.item} setlist={s} />
+          : cur.item.note && <p className="hint note">{cur.item.note}</p>)}
       </section>
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
@@ -159,6 +161,24 @@ function ChartHost({ html, live }: { html: string; live: boolean }) {
     if (liveRef.current && bar.current !== null) markRef.current(bar.current); // re-apply the playing bar after a redraw
   }, [html, bar]);
   return <div id="chart-wrap" ref={ref} />;
+}
+
+/** Note on a set tune: plain text in a textarea (React renders it as text), saved on blur. */
+function NoteEditor({ item, setlist }: { item: Setlist["items"][number]; setlist: Setlist }) {
+  const app = useApp();
+  const [text, setText] = useState(item.note ?? "");
+  const save = () => {
+    const v = text.trim() || null;
+    if (v === (item.note ?? null)) return;
+    item.note = v; app.commitSetlist(setlist);
+  };
+  return (
+    <label className="note-edit">
+      <span className="hint">Note</span>
+      <textarea rows={2} maxLength={500} placeholder="e.g. intro: last 4 bars" value={text}
+        onChange={e => setText(e.target.value)} onBlur={save} />
+    </label>
+  );
 }
 
 function Recordings({ cur, setlist, canEdit }: { cur: Current; setlist?: Setlist; canEdit: boolean; rev: number }) {

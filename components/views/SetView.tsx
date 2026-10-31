@@ -106,7 +106,7 @@ function SetBody({ s }: { s: Setlist }) {
               return (
                 <div className="tune" key={x.i + ":" + x.it.raw.length + ":" + sg.title}>
                   <span className="n">{pos + 1}</span>
-                  <Link className="name" href={songHref(s.id, x.i)}>{sg.title}<span className="sub">{sg.composer} · {sg.style}</span></Link>
+                  <Link className="name" href={songHref(s.id, x.i)}>{sg.title}<span className="sub">{sg.composer} · {sg.style}</span>{x.it.note && <span className="sub note">{x.it.note}</span>}</Link>
                   <span className="k">{keyLabel(sg, x.it.shift ?? irealShift(sg))}</span>
                   {canEdit && (
                     <span className="tune-btns">

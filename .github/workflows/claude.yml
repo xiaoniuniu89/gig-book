@@ -19,16 +19,16 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Run Claude Code
         id: claude
@@ -48,3 +48,50 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           # claude_args: '--allowed-tools Bash(gh pr *)'
 
+      # Work started from an issue goes straight to main: bring in the latest main (Claude resolves any conflicts),
+      # check it, open a PR for the record and squash-merge it. Comments on a PR leave that PR to be merged by hand.
+      - name: Bring Claude's branch up to date with main
+        id: sync
+        if: steps.claude.outputs.branch_name != '' && github.event.issue.pull_request == null
+        env:
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main "$BRANCH" || { echo "No branch pushed."; exit 0; }
+          if [ "$(git rev-list --count origin/main..origin/$BRANCH)" = 0 ]; then echo "No changes to merge."; exit 0; fi
+          git checkout -q -B "$BRANCH" "origin/$BRANCH"
+          echo "merge=true" >> "$GITHUB_OUTPUT"
+          if git merge --no-edit origin/main; then echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else echo "conflict=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Resolve merge conflicts
+        if: steps.sync.outputs.conflict == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            The working tree is mid-merge: branch ${{ steps.claude.outputs.branch_name }} (the fix for issue #${{ github.event.issue.number }})
+            is being merged with the latest main, and `git status` lists the conflicted files.
+            Resolve every conflict so both sides' changes survive: keep everything main added and re-apply this branch's fix on top.
+            Read issue #${{ github.event.issue.number }} if you need the intent. Remove all conflict markers, then run
+            `npm ci`, `npm run typecheck` and `npm run lint` and fix anything they report. Do not commit, push or run other git commands.
+          claude_args: '--allowedTools "Read,Edit,Write,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(npm ci),Bash(npm run typecheck),Bash(npm run lint),Bash(gh issue view:*)"'
+
+      - name: Check and merge into main
+        if: steps.sync.outputs.merge == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          if [ "${{ steps.sync.outputs.conflict }}" = true ]; then
+            if git grep -nE '^(<<<<<<<|>>>>>>>)' -- . ':!package-lock.json'; then echo "Conflict markers left."; exit 1; fi
+            git add -A && git commit --no-edit
+          fi
+          npm ci
+          npm run typecheck
+          npm run lint
+          git push origin "HEAD:$BRANCH"
+          gh pr view "$BRANCH" >/dev/null 2>&1 || gh pr create --base main --head "$BRANCH" --title "$(git log -1 --no-merges --format=%s)" --body "Closes #$ISSUE"
+          gh pr merge "$BRANCH" --squash --delete-branch
