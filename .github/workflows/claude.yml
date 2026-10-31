@@ -49,7 +49,7 @@ jobs:
           claude_args: '--allowedTools "Bash(npm ci),Bash(npm run typecheck),Bash(npm run lint)"'
 
       # Work started from an issue goes straight to main: bring in the latest main (Claude resolves any conflicts),
-      # check it, open a PR for the record and squash-merge it. Comments on a PR leave that PR to be merged by hand.
+      # check it and push it to main as one commit. Comments on a PR leave that PR to be merged by hand.
       - name: Bring Claude's branch up to date with main
         id: sync
         if: steps.claude.outputs.branch_name != '' && github.event.issue.pull_request == null
@@ -94,6 +94,14 @@ jobs:
           npm run lint
           # the Claude step left git using its own token, which is revoked by now
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-          git push origin "HEAD:$BRANCH"
-          gh pr view "$BRANCH" >/dev/null 2>&1 || gh pr create --base main --head "$BRANCH" --title "$(git log -1 --no-merges --format=%s)" --body "Closes #$ISSUE"
-          gh pr merge "$BRANCH" --squash --delete-branch
+          # one commit on main per issue; if main moved meanwhile, replay on top and try again
+          subject="$(git log -1 --no-merges --format=%s "origin/$BRANCH")"
+          git fetch origin main
+          git reset -q --soft "$(git merge-base HEAD origin/main)"
+          git commit -q -m "$subject" -m "Closes #$ISSUE"
+          for try in 1 2 3; do
+            git rebase -q origin/main && git push origin HEAD:main && break
+            git rebase --abort 2>/dev/null; sleep 5; git fetch origin main
+            [ "$try" = 3 ] && { echo "Couldn't land on main."; exit 1; }
+          done
+          git push origin --delete "$BRANCH" || true
