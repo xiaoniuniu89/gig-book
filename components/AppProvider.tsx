@@ -473,22 +473,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     try {
       const t = await trackName(uri);
-      const n = norm(t.name);
+      // norm drops "(Live)" and "- Remastered"; also drop a trailing "take 2" / "live" / "remastered"
+      const tidy = (x: string) => norm(x).replace(/\s+(take \d+|live|remastered( \d{4})?|remaster)$/, "");
+      const n = tidy(t.name);
       const cur = currentRef.current;
       const here = cur && cur.kind === "set" ? sls.find(s => s.id === cur.setId) : undefined;
       const pool = (here ? [here] : sls).concat(sls);
       for (const s of pool) {
-        const i = s.items.findIndex(it => { const m = norm(songOf(it.raw).title); return n === m || n.startsWith(m) || m.startsWith(n); });
-        if (i >= 0) {
-          const it = s.items[i];
-          it.versions = it.versions || [];
-          if (!it.versions.some(v => v.uri === uri)) { it.versions.push({ uri, name: t.name, artists: t.artists }); commitSetlist(s); }
-          openFromSpotify(s, i); return;
-        }
+        const i = s.items.findIndex(it => n !== "" && n === tidy(songOf(it.raw).title));
+        // navigate only: saving a recording is the user's call, never a side effect of following
+        if (i >= 0) { openFromSpotify(s, i); return; }
       }
       setRecStatus(`Playing ${t.name}. Not in your setlists.`);
     } catch { /* Spotify lookups not set up, or offline: just don't follow */ }
-  }, [band, commitSetlist, openFromSpotify]);
+  }, [band, openFromSpotify]);
   const onSpotifyRef = useRef(onSpotify); onSpotifyRef.current = onSpotify;
 
   const playSpotify = useCallback(async (uri: string, play: boolean) => {
