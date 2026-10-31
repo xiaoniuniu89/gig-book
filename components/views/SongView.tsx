@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useApp, songHref, type Current } from "../AppProvider";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
@@ -113,31 +114,30 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
           {nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>}
         </div>
       </div>
-      <div className="song-grid">
-        <section className="panel" aria-label="Chord chart">
-          <div className="panel-head">
-            <span className="seg" role="group" aria-label="Approach">
-              <button data-mode="trad" aria-pressed={prefs.mode === "trad"} onClick={() => updatePrefs({ mode: "trad" })}>Chord scales</button>
-              <button data-mode="bh" aria-pressed={prefs.mode === "bh"} onClick={() => updatePrefs({ mode: "bh" })}>Barry Harris</button>
-            </span>
-            <div className="toggles">
-              <label className="toggle"><input type="checkbox" id="opt-sc" checked={prefs.sc} onChange={e => updatePrefs({ sc: e.target.checked })} /> Scales</label>
-              <label className="toggle"><input type="checkbox" id="opt-tn" checked={prefs.tn} onChange={e => updatePrefs({ tn: e.target.checked })} /> Chord tones</label>
-              <label className="toggle"><input type="checkbox" id="opt-fn" checked={prefs.fn} onChange={e => updatePrefs({ fn: e.target.checked })} /> Harmony</label>
-            </div>
+      <section className="panel" aria-label="Chord chart">
+        <div className="panel-head">
+          <span className="seg" role="group" aria-label="Approach">
+            <button data-mode="trad" aria-pressed={prefs.mode === "trad"} onClick={() => updatePrefs({ mode: "trad" })}>Chord scales</button>
+            <button data-mode="bh" aria-pressed={prefs.mode === "bh"} onClick={() => updatePrefs({ mode: "bh" })}>Barry Harris</button>
+          </span>
+          <div className="toggles">
+            <label className="toggle"><input type="checkbox" id="opt-sc" checked={prefs.sc} onChange={e => updatePrefs({ sc: e.target.checked })} /> Scales</label>
+            <label className="toggle"><input type="checkbox" id="opt-tn" checked={prefs.tn} onChange={e => updatePrefs({ tn: e.target.checked })} /> Chord tones</label>
+            <label className="toggle"><input type="checkbox" id="opt-fn" checked={prefs.fn} onChange={e => updatePrefs({ fn: e.target.checked })} /> Harmony</label>
           </div>
-          <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
-          {cur.kind === "set" && cur.item.note && <p className="hint">{cur.item.note}</p>}
+        </div>
+        <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
+        {cur.kind === "set" && cur.item.note && <p className="hint">{cur.item.note}</p>}
+      </section>
+      {/* the side panels live in the player drawer, so the chart gets the full width and height */}
+      {app.drawerSlot && createPortal(<>
+        <Recordings cur={cur} setlist={s} canEdit={canEdit} rev={rev} />
+        <section className="panel">
+          <h2>iReal Pro</h2>
+          <a className="btn" href={songLink(sg.raw)}>Open this chart in iReal Pro</a>
+          {cur.kind === "lib" && <AddToSetlist cur={cur} />}
         </section>
-        <aside className="side">
-          <Recordings cur={cur} setlist={s} canEdit={canEdit} rev={rev} />
-          <section className="panel">
-            <h2>iReal Pro</h2>
-            <a className="btn" href={songLink(sg.raw)}>Open this chart in iReal Pro</a>
-            {cur.kind === "lib" && <AddToSetlist cur={cur} />}
-          </section>
-        </aside>
-      </div>
+      </>, app.drawerSlot)}
     </>
   );
 }

@@ -109,6 +109,9 @@ interface Ctx {
   setDockTab(t: "band" | "record"): void;
   setDockSize(s: "full" | "hidden"): void;
   embedRef: React.MutableRefObject<HTMLDivElement | null>;
+  /** Where the page puts its side panels (recordings and so on) inside the drawer. */
+  drawerSlot: HTMLElement | null;
+  setDrawerSlot(el: HTMLElement | null): void;
   playSpotify(uri: string, play: boolean): Promise<void>;
   recTitle: string;
   recStatus: string;
@@ -154,6 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [follow, setFollow] = useState(true);
   const [gig, setGigState] = useState<Gig | null>(null);
   const [band, setBand] = useState<Band | null>(null);
+  const [drawerSlot, setDrawerSlot] = useState<HTMLElement | null>(null);
 
   // refs mirror state for the long-lived band / player listeners
   const setlistsRef = useRef(setlists); setlistsRef.current = setlists;
@@ -179,7 +183,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* ---- prefs ---- */
-  useEffect(() => { setPrefs(loadPrefs()); setPrefsLoaded(true); }, []);
+  useEffect(() => {
+    const p = loadPrefs();
+    // on phones the drawer covers the page, so it starts collapsed
+    if (matchMedia("(max-width: 900px)").matches) p.dockSize = "hidden";
+    setPrefs(p); setPrefsLoaded(true);
+  }, []);
   useEffect(() => {
     if (!prefsLoaded) return;
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
@@ -339,9 +348,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!el) return;
     el.classList.add("now");
     const r = el.getBoundingClientRect();
-    const dockEl = document.getElementById("dock");
-    const dockTop = dockEl ? dockEl.getBoundingClientRect().top : window.innerHeight;
-    if (r.top < 80 || r.bottom > dockTop - 10) el.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    // the drawer sits to the side; on phones only its floating button covers the bottom
+    if (r.top < 80 || r.bottom > window.innerHeight - 80) el.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, []);
 
   const setTempo = useCallback((v: number) => {
@@ -520,7 +528,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
     band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, markBar, lastBar,
-    setDockTab, setDockSize, embedRef, playSpotify, recTitle, recStatus, follow, setFollow,
+    setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, recTitle, recStatus, follow, setFollow,
     gig, startGig,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

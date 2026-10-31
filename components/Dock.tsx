@@ -1,5 +1,6 @@
 "use client";
-// The player dock: Band (built-in backing band) and Record (Spotify embed). Rendered once in the root layout.
+// The player drawer on the right: Band (built-in backing band), Record (Spotify embed) and the page's side panels.
+// Collapsed, it shrinks to a slim rail (a floating button on phones) so the chart gets the whole screen. Rendered once in the root layout.
 import { useApp, sectionRanges } from "./AppProvider";
 import type { Instrument } from "@/lib/band/engine";
 
@@ -26,20 +27,32 @@ export function Dock() {
     if (s && s.spotify) app.playSpotify(s.spotify, false); else app.toast("Link a Spotify playlist on the setlist page first.");
   };
 
+  const open = (t: "band" | "record") => { app.setDockTab(t); app.setDockSize("full"); };
+
   return (
-    <section id="dock" aria-label="Player" data-tab={tab} data-size={size}>
-      <div className="dock-inner">
+    <aside id="dock" aria-label="Player" data-tab={tab} data-size={size}>
+      <div className="dock-rail" hidden={size !== "hidden"}>
+        <button className="rail-btn" id="dock-open" aria-label="Open the player" aria-expanded={false} onClick={() => app.setDockSize("full")}>
+          <span aria-hidden="true">‹</span>
+        </button>
+        <button className="rail-btn" aria-label={bandPlaying ? "Stop the band" : "Play with the band"} disabled={!sg} onClick={onPlay}>
+          <span aria-hidden="true">{bandPlaying ? "■" : "▶"}</span>
+        </button>
+        <button className="rail-btn" data-dock="band" aria-pressed={tab === "band"} onClick={() => open("band")}>Band</button>
+        <button className="rail-btn" data-dock="record" aria-pressed={tab === "record"} onClick={() => open("record")}>Rec</button>
+      </div>
+      <button className="dock-scrim" aria-label="Close the player" tabIndex={-1} hidden={size === "hidden"} onClick={() => app.setDockSize("hidden")} />
+      <div className="dock-inner" inert={size === "hidden"}>
         <div className="dock-bar">
           <span className="seg" role="group" aria-label="Sound source">
             {(["band", "record"] as const).map(t => (
-              <button key={t} data-dock={t} aria-pressed={tab === t}
-                onClick={() => { app.setDockTab(t); if (size === "hidden") app.setDockSize("full"); }}>
+              <button key={t} data-dock={t} aria-pressed={tab === t} onClick={() => app.setDockTab(t)}>
                 {t === "band" ? "Band" : "Record"}
               </button>
             ))}
           </span>
+          <button className="btn icon-btn small" id="dock-size" aria-label="Collapse the player" aria-expanded={true} onClick={() => app.setDockSize("hidden")}>›</button>
           <span className="dock-status" id="band-status">{app.bandStatus}</span>
-          <button className="btn small" id="dock-size" onClick={() => app.setDockSize(size === "hidden" ? "full" : "hidden")}>{size === "hidden" ? "Show" : "Hide"}</button>
         </div>
         <div className="dock-body">
           <div className="pane-band">
@@ -81,7 +94,9 @@ export function Dock() {
             <div id="sp-embed" ref={app.embedRef} suppressHydrationWarning />
           </div>
         </div>
+        {/* the page on screen portals its side panels in here */}
+        <div className="dock-slot" ref={app.setDrawerSlot} />
       </div>
-    </section>
+    </aside>
   );
 }
