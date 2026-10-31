@@ -92,6 +92,9 @@ p { margin: 0; }
 .tune a.name { color: var(--ink); text-decoration: none; font-weight: 500; min-width: 0; }
 .tune a.name:hover { color: var(--brass); }
 .tune .sub { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.tune .sub.note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic; }
+.note-edit { display: grid; gap: 4px; margin-top: 10px; }
+.hint.note { white-space: pre-wrap; }
 .tune .k { font-family: var(--chord); font-size: 18px; min-width: 2.5em; text-align: right; }
 
 /* Song */
