@@ -48,6 +48,16 @@ function loadPrefs(): Prefs {
   } catch { return { ...DEFAULT_PREFS }; }
 }
 
+// Which local setlists/playlists were already copied into an account, so copying is one-time and retries resume.
+const copiedKey = (accountId: string) => "gigbook-copied:" + accountId;
+function loadCopied(accountId: string): { s: string[]; l: string[] } {
+  try { const r = JSON.parse(localStorage.getItem(copiedKey(accountId)) || "{}"); return { s: r.s || [], l: r.l || [] }; }
+  catch { return { s: [], l: [] }; }
+}
+function saveCopied(accountId: string, c: { s: string[]; l: string[] }) {
+  try { localStorage.setItem(copiedKey(accountId), JSON.stringify(c)); } catch { /* private mode */ }
+}
+
 export interface Gig { setId: string; order: number[]; pos: number }
 export interface Account { email: string | null; id: string }
 
@@ -243,8 +253,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
-          const unseededLocal = ls.filter(s => !SEEDS.some(x => x.id === s.id));
-          if (!cancelled) setLocalCounts(unseededLocal.length || ll.length ? { setlists: unseededLocal.length, library: ll.length } : null);
+          const done = loadCopied(account?.id || "");
+          const unseededLocal = ls.filter(s => !SEEDS.some(x => x.id === s.id) && !done.s.includes(s.id));
+          const pendingLib = ll.filter(p => !done.l.includes(p.id));
+          if (!cancelled) setLocalCounts(unseededLocal.length || pendingLib.length ? { setlists: unseededLocal.length, library: pendingLib.length } : null);
         } else if (!cancelled) setLocalCounts(null);
         if (cancelled) return;
         setSetlists(sls); setLibrary(lib); setRev(r => r + 1);
@@ -295,24 +307,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLibrary(prev => prev.filter(x => x.id !== p.id).concat(p)); setRev(r => r + 1);
   }, [toast]);
 
+  const copying = useRef(false);
   const copyLocalToAccount = useCallback(async () => {
     const st = storeRef.current;
-    if (st.kind !== "supabase") return 0;
-    const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
-    let n = 0;
-    for (const s of ls) {
-      if (SEEDS.some(x => x.id === s.id)) continue;
-      const copy: Setlist = { ...s, id: st.newId(s.name, () => false), role: "owner", visibility: "private" };
-      await st.saveSetlist(copy); setSetlists(prev => prev.concat(copy)); n++;
-    }
-    for (const p of ll) {
-      const existing = library.find(x => x.name === p.name);
-      const copy = { ...p, id: existing ? existing.id : st.newId(p.name, () => false) };
-      await st.saveLibraryPlaylist(copy); setLibrary(prev => prev.filter(x => x.id !== copy.id).concat(copy)); n++;
-    }
-    setLocalCounts(null); setRev(r => r + 1);
-    return n;
-  }, [library]);
+    if (st.kind !== "supabase" || !account || copying.current) return 0;
+    copying.current = true; // no two copies at once
+    try {
+      const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
+      const done = loadCopied(account.id);
+      let n = 0;
+      // record each item as it lands so a retry after a failure skips it
+      for (const s of ls) {
+        if (SEEDS.some(x => x.id === s.id) || done.s.includes(s.id)) continue;
+        const copy: Setlist = { ...s, id: st.newId(s.name, () => false), role: "owner", visibility: "private" };
+        await st.saveSetlist(copy); setSetlists(prev => prev.concat(copy)); n++;
+        done.s.push(s.id); saveCopied(account.id, done);
+      }
+      for (const p of ll) {
+        if (done.l.includes(p.id)) continue;
+        const existing = library.find(x => x.name === p.name);
+        const copy = { ...p, id: existing ? existing.id : st.newId(p.name, () => false) };
+        await st.saveLibraryPlaylist(copy); setLibrary(prev => prev.filter(x => x.id !== copy.id).concat(copy)); n++;
+        done.l.push(p.id); saveCopied(account.id, done);
+      }
+      setLocalCounts(null); setRev(r => r + 1);
+      return n;
+    } finally { copying.current = false; }
+  }, [library, account]);
 
   /* ---- keys and tempo ---- */
   const shiftOf = useCallback((cur: Current) => {
