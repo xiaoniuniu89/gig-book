@@ -1,6 +1,5 @@
 // The Band: schedules generated bars against the Web Audio clock. Browser only.
-import type { Smplr } from "smplr";
-import { loadPiano, loadBass, loadDrums, DRUM_MAKEUP, PIANO_VELOCITY, type DrumKit, type DrumName } from "./sounds";
+import { loadSampler, loadDrums, pickSample, DRUM_MAKEUP, type Sampler, type DrumKit, type DrumName } from "./sounds";
 import { Generator, feelOf, defaultTempo, type Feel } from "./gen";
 import { unroll, type Song } from "../ireal";
 import { detectTonic, hasRoot, type ChordLike } from "../theory";
@@ -36,11 +35,11 @@ export class Band {
   ready: Promise<void> | null = null;
   playing = false;
   mute: Record<Instrument, boolean> = { piano: false, bass: false, drums: false };
-  levels: Record<Instrument, number> = { piano: 0.75, bass: 0.42, drums: 0.9 };
+  levels: Record<Instrument, number> = { piano: 0.21, bass: 1.3, drums: 0.9 };
   private listeners = new Set<(ev: BandMessage) => void>();
   private master: DynamicsCompressorNode | null = null;
   private bus = {} as Record<Instrument, GainNode>;
-  private inst = {} as { piano: Smplr; bass: Smplr };
+  private inst = {} as { piano: Sampler; bass: Sampler };
   private drumKit = {} as DrumKit;
   private roundRobin: Partial<Record<DrumName, number>> = {};
   private song!: Song;
@@ -53,6 +52,7 @@ export class Band {
   private pos = 0;
   private loopPos = 0;
   private loopRange: [number, number] | null = null;
+  private twoFeelHead = false;
   private anchorTime = 0;
   private anchorBeat = 0;
   private nextBeat = 0;
@@ -78,7 +78,7 @@ export class Band {
       const g = ctx.createGain(); g.gain.value = this.mute[k] ? 0 : this.levels[k]; g.connect(this.master); this.bus[k] = g;
     }
     this.emit({ type: "loading" });
-    this.ready = Promise.all([loadPiano(ctx, this.bus.piano), loadBass(ctx, this.bus.bass), loadDrums(ctx)])
+    this.ready = Promise.all([loadSampler(ctx, "piano"), loadSampler(ctx, "bass"), loadDrums(ctx)])
       .then(([piano, bass, drums]) => { this.inst = { piano, bass }; this.drumKit = drums; this.emit({ type: "loaded" }); })
       .catch((err: Error) => { this.ready = null; this.emit({ type: "error", message: err.message }); throw err; });
     return this.ready;
@@ -98,14 +98,24 @@ export class Band {
   }
   private timeOf(beat: number) { return this.anchorTime + (beat - this.anchorBeat) * 60 / this.tempo; }
 
-  // vel is the generator's 0–1 loudness; the samplers want MIDI velocity, which also changes the timbre.
+  // vel is the generator's 0–1 loudness. It picks the velocity layer (a soft note sounds different, not just quieter) and sets the level.
   private playNote(inst: "piano" | "bass", midi: number, time: number, dur: number, vel: number, roll = 0) {
     const ctx = this.ctx as AudioContext;
-    const [lo, hi] = inst === "piano" ? PIANO_VELOCITY : [1, 127];
-    const velocity = Math.round(Math.min(hi, Math.max(lo, inst === "piano" ? 25 + vel * 75 : 30 + vel * 90)));
-    const note = { note: midi, time: Math.max(ctx.currentTime, time + roll), duration: dur, velocity };
-    // a shorter release than the sample set's 0.3s keeps walking lines from smearing
-    this.inst[inst].start(inst === "bass" ? { ...note, ampRelease: 0.15 } : note);
+    // the piano ships pp–mf layers, the bass all of its own
+    const velocity = Math.round(inst === "piano" ? 41 + Math.min(1, vel) * 59 : Math.min(127, 30 + vel * 90));
+    const s = pickSample(this.inst[inst], midi, velocity); if (!s) return;
+    const src = ctx.createBufferSource();
+    src.buffer = s.buf; src.playbackRate.value = s.rate;
+    const g = ctx.createGain();
+    const t = Math.max(ctx.currentTime, time + roll);
+    const release = inst === "bass" ? 0.12 : 0.3;
+    const level = 0.35 + 0.65 * Math.min(1, vel);
+    g.gain.setValueAtTime(level, t);
+    g.gain.setValueAtTime(level, t + dur);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
+    src.connect(g).connect(this.bus[inst]);
+    src.start(t); src.stop(t + dur + release + 0.02);
+    this.voices.push(src);
   }
   // vel 0–1 picks the velocity layer (a softer hit sounds different, not just quieter) and shades the level within it.
   private playDrum(name: DrumName, time: number, vel: number) {
@@ -137,11 +147,14 @@ export class Band {
     const items: Item[] = [];
     const beats0 = (song.bars[0] && song.bars[0].beats) || 4;
     if (opts.countIn !== false) items.push({ countIn: true, beats: beats0 });
+    this.twoFeelHead = false;
     if (opts.loop) {
       this.loopRange = opts.loop;
     } else {
       this.loopRange = null;
       const n = Math.max(1, opts.choruses || 2);
+      // medium swing plays the head in two and walks from the second chorus
+      this.twoFeelHead = n > 1 && this.feel === "swing" && this.tempo <= 220;
       for (let c = 1; c <= n; c++) unroll(song.bars, c === n).forEach((idx, k) => items.push({ idx, chorus: c, k }));
       items.push({ ending: true, beats: 4 });
     }
@@ -200,17 +213,22 @@ export class Band {
       } else {
         const bar = this.song.bars[item.idx as number];
         beats = bar.beats;
+        this.gen.twoFeel = this.twoFeelHead && item.chorus === 1;
         events = this.gen.bar(bar, this.peekChord(), this.shift, item.k as number);
       }
       const start = this.nextBeat;
+      // In swing the bass sits on top of the beat and the piano lays back a touch (less so at fast tempos).
+      const lay = this.feel === "swing" || this.feel === "waltz" || this.feel === "ballad" ? Math.min(1, 160 / this.tempo) : 0;
+      const feelOffset: Record<Instrument, number> = { bass: -0.008 * lay, piano: 0.012 * lay, drums: 0 };
       this.visual.push({ time: this.timeOf(start), idx: item.idx, chorus: item.chorus, countIn: !!item.countIn });
       for (const e of events) {
         const jitter = e.inst === "drums" ? (Math.random() - 0.5) * 0.006 : (Math.random() - 0.5) * 0.012;
-        const t = this.timeOf(start + e.beat) + jitter;
+        const t = this.timeOf(start + e.beat) + jitter + feelOffset[e.inst];
         if (e.inst === "drums") this.playDrum(e.drum, t, e.vel);
         else {
           const inst = e.inst;
-          e.notes.forEach((m, j) => this.playNote(inst, m, t, e.dur * 60 / this.tempo, e.vel, e.roll ? e.roll * j : 0));
+          // the top of a piano voicing speaks a little louder than the notes under it
+          e.notes.forEach((m, j) => this.playNote(inst, m, t, e.dur * 60 / this.tempo, e.vel * (inst === "piano" && j === e.notes.length - 1 ? 1.1 : 0.95 + Math.random() * 0.08), e.roll ? e.roll * j : 0));
         }
       }
       this.nextBeat += beats;
@@ -233,8 +251,6 @@ export class Band {
       this.voices.forEach(v => { try { v.stop(now + 0.05); } catch { /* already stopped */ } });
       this.voices = [];
     }
-    if (this.inst.piano) this.inst.piano.stop();
-    if (this.inst.bass) this.inst.bass.stop();
     if (was && !silent) this.emit({ type: "stop" });
   }
 }

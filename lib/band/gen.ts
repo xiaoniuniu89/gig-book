@@ -4,7 +4,7 @@ import type { Bar } from "../ireal";
 import { pcOf, kind, mod12, hasRoot, type ChordLike } from "../theory";
 import type { DrumName } from "./sounds";
 
-export type Feel = "ballad" | "waltz" | "bossa" | "even" | "swing";
+export type Feel = "ballad" | "waltz" | "bossa" | "samba" | "latin" | "even" | "swing";
 
 export type BandEvent =
   | { inst: "bass" | "piano"; notes: number[]; beat: number; dur: number; vel: number; roll?: number }
@@ -17,8 +17,10 @@ export function feelOf(style: string): Feel {
   const s = (style || "").toLowerCase();
   if (/ballad|medium slow/.test(s)) return "ballad";
   if (/waltz/.test(s)) return "waltz";
-  if (/bossa|latin(?!-swing)|samba|calypso/.test(s)) return "bossa";
-  if (/even|rock|funk|afro|pop|16ths/.test(s)) return "even";
+  if (/bossa/.test(s)) return "bossa";
+  if (/samba/.test(s)) return "samba";
+  if (/latin(?!-swing)|afro|cuban|mambo|salsa|songo|cha|rhumba|rumba|guajira|bolero/.test(s)) return "latin";
+  if (/even|rock|funk|pop|16ths|calypso/.test(s)) return "even";
   return "swing";
 }
 export function defaultTempo(style: string): number {
@@ -35,7 +37,7 @@ export function defaultTempo(style: string): number {
   return 140;
 }
 export function swingRatio(feel: Feel, tempo: number): number {
-  if (feel === "bossa" || feel === "even") return 0.5;
+  if (feel !== "swing" && feel !== "waltz" && feel !== "ballad") return 0.5;
   if (tempo >= 230) return 0.56;
   if (tempo >= 170) return 0.6;
   return 0.66;
@@ -107,6 +109,9 @@ export class Generator {
   voicing: number[] | null = null;
   barNo = 0;
   anticipated = false;
+  /** Swing in two (half notes on the bass) instead of walking: the engine sets it for the head. */
+  twoFeel = false;
+  private lastComp = -1;
 
   constructor(feel: Feel, tempo: number) {
     this.feel = feel; this.tempo = tempo; this.sw = swingRatio(feel, tempo);
@@ -151,16 +156,40 @@ export class Generator {
       }
       this.bassPrev = R; return;
     }
+    if (f === "samba") {
+      // in two: root on 1 (dotted eighth), a sixteenth pickup, then the fifth leaning on 2, like the surdo
+      const fifth = nearest(mod12(rootPc + 7), R - 5, 28, 52);
+      for (let b = 0; b < beats; b += 2) {
+        out.push({ inst: "bass", notes: [R], beat: start + b, dur: 0.7, vel: 0.75 });
+        if (b + 2 <= beats) {
+          out.push({ inst: "bass", notes: [fifth], beat: start + b + 0.75, dur: 0.2, vel: 0.55 });
+          out.push({ inst: "bass", notes: [fifth], beat: start + b + 1, dur: 0.9, vel: 0.88 });
+        }
+      }
+      this.bassPrev = R; return;
+    }
+    if (f === "latin") {
+      // tumbao: nothing on 1, the fifth on the and of 2, and the next chord's root anticipated on 4
+      const fifth = nearest(mod12(rootPc + 7), R, 28, 50);
+      if (beats >= 4) {
+        out.push({ inst: "bass", notes: [fifth], beat: start + 1.5, dur: 1.4, vel: 0.8 });
+        out.push({ inst: "bass", notes: [T], beat: start + 3, dur: 1.8, vel: 0.88 });
+      } else {
+        out.push({ inst: "bass", notes: [beats >= 2 ? R : T], beat: start + (beats >= 2 ? 0.5 : 0), dur: 0.9, vel: 0.85 });
+      }
+      this.bassPrev = T; return;
+    }
     if (f === "even") {
       for (let b = 0; b < beats; b++) out.push({ inst: "bass", notes: [b % 2 ? R + 7 > 52 ? R - 5 : R + 7 : R], beat: start + b, dur: 0.8, vel: 0.8 });
       this.bassPrev = R; return;
     }
-    const twoFeel = f === "ballad";
+    const twoFeel = f === "ballad" || this.twoFeel;
     if (twoFeel) {
       out.push({ inst: "bass", notes: [R], beat: start, dur: Math.min(2, beats) * 0.92, vel: 0.85 });
       if (beats >= 4) {
         const second = rnd() < 0.5 ? nearest(mod12(rootPc + 7), R, 28, 50) : (T > R ? T - 1 : T + 1);
         out.push({ inst: "bass", notes: [second], beat: start + 2, dur: 1.84, vel: 0.75 });
+        if (f !== "ballad" && rnd() < 0.25) out.push({ inst: "bass", notes: [second], beat: start + 3 + this.sw, dur: 0.3, vel: 0.5 });
         this.bassPrev = second;
       } else this.bassPrev = R;
       return;
@@ -177,8 +206,7 @@ export class Generator {
       const last = steps[steps.length - 1];
       const appr = last < T2 ? T2 - 1 : T2 + 1;
       [...steps, appr === last ? (last < T2 ? T2 + 1 : T2 - 1) : appr].forEach(m => line.push(Math.max(28, Math.min(52, m))));
-      line.forEach((m, j) => out.push({ inst: "bass", notes: [m], beat: start + j, dur: 0.9, vel: j === 0 ? 0.9 : 0.78 }));
-      this.bassPrev = line[line.length - 1];
+      this.walk(line, start, out);
       return;
     }
     if (beats > 1) {
@@ -201,7 +229,16 @@ export class Generator {
       }
       line.push(approachN === line[line.length - 1] ? (approachN === T + 1 ? T - 1 : T + 1) : approachN);
     }
-    line.forEach((m, j) => out.push({ inst: "bass", notes: [m], beat: start + j, dur: 0.9, vel: j === 0 ? 0.9 : 0.78 }));
+    this.walk(line, start, out);
+  }
+
+  // Quarter notes with a little shape: beat one leans in, notes are held to the next, and now and then
+  // a ghosted triplet rakes into a note.
+  private walk(line: number[], start: number, out: BandEvent[]) {
+    line.forEach((m, j) => {
+      if (j > 0 && rnd() < 0.08) out.push({ inst: "bass", notes: [m], beat: start + j - 1 / 3, dur: 0.15, vel: 0.35 });
+      out.push({ inst: "bass", notes: [m], beat: start + j, dur: 0.92 + rnd() * 0.06, vel: (j === 0 ? 0.9 : 0.8) * (0.94 + rnd() * 0.1) });
+    });
     this.bassPrev = line[line.length - 1];
   }
 
@@ -218,7 +255,19 @@ export class Generator {
     }
     if (f === "bossa") {
       const pats = dur >= 4 ? [[[0, 0.4], [1.5, 0.4], [3, 0.4]], [[0.5, 0.4], [2, 0.4], [3.5, 0.4]], [[0, 0.9], [2.5, 0.4]]] : [[[0, 0.4], [1.5, 0.4]], [[0.5, 0.4]]];
-      pick(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
+      this.pickComp(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
+      return;
+    }
+    if (f === "samba") {
+      // partido alto-ish: short off-beat stabs
+      const pats = dur >= 4 ? [[[0.5, 0.3], [1.5, 0.3], [2.5, 0.3], [3, 0.4]], [[0, 0.3], [1.5, 0.3], [2.5, 0.3]], [[0.5, 0.3], [2, 0.3], [3.5, 0.3]]] : [[[0.5, 0.3], [1.5, 0.3]], [[0, 0.3]]];
+      this.pickComp(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
+      return;
+    }
+    if (f === "latin") {
+      // a montuno-flavoured figure, every hit short
+      const pats = dur >= 4 ? [[[0, 0.3], [1.5, 0.3], [2.5, 0.3], [3.5, 0.3]], [[0.5, 0.3], [1.5, 0.3], [3, 0.3]], [[0, 0.3], [1, 0.3], [2.5, 0.3], [3.5, 0.3]]] : [[[0, 0.3], [1.5, 0.3]], [[0.5, 0.3]]];
+      this.pickComp(pats).forEach(([b, d]) => { if (b < dur) hit(b, d, 0.5); });
       return;
     }
     if (f === "even") { hit(0, Math.min(dur, 2) * 0.9, 0.5); if (dur >= 4) hit(2, 1.8, 0.45); return; }
@@ -227,20 +276,35 @@ export class Generator {
       if (dur >= 2 && rnd() < 0.5) hit(1 + sw, 0.4, 0.45);
       return;
     }
+    // a bar of space now and then, so the comping breathes
+    if (dur >= 4 && rnd() < 0.08) return;
+    // Charleston, reverse Charleston, and the and-of-2 / beat-4 figures, with short and long notes
     const pats = dur >= 4 ? [
       [[0, 0.5]], [[0, 0.4], [1 + sw, 0.4]], [[1, 0.4], [2 + sw, 0.5]], [[0, 1.4]], [[sw, 0.4], [2, 0.4]],
-      [[1 + sw, 0.4], [3, 0.4]], [[0, 0.4], [2 + sw, 0.4]], [[1 + sw, 1.2]]
+      [[1 + sw, 0.4], [3, 0.4]], [[0, 0.4], [2 + sw, 0.4]], [[1 + sw, 1.2]], [[sw, 0.3], [2 + sw, 0.3]], [[1 + sw, 0.3], [3, 0.3], [3 + sw, 0.3]]
     ] : dur >= 3 ? [[[0, 0.5]], [[1, 0.4], [2, 0.4]], [[sw, 0.4], [1 + sw, 0.4]]]
       : dur >= 2 ? [[[0, 0.5]], [[sw, 0.4]], [[0, 0.4], [1 + sw, 0.3]], [[1, 0.5]]] : [[[0, 0.4]]];
-    pick(pats).forEach(([b, d]) => hit(b, d, 0.55));
+    this.pickComp(pats).forEach(([b, d]) => hit(b, d, 0.55));
   }
 
-  drums(beats: number, out: BandEvent[], barInChorus: number) {
+  // pick a comping figure, but not the same one twice running
+  private pickComp(pats: number[][][]): number[][] {
+    let i = Math.floor(rnd() * pats.length);
+    if (pats.length > 1 && i === this.lastComp) i = (i + 1) % pats.length;
+    this.lastComp = i;
+    return pats[i];
+  }
+
+  drums(beats: number, out: BandEvent[], barInChorus: number, bomb: boolean) {
     const sw = this.sw, f = this.feel;
     const d = (drum: DrumName, beat: number, vel: number) => out.push({ inst: "drums", drum, beat, vel: vel * (0.85 + rnd() * 0.3) });
     if (f === "ballad") {
-      for (let b = 0; b < beats; b++) d("swish", b, 0.35);
-      for (let b = 1; b < beats; b += 2) { d("brushTap", b, 0.4); d("hat", b, 0.3); }
+      // soft stick ride and the foot hi-hat, with a quiet sweep under it
+      for (let b = 0; b < beats; b++) {
+        d("swish", b, 0.22);
+        d("ride", b, b % 2 ? 0.34 : 0.28);
+        if (b % 2 === 1) { d("hat", b, 0.3); if (rnd() < 0.5) d("ride", b + sw, 0.2); }
+      }
       return;
     }
     if (f === "bossa") {
@@ -248,6 +312,25 @@ export class Generator {
       const rims = this.barNo % 2 === 0 ? [0, 1.5, 3] : [1, 2.5];
       rims.forEach(b => b < beats && d("rim", b, 0.5));
       [0, 1.5, 2, 3.5].forEach(b => b < beats && d("kick", b, b % 1 ? 0.3 : 0.45));
+      return;
+    }
+    if (f === "samba") {
+      // eighths on the hat, partido alto on the cross-stick, surdo pattern on the kick
+      for (let b = 0; b < beats; b += 0.5) d("hatClosed", b, b % 1 ? 0.45 : 0.3);
+      const rims = this.barNo % 2 === 0 ? [0, 1.5, 2.5] : [0.5, 1.5, 3];
+      rims.forEach(b => b < beats && d("rim", b, 0.45));
+      for (let b = 0; b < beats; b += 2) { d("kick", b, 0.35); if (b + 1 < beats) { d("kick", b + 0.75, 0.25); d("kick", b + 1, 0.55); } }
+      return;
+    }
+    if (f === "latin") {
+      // 2-3 son clave on the cross-stick, cascara on the ride, kick on the tumbao's beats
+      const two = this.barNo % 2 === 0;
+      const clave = two ? [1, 2] : [0, 1.5, 3];
+      const cascara = two ? [0, 1, 1.5, 2.5, 3.5] : [0, 1, 2, 2.5, 3.5];
+      cascara.forEach(b => b < beats && d("ride", b, b % 1 ? 0.4 : 0.5));
+      clave.forEach(b => b < beats && d("rim", b, 0.5));
+      [1.5, 3].forEach(b => b < beats && d("kick", b, 0.4));
+      for (let b = 1; b < beats; b += 2) d("hat", b, 0.3);
       return;
     }
     if (f === "even") {
@@ -260,14 +343,28 @@ export class Generator {
       d("ride", 0, 0.55); d("ride", 1, 0.65); d("ride", 1 + sw, 0.4); d("ride", 2, 0.6);
       d("hat", 1, 0.4); d("hat", 2, 0.3);
       d("kick", 0, 0.18);
+      if (rnd() < 0.2) d("snare", 2 + sw, 0.2);
       return;
     }
     for (let b = 0; b < beats; b++) {
       d("ride", b, b % 2 ? 0.7 : 0.55);
-      if (b % 2 === 1) { d("ride", b + sw, 0.38); d("hat", b, 0.45); }
+      // the skip note, left out now and then
+      if (b % 2 === 1 && rnd() < 0.9) d("ride", b + sw, 0.38);
+      if (b % 2 === 1) d("hat", b, 0.45);
       d("kick", b, 0.12);
     }
-    if (rnd() < 0.22) d("snare", pick([1 + sw, 2 + sw, 3 + sw].filter(x => x < beats)), 0.18);
+    const phraseEnd = barInChorus % 8 === 7;
+    if (phraseEnd && beats >= 4 && rnd() < 0.6) {
+      // a little triplet fill into the next phrase
+      [3, 3 + 1 / 3, 3 + 2 / 3].forEach((b, i) => d("snare", b, 0.25 + i * 0.1));
+    } else {
+      // snare comping on the off-beats, quiet
+      const spots = [sw, 1 + sw, 2 + sw, 3 + sw].filter(x => x < beats);
+      if (rnd() < 0.35) d("snare", pick(spots), 0.2);
+      if (rnd() < 0.12) d("snare", pick(spots), 0.15);
+    }
+    // a kick "bomb" under the piano's anticipation
+    if (bomb) d("kick", beats - 1 + sw, 0.5);
     if (barInChorus === 0 && this.barNo > 1 && rnd() < 0.5) d("hatOpen", 0, 0.25);
   }
 
@@ -290,7 +387,7 @@ export class Generator {
         this.anticipated = true;
       }
     }
-    this.drums(bar.beats, out, barInChorus);
+    this.drums(bar.beats, out, barInChorus, this.anticipated && rnd() < 0.5);
     this.barNo++;
     return out;
   }

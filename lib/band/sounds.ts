@@ -1,34 +1,44 @@
-// Sampled piano, bass and drums. Browser only (Web Audio).
-// Piano: Splendid Grand Piano (Steinway, 4 velocity layers). Bass: D. Smolken's 1958 Rubner
-// double bass, pizzicato, royalty-free. Both are fetched from smpldsnds.github.io on first play
-// and kept in the browser's Cache Storage where it's available (https or localhost).
-// Drums: Virtuosity Drums (CC0), bundled in public/sounds/drums.json (see the README there).
-import { SplendidGrandPiano, Smolken, CacheStorage, HttpStorage, type Smplr } from "smplr";
+// Sampled piano, bass and drums, all served from public/sounds/ (see the README there). Browser only (Web Audio).
+// Piano: Splendid Grand Piano (Akai, public domain), pp–mf layers. Bass: D. Smolken's 1958 Rubner double bass,
+// pizzicato (CC0). Drums: Virtuosity Drums (CC0).
 
-export type DrumName = "ride" | "hat" | "hatClosed" | "hatOpen" | "kick" | "snare" | "brushTap" | "swish" | "rim" | "click" | "clickHi";
+/** One sample: the keys and velocities (MIDI 1–127) it covers, its pitch, and its round-robin takes. */
+export interface Region { lokey: number; hikey: number; center: number; lo: number; hi: number; buffers: AudioBuffer[] }
+export interface Sampler { regions: Region[]; next: Map<Region, number> }
+
+/** The region for a note, and the next round-robin take from it. */
+export function pickSample(inst: Sampler, midi: number, velocity: number): { buf: AudioBuffer; rate: number } | null {
+  let inKey = inst.regions.filter(r => midi >= r.lokey && midi <= r.hikey);
+  if (!inKey.length) { // off the sampled range: stretch the nearest sample
+    const near = inst.regions.reduce((a, r) => Math.abs(r.center - midi) < Math.abs(a.center - midi) ? r : a);
+    inKey = inst.regions.filter(r => r.center === near.center);
+  }
+  const reg = inKey.find(r => velocity >= r.lo && velocity <= r.hi)
+    || inKey.reduce<Region | null>((best, r) => !best || Math.abs((r.lo + r.hi) / 2 - velocity) < Math.abs((best.lo + best.hi) / 2 - velocity) ? r : best, null);
+  if (!reg) return null;
+  const n = ((inst.next.get(reg) || 0) + 1) % reg.buffers.length;
+  inst.next.set(reg, n);
+  return { buf: reg.buffers[n], rate: Math.pow(2, (midi - reg.center) / 12) };
+}
+
+export async function loadSampler(ctx: AudioContext, name: "piano" | "bass"): Promise<Sampler> {
+  const res = await fetch("/sounds/" + name + ".json");
+  if (!res.ok) throw new Error("Couldn't load the " + name + " samples");
+  const data: (Omit<Region, "buffers"> & { files: string[] })[] = await res.json();
+  const regions = await Promise.all(data.map(async ({ files, ...r }) => ({ ...r, buffers: await Promise.all(files.map(f => fetchSample(ctx, "/sounds/" + name + "/" + f))) })));
+  return { regions, next: new Map() };
+}
+
+async function fetchSample(ctx: BaseAudioContext, url: string): Promise<AudioBuffer> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Couldn't load " + url);
+  return trimStart(ctx, await ctx.decodeAudioData(await res.arrayBuffer()));
+}
+
+export type DrumName = "ride" | "hat" | "hatClosed" | "hatOpen" | "kick" | "snare" | "swish" | "rim" | "click" | "clickHi";
 /** A velocity layer (MIDI 1–127) with its round-robin hits. */
 export interface DrumLayer { lo: number; hi: number; buffers: AudioBuffer[] }
 export type DrumKit = Record<DrumName, DrumLayer[]>;
-
-// Only fetch the keys the generator comps in and the pp–mf layers it plays at (about 9 MB instead of 30).
-export const PIANO_VELOCITY: [number, number] = [41, 100];
-const PIANO_NOTES = Array.from({ length: 88 - 36 + 1 }, (_, i) => 36 + i);
-
-function storage() {
-  return typeof caches !== "undefined" && window.isSecureContext ? CacheStorage("gig-book-samples") : HttpStorage;
-}
-
-export async function loadPiano(ctx: AudioContext, destination: AudioNode): Promise<Smplr> {
-  const piano = SplendidGrandPiano(ctx, { destination, storage: storage(), decayTime: 0.35, notesToLoad: { notes: PIANO_NOTES, velocityRange: PIANO_VELOCITY } });
-  await piano.ready;
-  return piano;
-}
-
-export async function loadBass(ctx: AudioContext, destination: AudioNode): Promise<Smplr> {
-  const bass = Smolken(ctx, { instrument: "Pizzicato", destination, storage: storage() });
-  await bass.ready;
-  return bass;
-}
 
 // ---- drums ----
 // The recorded hits are this much quieter than the piano and bass.
@@ -84,7 +94,7 @@ export async function loadDrums(ctx: AudioContext): Promise<DrumKit> {
   await Promise.all(Object.entries(data).map(async ([name, layers]) => {
     kit[name as DrumName] = await Promise.all(layers.map(async l => ({ lo: l.lo, hi: l.hi, buffers: await Promise.all(l.samples.map(b => decodeB64(ctx, b))) })));
   }));
-  // The kit has no brushes, so the ballad sweep and the count-in clicks stay synthesised.
+  // The kit has no brushes, so the ballad sweep and the count-in clicks are synthesised.
   const sr = ctx.sampleRate;
   kit.swish = one(await render(sr, 0.7, off => {
     const n = noise(off, 0.7); const bp = off.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 4200; bp.Q.value = 0.4;
