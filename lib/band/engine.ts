@@ -1,5 +1,6 @@
 // The Band: schedules generated bars against the Web Audio clock. Browser only.
-import { loadInstrument, makeDrums, type SampleMap, type DrumKit, type DrumName } from "./sounds";
+import type { Smplr } from "smplr";
+import { loadPiano, loadBass, makeDrums, PIANO_VELOCITY, type DrumKit, type DrumName } from "./sounds";
 import { Generator, feelOf, defaultTempo, type Feel } from "./gen";
 import { unroll, type Song } from "../ireal";
 import { detectTonic, hasRoot, type ChordLike } from "../theory";
@@ -39,7 +40,7 @@ export class Band {
   private listeners = new Set<(ev: BandMessage) => void>();
   private master: DynamicsCompressorNode | null = null;
   private bus = {} as Record<Instrument, GainNode>;
-  private samples = {} as { piano: SampleMap; bass: SampleMap };
+  private inst = {} as { piano: Smplr; bass: Smplr };
   private drumKit = {} as DrumKit;
   private song!: Song;
   private shift = 0;
@@ -74,8 +75,8 @@ export class Band {
       const g = ctx.createGain(); g.gain.value = this.mute[k] ? 0 : this.levels[k]; g.connect(this.master); this.bus[k] = g;
     }
     this.emit({ type: "loading" });
-    this.ready = Promise.all([loadInstrument(ctx, "piano"), loadInstrument(ctx, "bass"), makeDrums(ctx.sampleRate)])
-      .then(([piano, bass, drums]) => { this.samples = { piano, bass }; this.drumKit = drums; this.emit({ type: "loaded" }); })
+    this.ready = Promise.all([loadPiano(ctx, this.bus.piano), loadBass(ctx, this.bus.bass), makeDrums(ctx.sampleRate)])
+      .then(([piano, bass, drums]) => { this.inst = { piano, bass }; this.drumKit = drums; this.emit({ type: "loaded" }); })
       .catch((err: Error) => { this.ready = null; this.emit({ type: "error", message: err.message }); throw err; });
     return this.ready;
   }
@@ -94,27 +95,14 @@ export class Band {
   }
   private timeOf(beat: number) { return this.anchorTime + (beat - this.anchorBeat) * 60 / this.tempo; }
 
-  private playSample(inst: "piano" | "bass", midi: number, time: number, dur: number, vel: number, roll = 0) {
+  // vel is the generator's 0–1 loudness; the samplers want MIDI velocity, which also changes the timbre.
+  private playNote(inst: "piano" | "bass", midi: number, time: number, dur: number, vel: number, roll = 0) {
     const ctx = this.ctx as AudioContext;
-    const map = this.samples[inst];
-    let buf = map.get(midi), rate = 1;
-    if (!buf) {
-      let best: number | null = null;
-      for (const k of map.keys()) if (best === null || Math.abs(k - midi) < Math.abs(best - midi)) best = k;
-      if (best === null) return;
-      buf = map.get(best); rate = Math.pow(2, (midi - best) / 12);
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf as AudioBuffer; src.playbackRate.value = rate;
-    const g = ctx.createGain();
-    const t = Math.max(ctx.currentTime, time + roll);
-    const release = inst === "bass" ? 0.06 : 0.12;
-    g.gain.setValueAtTime(vel, t);
-    g.gain.setValueAtTime(vel, t + dur);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
-    src.connect(g).connect(this.bus[inst]);
-    src.start(t); src.stop(t + dur + release + 0.02);
-    this.voices.push(src);
+    const [lo, hi] = inst === "piano" ? PIANO_VELOCITY : [1, 127];
+    const velocity = Math.round(Math.min(hi, Math.max(lo, inst === "piano" ? 25 + vel * 75 : 30 + vel * 90)));
+    const note = { note: midi, time: Math.max(ctx.currentTime, time + roll), duration: dur, velocity };
+    // a shorter release than the sample set's 0.3s keeps walking lines from smearing
+    this.inst[inst].start(inst === "bass" ? { ...note, ampRelease: 0.15 } : note);
   }
   private playDrum(name: DrumName, time: number, vel: number) {
     const ctx = this.ctx as AudioContext;
@@ -215,7 +203,7 @@ export class Band {
         if (e.inst === "drums") this.playDrum(e.drum, t, e.vel);
         else {
           const inst = e.inst;
-          e.notes.forEach((m, j) => this.playSample(inst, m, t, e.dur * 60 / this.tempo, e.vel * (inst === "piano" ? 0.6 : 1), e.roll ? e.roll * j : 0));
+          e.notes.forEach((m, j) => this.playNote(inst, m, t, e.dur * 60 / this.tempo, e.vel, e.roll ? e.roll * j : 0));
         }
       }
       this.nextBeat += beats;
@@ -238,6 +226,8 @@ export class Band {
       this.voices.forEach(v => { try { v.stop(now + 0.05); } catch { /* already stopped */ } });
       this.voices = [];
     }
+    if (this.inst.piano) this.inst.piano.stop();
+    if (this.inst.bass) this.inst.bass.stop();
     if (was && !silent) this.emit({ type: "stop" });
   }
 }

@@ -1,29 +1,30 @@
-// Sample playback for piano and bass, and synthesised drums. Browser only (Web Audio).
-// Piano and bass samples: FluidR3_GM by Frank Wen, via gleitz/midi-js-soundfonts (CC BY 3.0).
-// The sample files live in public/sounds/ and are fetched on first play.
+// Sampled piano and bass (via smplr), and synthesised drums. Browser only (Web Audio).
+// Piano: Splendid Grand Piano (Steinway, 4 velocity layers). Bass: D. Smolken's 1958 Rubner
+// double bass, pizzicato, royalty-free. Both are fetched from smpldsnds.github.io on first play
+// and kept in the browser's Cache Storage where it's available (https or localhost).
+import { SplendidGrandPiano, Smolken, CacheStorage, HttpStorage, type Smplr } from "smplr";
 
-const BASE = "/sounds/";
-
-export type SampleMap = Map<number, AudioBuffer>;
 export type DrumName = "ride" | "hat" | "hatOpen" | "kick" | "snare" | "brushTap" | "swish" | "rim" | "click" | "clickHi";
 export type DrumKit = Record<DrumName, AudioBuffer>;
 
-async function decodeB64(ctx: BaseAudioContext, b64: string): Promise<AudioBuffer> {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return await ctx.decodeAudioData(bytes.buffer);
+// Only fetch the keys the generator comps in and the pp–mf layers it plays at (about 9 MB instead of 30).
+export const PIANO_VELOCITY: [number, number] = [41, 100];
+const PIANO_NOTES = Array.from({ length: 88 - 36 + 1 }, (_, i) => 36 + i);
+
+function storage() {
+  return typeof caches !== "undefined" && window.isSecureContext ? CacheStorage("gig-book-samples") : HttpStorage;
 }
 
-export async function loadInstrument(ctx: BaseAudioContext, name: "piano" | "bass"): Promise<SampleMap> {
-  const res = await fetch(BASE + name + ".json");
-  if (!res.ok) throw new Error("Couldn't load the " + name + " samples");
-  const data: Record<string, string> = await res.json();
-  const map: SampleMap = new Map();
-  await Promise.all(Object.entries(data).map(async ([midi, b64]) => {
-    try { map.set(+midi, await decodeB64(ctx, b64)); } catch { /* skip a bad sample */ }
-  }));
-  return map;
+export async function loadPiano(ctx: AudioContext, destination: AudioNode): Promise<Smplr> {
+  const piano = SplendidGrandPiano(ctx, { destination, storage: storage(), decayTime: 0.35, notesToLoad: { notes: PIANO_NOTES, velocityRange: PIANO_VELOCITY } });
+  await piano.ready;
+  return piano;
+}
+
+export async function loadBass(ctx: AudioContext, destination: AudioNode): Promise<Smplr> {
+  const bass = Smolken(ctx, { instrument: "Pizzicato", destination, storage: storage() });
+  await bass.ready;
+  return bass;
 }
 
 // ---- drums, rendered once into buffers ----
