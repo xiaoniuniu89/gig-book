@@ -7,6 +7,7 @@ import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
 import { song } from "@/lib/songs";
 import { TunePicker, newItem } from "../TunePicker";
+import { Notes } from "../Notes";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { MEMBER_NOT_FOUND, type Member, type Setlist } from "@/lib/data/types";
 
@@ -48,6 +49,18 @@ function SetBody({ s }: { s: Setlist }) {
   const [picking, setPicking] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
+  // notes per tune, for the little count under each title
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const itemIds = s.items.map(it => it.id).join(",");
+  useEffect(() => {
+    let gone = false;
+    app.flushSetlist(s.id)
+      .then(() => app.store.countNotes(s.id, itemIds ? itemIds.split(",") : []))
+      .then(c => { if (!gone) setCounts(c); })
+      .catch(() => { /* counts are a nicety */ });
+    return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when the tunes change, not on every render
+  }, [s.id, itemIds, app.store]);
 
   const sets = useMemo(() => [1, 2].map(n => s.items.map((it, i) => ({ it, i })).filter(x => (x.it.set || 1) === n)),
     [s.items]);
@@ -159,7 +172,7 @@ function SetBody({ s }: { s: Setlist }) {
               return (
                 <div className={"tune" + (drag?.before === x.i ? " drop-before" : "")} key={x.i + ":" + x.it.raw.length + ":" + sg.title} data-i={canEdit ? x.i : undefined}>
                   <span className="n">{pos + 1}</span>
-                  <Link className="name" href={songHref(s.id, x.i)}>{sg.title}<span className="sub">{sg.composer} · {sg.style}</span>{x.it.note && <span className="sub note">{x.it.note}</span>}</Link>
+                  <Link className="name" href={songHref(s.id, x.i)}>{sg.title}<span className="sub">{sg.composer} · {sg.style}</span>{counts[x.it.id] > 0 && <span className="sub note-count">{counts[x.it.id]} note{counts[x.it.id] === 1 ? "" : "s"}</span>}</Link>
                   <span className="k">{keyLabel(sg, x.it.shift ?? irealShift(sg))}</span>
                   {canEdit && (
                     <span className="tune-btns">
@@ -188,6 +201,7 @@ function SetBody({ s }: { s: Setlist }) {
           {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener">Open in Spotify</a>}
         </div>
       </section>
+      <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />
       {app.store.kind === "supabase" && <Band s={s} owner={isOwner} />}
       {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (

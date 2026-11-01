@@ -7,8 +7,9 @@ import { useApp, songHref, type Current } from "../AppProvider";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { songLink } from "@/lib/ireal";
-import { song, norm } from "@/lib/songs";
+import { song, norm, songKey } from "@/lib/songs";
 import { newItem } from "../TunePicker";
+import { Notes } from "../Notes";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
 import type { Setlist, SetlistItem } from "@/lib/data/types";
@@ -131,10 +132,14 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
           </div>
         </div>
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
-        {cur.kind === "set" && s && item && (canEdit
-          ? <NoteEditor key={item.id} item={item} cur={cur} />
-          : item.note && <p className="hint note">{item.note}</p>)}
       </section>
+      {cur.kind === "set" && s && item && (
+        <Notes key={"band:" + item.id} title="Band notes" hint="For this tune in this setlist. Everyone in the band can read and reply."
+          home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw}
+          legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
+      )}
+      <Notes key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
+        home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} item={item} canEdit={canEdit} />
@@ -165,24 +170,6 @@ export function ChartHost({ html, live }: { html: string; live: boolean }) {
     if (liveRef.current && bar.current !== null) markRef.current(bar.current); // re-apply the playing bar after a redraw
   }, [html, bar]);
   return <div id="chart-wrap" ref={ref} />;
-}
-
-/** Note on a set tune: plain text in a textarea (React renders it as text), saved on blur. */
-function NoteEditor({ item, cur }: { item: SetlistItem; cur: Extract<Current, { kind: "set" }> }) {
-  const app = useApp();
-  const [text, setText] = useState(item.note ?? "");
-  const save = () => {
-    const v = text.trim() || null;
-    if (v === (item.note ?? null)) return;
-    app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, note: v }));
-  };
-  return (
-    <label className="note-edit">
-      <span className="hint">Note</span>
-      <textarea rows={2} maxLength={500} placeholder="e.g. intro: last 4 bars" value={text}
-        onChange={e => setText(e.target.value)} onBlur={save} />
-    </label>
-  );
 }
 
 function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; canEdit: boolean }) {
