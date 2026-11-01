@@ -52,6 +52,7 @@ export function parseProgression(text: string): string[][] {
 
 /** The progression moved by `semis` semitones, spelt for the key whose tonic is `toPc`. */
 export function transposeProgression(bars: string[][], semis: number, toPc: number): string[][] {
+  if (!((semis % 12 + 12) % 12)) return bars; // the lick's own key: keep the spelling as written (A7/C#, not A7/Db)
   const names = keyNames(toPc);
   const mv = (n: string) => names[(rootPc(n) + semis + 120) % 12];
   return bars.map(b => b.map(sym => {
