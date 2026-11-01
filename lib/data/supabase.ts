@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, type AppNotification, type DataStore, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -39,8 +39,21 @@ interface NotificationRow {
   read_at: string | null;
   created_at: string;
 }
+interface AttachmentRow {
+  id: string;
+  note_id: string;
+  storage_path: string;
+  kind: Attachment["kind"];
+  name: string;
+  mime: string;
+  size: number;
+  created_by: string;
+  created_at: string;
+}
 interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
+const ATT_COLS = "id, note_id, storage_path, kind, name, mime, size, created_by, created_at";
+const BUCKET = "attachments";
 const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
@@ -55,6 +68,14 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
     .map(it => ({ id: it.id, raw: it.song, set: it.set_no === 2 ? 2 : 1, shift: it.shift, versions: it.versions || [] }));
   return { id: r.id, name: r.name, spotify: r.spotify_uri, visibility: r.visibility, role, items };
 }
+
+const toAttachment = (r: AttachmentRow): Attachment => ({
+  id: r.id, noteId: r.note_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
+  createdBy: r.created_by, createdAt: r.created_at,
+});
+
+/** Letters, digits, dot, dash, underscore only; keeps the end of the name (and so the extension). */
+const safeName = (n: string): string => n.normalize("NFKD").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|-+$/g, "").slice(-80) || "file";
 
 const newUuid = () => crypto.randomUUID();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -249,6 +270,12 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async deleteNote(id) {
+      // remove the files of the note and its replies first (the rows go with the note)
+      const rep = await sb.from("notes").select("id").eq("parent_id", id);
+      const ids = [id, ...((rep.data || []) as { id: string }[]).map(r => r.id)];
+      const at = await sb.from("attachments").select("storage_path").in("note_id", ids);
+      const paths = ((at.data || []) as { storage_path: string }[]).map(r => r.storage_path);
+      if (paths.length) await sb.storage.from(BUCKET).remove(paths);
       const { error } = await sb.from("notes").delete().eq("id", id);
       if (error) fail("delete that note", error);
     },
@@ -259,6 +286,74 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const src = data as { body: string; tag: NoteTag | null; parent_id: string | null };
       const ins = await sb.from("notes").insert({ ...homeCols(to), body: src.body, tag: src.parent_id ? null : src.tag });
       if (ins.error) fail("copy that note", ins.error);
+    },
+
+    async listAttachments(noteIds) {
+      if (!noteIds.length) return [];
+      const { data, error } = await sb.from("attachments").select(ATT_COLS).in("note_id", noteIds).order("created_at");
+      if (error) fail("load the attachments", error);
+      return ((data || []) as AttachmentRow[]).map(toAttachment);
+    },
+
+    async uploadAttachment(home, noteId, file, onProgress) {
+      const kind = attachmentKind(file.type, file.name);
+      if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
+      const mime = (file.type || "application/octet-stream").split(";")[0].trim();
+      const base = home.kind === "song" ? "user/" + userId : "setlist/" + home.setlistId;
+      const path = `${base}/${noteId}/${newUuid()}-${safeName(file.name)}`;
+      const { data: sess } = await sb.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Sign in again to upload.");
+      // XHR rather than supabase-js, to get upload progress
+      await new Promise<void>((resolve, reject) => {
+        const x = new XMLHttpRequest();
+        x.open("POST", `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`);
+        x.setRequestHeader("Authorization", "Bearer " + token);
+        x.setRequestHeader("apikey", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
+        x.setRequestHeader("x-upsert", "false");
+        x.setRequestHeader("Content-Type", mime);
+        x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+        x.onload = () => x.status >= 200 && x.status < 300 ? resolve() : reject(new Error(`Couldn't upload ${file.name} (${x.status}).`));
+        x.onerror = () => reject(new Error(`Couldn't upload ${file.name}: no connection.`));
+        x.send(file);
+      });
+      const { data, error } = await sb.from("attachments")
+        .insert({ note_id: noteId, storage_path: path, kind, name: file.name.slice(0, 300), mime, size: file.size })
+        .select(ATT_COLS).single();
+      if (error) {
+        await sb.storage.from(BUCKET).remove([path]);
+        fail("save that attachment", error);
+      }
+      return toAttachment(data as AttachmentRow);
+    },
+
+    async deleteAttachment(a) {
+      const rm = await sb.storage.from(BUCKET).remove([a.path]);
+      if (rm.error) fail("delete that file", rm.error);
+      const { error } = await sb.from("attachments").delete().eq("id", a.id);
+      if (error) fail("delete that file", error);
+    },
+
+    async attachmentUrl(a) {
+      const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(a.path, 3600);
+      if (error || !data) fail("open that file", error);
+      return data.signedUrl;
+    },
+
+    async getChartChoice(setlistId, itemId) {
+      const { data, error } = await sb.from("chart_choices").select("attachments(" + ATT_COLS + ")")
+        .eq("user_id", userId).eq("setlist_item_id", itemUuid(setlistId, itemId)).maybeSingle();
+      if (error) fail("load the chart choice", error);
+      const a = (data as unknown as { attachments: AttachmentRow | null } | null)?.attachments;
+      return a ? toAttachment(a) : null;
+    },
+
+    async setChartChoice(setlistId, itemId, attachmentId) {
+      const item = itemUuid(setlistId, itemId);
+      const { error } = attachmentId
+        ? await sb.from("chart_choices").upsert({ user_id: userId, setlist_item_id: item, attachment_id: attachmentId })
+        : await sb.from("chart_choices").delete().eq("user_id", userId).eq("setlist_item_id", item);
+      if (error) fail("save the chart choice", error);
     },
 
     async listLibrary() {

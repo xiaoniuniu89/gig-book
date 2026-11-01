@@ -429,3 +429,34 @@ html, body { overflow-x: clip; }
   .bell-close { display: inline-block; }
   .bell-item { padding: 14px 6px; }
 }
+/* attachments (R6) */
+.note-inner { display: grid; gap: 6px; min-width: 0; }
+.attach-menu { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.attach-opts, .recorder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.recorder audio { max-width: 100%; }
+.pending-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.pending-files .chip { display: inline-flex; align-items: center; gap: 6px; cursor: default; max-width: 100%; overflow-wrap: anywhere; }
+.pending-files .chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+.attachments { display: grid; gap: 8px; min-width: 0; }
+.attachment { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.attachment audio { width: 100%; max-width: 420px; }
+.att-name { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.thumb { border: 1px solid var(--rule); border-radius: 8px; padding: 0; background: var(--surface); cursor: pointer; overflow: hidden; line-height: 0; }
+.thumb img { display: block; max-width: min(100%, 240px); max-height: 180px; object-fit: cover; }
+.upload { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+.upload-name { overflow-wrap: anywhere; }
+.upload-err { color: #B3261E; }
+.upload progress { flex: 1; min-width: 80px; }
+.viewer { position: fixed; inset: 0; z-index: 60; background: var(--paper); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--surface); border-bottom: 1px solid var(--rule); }
+.viewer-bar b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-body { flex: 1; overflow: auto; touch-action: auto; display: grid; place-items: start center; }
+.viewer-body img { max-width: 100%; height: auto; }
+.viewer-body object { width: 100%; height: 100%; min-height: 70vh; }
+.focus-body:has(.file-chart) { touch-action: auto; user-select: auto; -webkit-user-select: auto; }
+.file-chart { display: block; width: 100%; }
+.file-chart img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+object.file-chart { height: 100%; min-height: 80vh; }
+@media (max-width: 640px) {
+  .attach-menu .btn.small, .upload .btn.small, .attachment .btn.small { min-height: 44px; }
+}

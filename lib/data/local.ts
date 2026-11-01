@@ -108,6 +108,13 @@ export const localStore: DataStore = {
     const note = newNote(to, { body: src.body, tag: src.parentId ? null : src.tag });
     await set("note:" + note.id, note);
   },
+  // attachments need an account (the UI hides them in local mode)
+  listAttachments: async () => [],
+  uploadAttachment: () => Promise.reject(new Error("Attachments need an account.")),
+  deleteAttachment: () => Promise.reject(new Error("Attachments need an account.")),
+  attachmentUrl: () => Promise.reject(new Error("Attachments need an account.")),
+  getChartChoice: async () => null,
+  setChartChoice: async () => {},
   listLibrary: () => all<LibraryPlaylist>("library:"),
   saveLibraryPlaylist: p => set("library:" + p.id, p),
   deleteLibraryPlaylist: id => del("library:" + id),
