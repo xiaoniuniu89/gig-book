@@ -65,6 +65,8 @@ export const localStore: DataStore = {
   setMemberRole: noMembers,
   removeMember: noMembers,
   leaveSetlist: noMembers,
+  listNotifications: async () => [],
+  markNotificationsRead: async () => {},
   newId(name, taken) {
     let id = slug(name), n = 2;
     while (taken(id)) id = slug(name) + "-" + n++;

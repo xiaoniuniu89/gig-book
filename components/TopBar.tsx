@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useApp } from "./AppProvider";
+import { Bell } from "./Bell";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
 export function TopBar() {
@@ -12,6 +13,7 @@ export function TopBar() {
         <div className="crumb" id="crumb">{crumb}</div>
         <span className="acct">
           <Link className="btn small" href="/library">Library</Link>
+          {supabaseConfigured && <Bell />}
           {supabaseConfigured && <Account />}
         </span>
       </div>

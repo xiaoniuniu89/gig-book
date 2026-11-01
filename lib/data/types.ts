@@ -59,6 +59,20 @@ export interface Note {
   updatedAt: string;
 }
 
+export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  setlistId: string;
+  setlistName: string;
+  /** Setlist item (a tune) the note is on, when it's on a tune. */
+  itemId: string | null;
+  actorName: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
 /** A fresh id for a setlist item (a UUID, so Supabase keeps it). */
@@ -92,6 +106,10 @@ export interface DataStore {
   deleteNote(id: string): Promise<void>;
   /** Independent copy of a note (no replies) into another home, authored by you. */
   copyNote(noteId: string, to: NoteHome): Promise<void>;
+  /** Your 50 newest notifications (accounts only; local mode has none). */
+  listNotifications(): Promise<AppNotification[]>;
+  /** Mark the given notifications read, or all of yours when no ids are given. */
+  markNotificationsRead(ids?: string[]): Promise<void>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;

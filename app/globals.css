@@ -411,3 +411,21 @@ html, body { overflow-x: clip; }
 .focus .n3 .ch, .focus .n4 .ch { font-size: clamp(17px, 3.8vw, 32px); }
 .focus .tn { font-size: clamp(12px, 2.4vw, 16px); }
 @media (max-width: 480px) { .focus-title span { display: none; } .focus-title b { font-size: 18px; } }
+
+/* ---- notifications bell (R7.1) ---- */
+.bell { position: relative; }
+.bell-count { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--brass); color: var(--paper); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.bell-scrim { position: fixed; inset: 0; z-index: 39; }
+.bell-panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 10px; width: min(380px, calc(100vw - 32px)); }
+.bell-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 8px; }
+.bell-close { display: none; }
+.bell-list { list-style: none; margin: 0; padding: 0; max-height: min(60vh, 480px); overflow-y: auto; }
+.bell-item { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; width: 100%; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; border-top: 1px solid var(--rule); padding: 10px 6px; cursor: pointer; }
+.bell-item.unread { background: var(--brass-soft); }
+.bell-item small { color: var(--muted); white-space: nowrap; }
+@media (max-width: 520px) {
+  .bell-panel { position: fixed; inset: 0; top: 0; right: 0; width: auto; max-width: none; border-radius: 0; z-index: 50; padding-top: calc(10px + env(safe-area-inset-top, 0px)); display: flex; flex-direction: column; }
+  .bell-list { max-height: none; flex: 1; }
+  .bell-close { display: inline-block; }
+  .bell-item { padding: 14px 6px; }
+}
