@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, type Attachment, type DataStore, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -30,6 +30,14 @@ interface NoteRow {
   body: string;
   created_at: string;
   updated_at: string;
+}
+interface NotificationRow {
+  id: string;
+  kind: AppNotification["kind"];
+  payload: { setlist_id?: string; setlist_name?: string; item_id?: string };
+  actor: string | null;
+  read_at: string | null;
+  created_at: string;
 }
 interface AttachmentRow {
   id: string;
@@ -203,6 +211,25 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async leaveSetlist(setlistId) {
       const { error } = await sb.from("setlist_members").delete().eq("setlist_id", setlistId).eq("user_id", userId);
       if (error) fail("leave the setlist", error);
+    },
+
+    async listNotifications() {
+      const { data, error } = await sb.from("notifications").select("id, kind, payload, actor, read_at, created_at")
+        .order("created_at", { ascending: false }).limit(50);
+      if (error) fail("load notifications", error);
+      const rows = ((data || []) as NotificationRow[]).filter(r => r.payload?.setlist_id);
+      const nm = await namesOf(rows.flatMap(r => r.actor ? [r.actor] : []));
+      return rows.map(r => ({
+        id: r.id, kind: r.kind, setlistId: r.payload.setlist_id as string, setlistName: r.payload.setlist_name || "a setlist",
+        itemId: r.payload.item_id || null, actorName: (r.actor && nm.get(r.actor)) || "Someone", read: !!r.read_at, createdAt: r.created_at,
+      }));
+    },
+
+    async markNotificationsRead(ids) {
+      let q = sb.from("notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
+      q = ids ? q.in("id", ids) : q.eq("user_id", userId);
+      const { error } = await q;
+      if (error) fail("mark notifications read", error);
     },
 
     async listNotes(home) {

@@ -59,6 +59,20 @@ export interface Note {
   updatedAt: string;
 }
 
+export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  setlistId: string;
+  setlistName: string;
+  /** Setlist item (a tune) the note is on, when it's on a tune. */
+  itemId: string | null;
+  actorName: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export type AttachmentKind = "pdf" | "image" | "audio";
 
 /** A file on a note (R6). Accounts only; local mode has no attachments. */
@@ -120,6 +134,10 @@ export interface DataStore {
   deleteNote(id: string): Promise<void>;
   /** Independent copy of a note (no replies) into another home, authored by you. */
   copyNote(noteId: string, to: NoteHome): Promise<void>;
+  /** Your 50 newest notifications (accounts only; local mode has none). */
+  listNotifications(): Promise<AppNotification[]>;
+  /** Mark the given notifications read, or all of yours when no ids are given. */
+  markNotificationsRead(ids?: string[]): Promise<void>;
   /** Files on the given notes. Empty in local mode. */
   listAttachments(noteIds: string[]): Promise<Attachment[]>;
   /** Uploads a file to a note you can write to (accounts only). Progress is 0..1. */
