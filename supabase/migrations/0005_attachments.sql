@@ -83,20 +83,30 @@ drop policy if exists attachments_insert on storage.objects;
 create policy attachments_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'attachments' and public.can_write_attachment_path(name));
 
--- The uploader, or the setlist owner.
+-- The uploader, or the setlist owner. (Checked in a SECURITY DEFINER helper: attachment_path_note isn't
+-- executable by signed-in users, so the policy can't call it directly.)
+create or replace function public.can_delete_attachment_path(p_path text, p_owner text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  n public.notes;
+begin
+  if auth.uid() is null then return false; end if;
+  if p_owner = auth.uid()::text then return true; end if;
+  n := public.attachment_path_note(p_path);
+  return n.id is not null and n.setlist_id is not null and public.setlist_role(n.setlist_id) = 'owner';
+end;
+$$;
+revoke all on function public.can_delete_attachment_path(text, text) from public, anon;
+grant execute on function public.can_delete_attachment_path(text, text) to authenticated;
+
 drop policy if exists attachments_delete on storage.objects;
 create policy attachments_delete on storage.objects for delete to authenticated
-  using (
-    bucket_id = 'attachments'
-    and (
-      owner_id = auth.uid()::text
-      or exists (
-        select 1 from public.notes n
-        where n.id = (public.attachment_path_note(name)).id
-          and n.setlist_id is not null and public.setlist_role(n.setlist_id) = 'owner'
-      )
-    )
-  );
+  using (bucket_id = 'attachments' and public.can_delete_attachment_path(name, owner_id));
 
 -- ---------------------------------------------------------------- attachments table
 create table if not exists public.attachments (
@@ -127,7 +137,7 @@ create policy attachments_insert on public.attachments for insert to authenticat
     created_by = auth.uid()
     and note_id is not null
     and public.can_write_attachment_path(storage_path)
-    and (public.attachment_path_note(storage_path)).id = note_id
+    and split_part(storage_path, '/', 3) = note_id::text
   );
 
 drop policy if exists attachments_delete on public.attachments;
