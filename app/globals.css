@@ -356,3 +356,18 @@ html, body { overflow-x: clip; }
   main { padding-top: 12px; }
   h1 { font-size: 38px; }
 }
+
+/* ---- chart view (R3): covers the whole viewport; the dock keeps playing underneath ---- */
+.focus { position: fixed; inset: 0; z-index: 40; background: var(--paper); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.focus-bar { display: flex; align-items: center; gap: 8px; padding: 6px max(10px, env(safe-area-inset-right, 0px)) 6px max(10px, env(safe-area-inset-left, 0px)); background: var(--surface); border-bottom: 1px solid var(--rule); }
+.focus-title { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; }
+.focus-title b { font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: .03em; overflow: hidden; text-overflow: ellipsis; }
+.focus-title span { font-family: var(--chord); font-weight: 700; font-size: 18px; color: var(--brass); }
+.focus-body { flex: 1; overflow: auto; touch-action: pan-y; padding: 14px max(12px, env(safe-area-inset-left, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)); user-select: none; -webkit-user-select: none; }
+.focus-body #chart-wrap { max-width: 1400px; margin: 0 auto; }
+.focus .chart { gap: 18px; }
+.focus .mbar { min-height: 96px; }
+.focus .ch { font-size: clamp(22px, 5.6vw, 46px); }
+.focus .n3 .ch, .focus .n4 .ch { font-size: clamp(17px, 3.8vw, 32px); }
+.focus .tn { font-size: clamp(12px, 2.4vw, 16px); }
+@media (max-width: 480px) { .focus-title span { display: none; } .focus-title b { font-size: 18px; } }
