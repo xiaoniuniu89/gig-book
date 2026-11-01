@@ -1,13 +1,14 @@
 "use client";
 // Focus / chart view (R3): only the chart, big, with a slim bar. Swipe or arrow keys move through the setlist.
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp, songHref, type Current } from "../AppProvider";
 import { ChartHost } from "./SongView";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
+import { lickSongs } from "@/lib/irealExport";
 import { FileChart, useChartChoice } from "../Attachments";
 import type { Attachment } from "@/lib/data/types";
 
@@ -47,6 +48,16 @@ export function LibraryChartView() {
   const base = "/library/" + encodeURIComponent(plId) + "/";
   return <Focus cur={cur} back={base + idx} missing={app.ready && !cur}
     prev={p && idx > 0 ? base + (idx - 1) + "/chart" : ""} next={p && idx < p.songs.length - 1 ? base + (idx + 1) + "/chart" : ""} />;
+}
+
+/** /practise?t=title&p=chords&k=key: a lick's progression as a one-chart song, to play with the band (R8.4). */
+export function PractiseChartView() {
+  const q = useSearchParams();
+  const t = q.get("t") || "Lick", p = q.get("p") || "", k = q.get("k") || "";
+  const cur = useMemo<Current | null>(() => {
+    try { return { kind: "lick", song: song(lickSongs(t, p, k, false)[0]) }; } catch { return null; }
+  }, [t, p, k]);
+  return <Focus cur={cur} back="/licks" prev="" next="" missing />;
 }
 
 function Focus({ cur, back, prev, next, missing, tune }: {

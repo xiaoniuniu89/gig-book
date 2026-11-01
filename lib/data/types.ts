@@ -112,6 +112,10 @@ export interface Lick {
   title: string;
   body: string;
   tags: string[];
+  /** Chords it sits over in iReal-style symbols ("Dm7 G7 | Cmaj7"), "" for none (R8.4). */
+  progression: string;
+  /** The key the progression is written in ("F"); "" means C. */
+  key: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,7 +125,7 @@ export type LickHome = Extract<NoteHome, { kind: "item" | "song" }>;
 
 export interface LickLink { id: string; lick: Lick; createdBy: string }
 
-export interface LickFields { title: string; body: string; tags: string[] }
+export interface LickFields { title: string; body: string; tags: string[]; progression: string; key: string }
 
 /** Comma-separated tags to a clean list: trimmed, lowercase, no repeats, at most 20. */
 export const parseTags = (s: string): string[] =>

@@ -21,7 +21,10 @@ import { SEEDS, cloneSeed } from "@/lib/seeds";
 /* ---------------- types ---------------- */
 export type Current =
   | { kind: "set"; setId: string; itemIdx: number; song: Song }
-  | { kind: "lib"; plId: string; songIdx: number; song: Song };
+  | { kind: "lib"; plId: string; songIdx: number; song: Song }
+  | { kind: "lick"; song: Song }; // a lick's progression opened to practise (R8.4)
+/** A tune of a setlist or the library (the ones with a tune page). */
+export type TuneCurrent = Exclude<Current, { kind: "lick" }>;
 
 export interface Prefs {
   mode: "trad" | "bh";

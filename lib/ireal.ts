@@ -75,6 +75,12 @@ function unscramble(s: string): string {
   while (s.length > 51) { out += obfusc50(s.slice(0, 50)); s = s.slice(50); }
   return out + s;
 }
+/** Inverse of unscramble (the swap is its own inverse), with the music prefix. Used by the encoder in irealExport.ts. */
+export function scramble(s: string): string {
+  let out = "";
+  while (s.length > 50) { out += obfusc50(s.slice(0, 50)); s = s.slice(50); }
+  return MUSIC_PREFIX + out + s;
+}
 
 // Known iReal chord qualities, longest first so "7sus" wins over "7".
 const QUALITIES = ["5", "2", "add9", "+", "o", "h", "sus", "^", "-", "^7", "-7", "7", "7sus", "h7", "o7", "^9", "^13",
