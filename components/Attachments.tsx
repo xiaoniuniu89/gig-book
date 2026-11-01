@@ -120,15 +120,17 @@ export const dropProps = (onFiles: (f: File[]) => void) => ({
 
 export interface Upload { key: string; noteId: string; file: File; pct: number; error?: string }
 
-/** Upload queue for one thread: progress, retry, and a callback with each finished attachment. */
-export function useUploads(store: DataStore, home: NoteHome, onDone: (a: Attachment) => void) {
+/** Upload queue for one thread: progress, retry, and a callback with each finished attachment. With "lick", `noteId` is a lick id. */
+export function useUploads(store: DataStore, home: NoteHome | "lick", onDone: (a: Attachment) => void) {
   const [ups, setUps] = useState<Upload[]>([]);
   const homeRef = useRef(home); homeRef.current = home;
   const run = useCallback(async (u: Upload) => {
     const patch = (p: Partial<Upload>) => setUps(l => l.map(x => x.key === u.key ? { ...x, ...p } : x));
     patch({ pct: 0, error: undefined });
     try {
-      const a = await store.uploadAttachment(homeRef.current, u.noteId, u.file, p => patch({ pct: p }));
+      const h = homeRef.current;
+      const a = h === "lick" ? await store.uploadLickAttachment(u.noteId, u.file, p => patch({ pct: p }))
+        : await store.uploadAttachment(h, u.noteId, u.file, p => patch({ pct: p }));
       setUps(l => l.filter(x => x.key !== u.key));
       onDone(a);
     } catch (e) { patch({ error: e instanceof Error ? e.message : "Upload failed." }); }

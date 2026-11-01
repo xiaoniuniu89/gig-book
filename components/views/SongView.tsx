@@ -10,6 +10,7 @@ import { songLink } from "@/lib/ireal";
 import { song, norm, songKey } from "@/lib/songs";
 import { newItem } from "../TunePicker";
 import { Notes } from "../Notes";
+import { Licks } from "../Licks";
 import { useChartChoice } from "../Attachments";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
@@ -144,6 +145,12 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
           home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw} chart={chart}
           legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
       )}
+      {cur.kind === "set" && s && item && (
+        <Licks key={"band-licks:" + item.id} title="Licks" hint="Attached to this tune in this setlist. Everyone in the band can see them here."
+          home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} />
+      )}
+      <Licks key={"my-licks:" + songKey(sg.raw)} title="My licks on this song" hint="Private to you. They show on this song in every setlist and in the library."
+        home={{ kind: "song", songKey: songKey(sg.raw) }} />
       <Notes key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
         home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} chart={chart} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
