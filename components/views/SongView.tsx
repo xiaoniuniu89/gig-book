@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useApp, songHref, type Current } from "../AppProvider";
+import { useApp, songHref, type Current, type TuneCurrent } from "../AppProvider";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { songLink } from "@/lib/ireal";
@@ -34,7 +34,7 @@ export function SetSongView() {
   }, [ready, s, id, ensureSetlist]);
 
   const setId = s?.id, raw = item?.raw;
-  const cur = useMemo<Current | null>(() => (setId && raw ? { kind: "set", setId, itemIdx: idx, song: song(raw) } : null),
+  const cur = useMemo<TuneCurrent | null>(() => (setId && raw ? { kind: "set", setId, itemIdx: idx, song: song(raw) } : null),
     [setId, raw, idx]);
   if (!cur) return (missing || (s && !item))
     ? <section className="panel"><h2>Tune not found</h2><Link className="btn" href={s ? "/set/" + encodeURIComponent(s.id) : "/"}>Back</Link></section>
@@ -49,14 +49,14 @@ export function LibrarySongView() {
   const app = useApp();
   const p = app.library.find(x => x.id === plId);
   const raw = p && Number.isInteger(idx) ? p.songs[idx] : undefined;
-  const cur = useMemo<Current | null>(() => (p && raw ? { kind: "lib", plId: p.id, songIdx: idx, song: song(raw) } : null), [p, raw, idx]);
+  const cur = useMemo<TuneCurrent | null>(() => (p && raw ? { kind: "lib", plId: p.id, songIdx: idx, song: song(raw) } : null), [p, raw, idx]);
   if (!cur) return app.ready
     ? <section className="panel"><h2>Chart not found</h2><Link className="btn" href="/library">Back to the library</Link></section>
     : <p className="hint">Loading…</p>;
   return <SongBody cur={cur} />;
 }
 
-function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
+function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
   const app = useApp();
   const { prefs, updatePrefs, setCrumb, setCurrent, gig, library } = app;
   const sg = cur.song;

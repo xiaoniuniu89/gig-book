@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -57,6 +57,8 @@ interface LickRow {
   title: string;
   body: string;
   tags: string[] | null;
+  progression: string | null;
+  prog_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,7 +66,9 @@ interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
 interface LinkRow { id: string; created_by: string; licks: LickRow | null }
 
-const LICK_COLS = "id, owner, title, body, tags, created_at, updated_at";
+const LICK_COLS = "id, owner, title, body, tags, progression, prog_key, created_at, updated_at";
+const lickCols = (f: LickFields) =>
+  ({ title: f.title, body: f.body, tags: f.tags, progression: f.progression || null, prog_key: f.progression && f.key ? f.key : null });
 const LINK_COLS = "id, created_by, licks(" + LICK_COLS + ")";
 const ATT_COLS = "id, note_id, lick_id, storage_path, kind, name, mime, size, created_by, created_at";
 const BUCKET = "attachments";
@@ -142,7 +146,8 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
 
   const toLick = (r: LickRow, nm: Map<string, string>): Lick => ({
     id: r.id, ownerId: r.owner, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member", mine: r.owner === userId,
-    title: r.title, body: r.body, tags: r.tags || [], createdAt: r.created_at, updatedAt: r.updated_at,
+    title: r.title, body: r.body, tags: r.tags || [],
+    progression: r.progression || "", key: r.prog_key || "", createdAt: r.created_at, updatedAt: r.updated_at,
   });
 
   /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
@@ -362,13 +367,13 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async createLick(f) {
-      const { data, error } = await sb.from("licks").insert({ title: f.title, body: f.body, tags: f.tags }).select(LICK_COLS).single();
+      const { data, error } = await sb.from("licks").insert(lickCols(f)).select(LICK_COLS).single();
       if (error) fail("save that lick", error);
       return toLick(data as LickRow, names);
     },
 
     async updateLick(id, f) {
-      const { data, error } = await sb.from("licks").update({ title: f.title, body: f.body, tags: f.tags }).eq("id", id).select("id");
+      const { data, error } = await sb.from("licks").update(lickCols(f)).eq("id", id).select("id");
       if (error) fail("save that lick", error);
       if (!data || !data.length) fail("save that lick", { message: "not allowed" });
     },
@@ -413,7 +418,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const src = await sb.from("licks").select(LICK_COLS).eq("id", lickId).single();
       if (src.error) fail("copy that lick", src.error);
       const s = src.data as LickRow;
-      const ins = await sb.from("licks").insert({ title: s.title, body: s.body, tags: s.tags || [] }).select(LICK_COLS).single();
+      const ins = await sb.from("licks").insert({ title: s.title, body: s.body, tags: s.tags || [], progression: s.progression, prog_key: s.prog_key }).select(LICK_COLS).single();
       if (ins.error) fail("copy that lick", ins.error);
       const copy = ins.data as LickRow;
       const files = await sb.from("attachments").select("storage_path, kind, name, mime, size").eq("lick_id", lickId);

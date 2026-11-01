@@ -126,8 +126,11 @@ article.note:last-child { border-bottom: 0; padding-bottom: 0; }
 .lick:last-child { border-bottom: 0; padding-bottom: 0; }
 .lick-form { display: grid; gap: 8px; }
 .lick-form textarea { font-family: var(--body); font-size: 15px; }
+.prog-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.prog-row input { min-width: 0; font-family: var(--chord); }
+.prog { margin: 0; font-family: var(--chord); font-size: 17px; overflow-wrap: anywhere; }
 @media (max-width: 900px) {
-  .lick-form textarea { font-size: 16px; }
+  .lick-form textarea, .prog-row input, .prog-row select { font-size: 16px; }
   .licks .note-actions .btn.small, .licks .note-actions select { min-height: 44px; }
 }
 .tune .k { font-family: var(--chord); font-size: 18px; min-width: 2.5em; text-align: right; }
