@@ -78,7 +78,9 @@ export type AttachmentKind = "pdf" | "image" | "audio";
 /** A file on a note (R6). Accounts only; local mode has no attachments. */
 export interface Attachment {
   id: string;
-  noteId: string;
+  /** The note it's on, or null for a lick's file. */
+  noteId: string | null;
+  lickId: string | null;
   path: string;
   kind: AttachmentKind;
   name: string;
@@ -100,6 +102,30 @@ export function attachmentKind(mime: string, name: string): AttachmentKind | nul
   if (["mp3", "m4a", "wav", "webm", "aac", "ogg", "oga", "caf"].includes(ext)) return "audio";
   return null;
 }
+
+/** A snippet in the owner's library (R8). Visible to its owner and to members of setlists it's linked into. */
+export interface Lick {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  mine: boolean;
+  title: string;
+  body: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A lick attached to a tune of a setlist, or to your own notes on a song. */
+export type LickHome = Extract<NoteHome, { kind: "item" | "song" }>;
+
+export interface LickLink { id: string; lick: Lick; createdBy: string }
+
+export interface LickFields { title: string; body: string; tags: string[] }
+
+/** Comma-separated tags to a clean list: trimmed, lowercase, no repeats, at most 20. */
+export const parseTags = (s: string): string[] =>
+  [...new Set(s.split(",").map(t => t.trim().toLowerCase().slice(0, 30)).filter(Boolean))].slice(0, 20);
 
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
@@ -149,6 +175,24 @@ export interface DataStore {
   /** The PDF/image you picked as the chart for a tune, if any (R3.4). */
   getChartChoice(setlistId: string, itemId: string): Promise<Attachment | null>;
   setChartChoice(setlistId: string, itemId: string, attachmentId: string | null): Promise<void>;
+  /** Your own licks, newest first (accounts only; local mode has none). */
+  listLicks(): Promise<Lick[]>;
+  createLick(f: LickFields): Promise<Lick>;
+  /** Owner only. */
+  updateLick(id: string, f: LickFields): Promise<void>;
+  /** Owner only. Removes its links and files too. */
+  deleteLick(id: string): Promise<void>;
+  /** Licks attached at a home that you can see. */
+  listLickLinks(home: LickHome): Promise<LickLink[]>;
+  /** Attach one of your licks. Needs membership of the setlist. */
+  linkLick(lickId: string, home: LickHome): Promise<LickLink>;
+  /** The linker, or the setlist owner. */
+  unlinkLick(linkId: string): Promise<void>;
+  /** A private copy (with its files) of a lick you can see. */
+  copyLick(lickId: string): Promise<Lick>;
+  listLickAttachments(lickIds: string[]): Promise<Attachment[]>;
+  /** Owner only. Progress is 0..1. */
+  uploadLickAttachment(lickId: string, file: File, onProgress?: (p: number) => void): Promise<Attachment>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;

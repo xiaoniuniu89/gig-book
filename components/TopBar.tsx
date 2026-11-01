@@ -5,7 +5,7 @@ import { Bell } from "./Bell";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
 export function TopBar() {
-  const { crumb } = useApp();
+  const { crumb, store } = useApp();
   return (
     <header className="bar-top">
       <div className="bar-top-inner">
@@ -13,6 +13,7 @@ export function TopBar() {
         <div className="crumb" id="crumb">{crumb}</div>
         <span className="acct">
           <Link className="btn small" href="/library">Library</Link>
+          {store.kind === "supabase" && <Link className="btn small" href="/licks">Licks</Link>}
           {supabaseConfigured && <Bell />}
           {supabaseConfigured && <Account />}
         </span>

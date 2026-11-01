@@ -61,7 +61,8 @@ Spotify login is no longer used, so the Spotify app's redirect URIs and its 25-u
 9. Notes and replies: **SQL Editor → New query**, paste the whole of [`supabase/migrations/0004_notes.sql`](supabase/migrations/0004_notes.sql) and **Run**. It also makes setlist tune ids stable and moves the old one-line tune notes into the new notes. Run it before (or right after) deploying this version; until then, saving a setlist will fail.
 10. Attachments (photos, PDFs, audio on notes): **SQL Editor → New query**, paste the whole of [`supabase/migrations/0005_attachments.sql`](supabase/migrations/0005_attachments.sql) and **Run**. It creates the private `attachments` Storage bucket (check **Storage** shows it as *Private*), the `attachments` and `chart_choices` tables and their access rules. No other settings needed; file size is limited only by Supabase's defaults (the free plan allows 50 MB per file, **Storage → Settings** to change).
 11. Notifications: **SQL Editor → New query**, paste the whole of [`supabase/migrations/0006_notifications.sql`](supabase/migrations/0006_notifications.sql) and **Run**. It adds the bell: people are told when they're added to a setlist, when someone adds a note on a setlist they share, and when someone replies to their note. Run it after step 10.
-12. Check it: open `YOUR_SITE`. You see only a sign-in screen. Enter your email, open the link from the email on the same device, and you land back on Gig Book signed in. If you had setlists in that browser before signing in, the home page offers to copy them to your account.
+12. Licks (personal snippet library, attachable to any tune): **SQL Editor → New query**, paste the whole of [`supabase/migrations/0007_licks.sql`](supabase/migrations/0007_licks.sql) and **Run**. It adds the `licks` and `lick_links` tables and lets attachments belong to a lick. Run it after step 10. No other settings needed.
+13. Check it: open `YOUR_SITE`. You see only a sign-in screen. Enter your email, open the link from the email on the same device, and you land back on Gig Book signed in. If you had setlists in that browser before signing in, the home page offers to copy them to your account.
 
 Supabase's built-in email sender only sends a few sign-in emails per hour. That is fine for a handful of people; for more, add your own SMTP server under **Authentication → Emails → SMTP Settings**.
 
@@ -86,7 +87,7 @@ Checks:
 
 ## Code
 Next.js (App Router), TypeScript, React, plain CSS.
-- `app/`: routes. `/` (setlists and import), `/library`, `/library/[playlistId]/[index]`, `/set/[id]`, `/set/[id]/[index]`, `/auth/callback`, and the Spotify API routes `/api/spotify/search?q=` and `/api/spotify/track/[id]`. The root layout holds the dock, so the band and the Spotify embed keep playing while you move around.
+- `app/`: routes. `/` (setlists and import), `/library`, `/licks`, `/library/[playlistId]/[index]`, `/set/[id]`, `/set/[id]/[index]`, `/auth/callback`, and the Spotify API routes `/api/spotify/search?q=` and `/api/spotify/track/[id]`. The root layout holds the dock, so the band and the Spotify embed keep playing while you move around.
 - `components/`: `AppProvider` (data, preferences, band, Spotify, practice gig), `Dock`, `TopBar` (sign-in), and the views.
 - `lib/ireal.ts`: iReal Pro link parser and form unrolling (repeats, endings, D.C./D.S., codas).
 - `lib/theory.ts`, `lib/chart.ts`: analysis and chart rendering (framework-free).

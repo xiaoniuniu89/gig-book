@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -41,7 +41,8 @@ interface NotificationRow {
 }
 interface AttachmentRow {
   id: string;
-  note_id: string;
+  note_id: string | null;
+  lick_id: string | null;
   storage_path: string;
   kind: Attachment["kind"];
   name: string;
@@ -50,9 +51,22 @@ interface AttachmentRow {
   created_by: string;
   created_at: string;
 }
+interface LickRow {
+  id: string;
+  owner: string;
+  title: string;
+  body: string;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
 interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
-const ATT_COLS = "id, note_id, storage_path, kind, name, mime, size, created_by, created_at";
+interface LinkRow { id: string; created_by: string; licks: LickRow | null }
+
+const LICK_COLS = "id, owner, title, body, tags, created_at, updated_at";
+const LINK_COLS = "id, created_by, licks(" + LICK_COLS + ")";
+const ATT_COLS = "id, note_id, lick_id, storage_path, kind, name, mime, size, created_by, created_at";
 const BUCKET = "attachments";
 const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
@@ -70,7 +84,7 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
 }
 
 const toAttachment = (r: AttachmentRow): Attachment => ({
-  id: r.id, noteId: r.note_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
+  id: r.id, noteId: r.note_id, lickId: r.lick_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
   createdBy: r.created_by, createdAt: r.created_at,
 });
 
@@ -125,6 +139,43 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   const homeCols = (h: NoteHome) => h.kind === "song" ? { song_key: h.songKey }
     : h.kind === "setlist" ? { setlist_id: h.setlistId }
     : { setlist_id: h.setlistId, setlist_item_id: itemUuid(h.setlistId, h.itemId) };
+
+  const toLick = (r: LickRow, nm: Map<string, string>): Lick => ({
+    id: r.id, ownerId: r.owner, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member", mine: r.owner === userId,
+    title: r.title, body: r.body, tags: r.tags || [], createdAt: r.created_at, updatedAt: r.updated_at,
+  });
+
+  /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
+  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
+    const kind = attachmentKind(file.type, file.name);
+    if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
+    const mime = (file.type || "application/octet-stream").split(";")[0].trim();
+    const path = `${dir}/${newUuid()}-${safeName(file.name)}`;
+    const { data: sess } = await sb.auth.getSession();
+    const token = sess.session?.access_token;
+    if (!token) throw new Error("Sign in again to upload.");
+    // XHR rather than supabase-js, to get upload progress
+    await new Promise<void>((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("POST", `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`);
+      x.setRequestHeader("Authorization", "Bearer " + token);
+      x.setRequestHeader("apikey", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
+      x.setRequestHeader("x-upsert", "false");
+      x.setRequestHeader("Content-Type", mime);
+      x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      x.onload = () => x.status >= 200 && x.status < 300 ? resolve() : reject(new Error(`Couldn't upload ${file.name} (${x.status}).`));
+      x.onerror = () => reject(new Error(`Couldn't upload ${file.name}: no connection.`));
+      x.send(file);
+    });
+    const { data, error } = await sb.from("attachments")
+      .insert({ ...parent, storage_path: path, kind, name: file.name.slice(0, 300), mime, size: file.size })
+      .select(ATT_COLS).single();
+    if (error) {
+      await sb.storage.from(BUCKET).remove([path]);
+      fail("save that attachment", error);
+    }
+    return toAttachment(data as AttachmentRow);
+  };
 
   return {
     kind: "supabase",
@@ -296,35 +347,91 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async uploadAttachment(home, noteId, file, onProgress) {
-      const kind = attachmentKind(file.type, file.name);
-      if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
-      const mime = (file.type || "application/octet-stream").split(";")[0].trim();
       const base = home.kind === "song" ? "user/" + userId : "setlist/" + home.setlistId;
-      const path = `${base}/${noteId}/${newUuid()}-${safeName(file.name)}`;
-      const { data: sess } = await sb.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) throw new Error("Sign in again to upload.");
-      // XHR rather than supabase-js, to get upload progress
-      await new Promise<void>((resolve, reject) => {
-        const x = new XMLHttpRequest();
-        x.open("POST", `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`);
-        x.setRequestHeader("Authorization", "Bearer " + token);
-        x.setRequestHeader("apikey", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
-        x.setRequestHeader("x-upsert", "false");
-        x.setRequestHeader("Content-Type", mime);
-        x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
-        x.onload = () => x.status >= 200 && x.status < 300 ? resolve() : reject(new Error(`Couldn't upload ${file.name} (${x.status}).`));
-        x.onerror = () => reject(new Error(`Couldn't upload ${file.name}: no connection.`));
-        x.send(file);
-      });
-      const { data, error } = await sb.from("attachments")
-        .insert({ note_id: noteId, storage_path: path, kind, name: file.name.slice(0, 300), mime, size: file.size })
-        .select(ATT_COLS).single();
-      if (error) {
-        await sb.storage.from(BUCKET).remove([path]);
-        fail("save that attachment", error);
+      return upload(`${base}/${noteId}`, { note_id: noteId }, file, onProgress);
+    },
+
+    async uploadLickAttachment(lickId, file, onProgress) {
+      return upload(`user/${userId}/licks/${lickId}`, { lick_id: lickId }, file, onProgress);
+    },
+
+    async listLicks() {
+      const { data, error } = await sb.from("licks").select(LICK_COLS).eq("owner", userId).order("created_at", { ascending: false });
+      if (error) fail("load your licks", error);
+      return ((data || []) as LickRow[]).map(r => toLick(r, names));
+    },
+
+    async createLick(f) {
+      const { data, error } = await sb.from("licks").insert({ title: f.title, body: f.body, tags: f.tags }).select(LICK_COLS).single();
+      if (error) fail("save that lick", error);
+      return toLick(data as LickRow, names);
+    },
+
+    async updateLick(id, f) {
+      const { data, error } = await sb.from("licks").update({ title: f.title, body: f.body, tags: f.tags }).eq("id", id).select("id");
+      if (error) fail("save that lick", error);
+      if (!data || !data.length) fail("save that lick", { message: "not allowed" });
+    },
+
+    async deleteLick(id) {
+      const at = await sb.from("attachments").select("storage_path").eq("lick_id", id);
+      const paths = ((at.data || []) as { storage_path: string }[]).map(r => r.storage_path);
+      if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+      const { error } = await sb.from("licks").delete().eq("id", id);
+      if (error) fail("delete that lick", error);
+    },
+
+    async listLickLinks(home) {
+      let q = sb.from("lick_links").select(LINK_COLS);
+      q = home.kind === "item" ? q.eq("setlist_item_id", itemUuid(home.setlistId, home.itemId))
+        : q.eq("song_key", home.songKey).is("setlist_id", null).eq("created_by", userId);
+      const { data, error } = await q.order("created_at");
+      if (error) fail("load the licks", error);
+      const rows = ((data || []) as unknown as LinkRow[]).filter(r => r.licks);
+      await namesOf(rows.map(r => (r.licks as LickRow).owner));
+      return rows.map(r => ({ id: r.id, createdBy: r.created_by, lick: toLick(r.licks as LickRow, names) }));
+    },
+
+    async linkLick(lickId, home) {
+      const cols = home.kind === "item"
+        ? { setlist_id: home.setlistId, setlist_item_id: itemUuid(home.setlistId, home.itemId) }
+        : { song_key: home.songKey };
+      const { data, error } = await sb.from("lick_links").insert({ lick_id: lickId, ...cols }).select(LINK_COLS).single();
+      if (error) fail(error.code === "23505" ? "add that lick: it's already here" : "add that lick", error);
+      const r = data as unknown as LinkRow;
+      await namesOf([(r.licks as LickRow).owner]);
+      return { id: r.id, createdBy: r.created_by, lick: toLick(r.licks as LickRow, names) };
+    },
+
+    async unlinkLick(linkId) {
+      const { data, error } = await sb.from("lick_links").delete().eq("id", linkId).select("id");
+      if (error) fail("remove that lick", error);
+      if (!data || !data.length) fail("remove that lick", { message: "not allowed" });
+    },
+
+    async copyLick(lickId) {
+      const src = await sb.from("licks").select(LICK_COLS).eq("id", lickId).single();
+      if (src.error) fail("copy that lick", src.error);
+      const s = src.data as LickRow;
+      const ins = await sb.from("licks").insert({ title: s.title, body: s.body, tags: s.tags || [] }).select(LICK_COLS).single();
+      if (ins.error) fail("copy that lick", ins.error);
+      const copy = ins.data as LickRow;
+      const files = await sb.from("attachments").select("storage_path, kind, name, mime, size").eq("lick_id", lickId);
+      for (const f of (files.data || []) as { storage_path: string; kind: string; name: string; mime: string; size: number }[]) {
+        const path = `user/${userId}/licks/${copy.id}/${newUuid()}-${safeName(f.name)}`;
+        const cp = await sb.storage.from(BUCKET).copy(f.storage_path, path);
+        if (cp.error) continue; // the lick is still copied; a file that can't be read is skipped
+        const row = await sb.from("attachments").insert({ lick_id: copy.id, storage_path: path, kind: f.kind, name: f.name, mime: f.mime, size: f.size });
+        if (row.error) await sb.storage.from(BUCKET).remove([path]);
       }
-      return toAttachment(data as AttachmentRow);
+      return toLick(copy, names);
+    },
+
+    async listLickAttachments(lickIds) {
+      if (!lickIds.length) return [];
+      const { data, error } = await sb.from("attachments").select(ATT_COLS).in("lick_id", lickIds).order("created_at");
+      if (error) fail("load the attachments", error);
+      return ((data || []) as AttachmentRow[]).map(toAttachment);
     },
 
     async deleteAttachment(a) {

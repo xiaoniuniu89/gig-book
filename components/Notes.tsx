@@ -10,7 +10,7 @@ const COLLAPSE_AFTER = 3;
 const migrating = new Set<string>(); // local old-style notes being turned into notes (once, even under StrictMode)
 
 /** Plain text with http(s) links made clickable. Everything else renders as text, never HTML. */
-function linkify(text: string): ReactNode[] {
+export function linkify(text: string): ReactNode[] {
   return text.split(/(https?:\/\/[^\s<]+)/g).map((part, i) => {
     if (i % 2 === 0) return part;
     const url = part.replace(/[.,;:!?)\]]+$/, "");
