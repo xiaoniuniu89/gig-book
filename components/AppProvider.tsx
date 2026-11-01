@@ -242,7 +242,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const sb = getSupabase();
     if (!sb) return;
-    let userId: string | null = null;
+    let userId: string | null | undefined; // undefined = not checked yet, so a signed-out first check still lands
     const apply = (session: Session | null) => {
       const id = session?.user ? session.user.id : null;
       if (id === userId) return; // token refreshes etc.
