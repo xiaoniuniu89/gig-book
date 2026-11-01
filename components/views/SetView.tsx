@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type PointerEvent } from "react";
 import { useApp, songHref } from "../AppProvider";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
 import { meta, norm, song } from "@/lib/songs";
 import { toUri, webUrl } from "@/lib/spotify/uri";
-import type { Setlist } from "@/lib/data/types";
+import { MEMBER_NOT_FOUND, type Member, type Setlist } from "@/lib/data/types";
 
 export function SetView() {
   const params = useParams<{ id: string }>();
@@ -194,12 +194,7 @@ function SetBody({ s }: { s: Setlist }) {
           {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener">Open in Spotify</a>}
         </div>
       </section>
-      {app.store.kind === "supabase" && isOwner && (
-        <section className="panel">
-          <h2>Sharing</h2>
-          <p className="hint">Sharing a setlist with bandmates is coming soon. For now only you can see it.</p>
-        </section>
-      )}
+      {app.store.kind === "supabase" && <Band s={s} owner={isOwner} />}
       {canEdit && (
         <section className="panel">
           <h2>Add tunes from the library</h2>
@@ -228,5 +223,92 @@ function SetBody({ s }: { s: Setlist }) {
         </section>
       )}
     </>
+  );
+}
+
+// Band section (accounts only): the owner manages members, everyone else sees who's in and can leave.
+function Band({ s, owner }: { s: Setlist; owner: boolean }) {
+  const app = useApp();
+  const router = useRouter();
+  const { toast, store } = app;
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Member["role"]>("viewer");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState<string | null>(null);
+  const reload = useCallback(
+    () => store.listMembers(s.id).then(setMembers).catch(e => toast(e instanceof Error ? e.message : "Couldn't load the band.")),
+    [store, s.id, toast]);
+  useEffect(() => { reload(); }, [reload]);
+
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    const v = email.trim();
+    if (!v || busy) return;
+    setBusy(true); setErr("");
+    try {
+      await store.addMember(s.id, v, role);
+      setEmail(""); toast("Added to the band.");
+      await reload();
+    } catch (x) {
+      setErr(x instanceof Error && x.message === MEMBER_NOT_FOUND
+        ? "They're not on Gig Book yet. Ask Dan to add them, then try again."
+        : x instanceof Error ? x.message : "Couldn't add them.");
+    }
+    setBusy(false);
+  };
+  const toggle = async (m: Member) => {
+    try { await store.setMemberRole(s.id, m.userId, m.role === "editor" ? "viewer" : "editor"); await reload(); }
+    catch (x) { toast(x instanceof Error ? x.message : "Couldn't change the role."); }
+  };
+  const remove = async (m: Member) => {
+    if (armed !== m.userId) { setArmed(m.userId); return; }
+    setArmed(null);
+    try { await store.removeMember(s.id, m.userId); await reload(); }
+    catch (x) { toast(x instanceof Error ? x.message : "Couldn't remove them."); }
+  };
+
+  return (
+    <section className="panel" id="band">
+      <h2>Band</h2>
+      {members === null ? <p className="hint">Loading…</p> : !members.length
+        ? <p className="hint">{owner ? "Nobody else is on this setlist yet." : "Just the owner."}</p>
+        : <div className="list">
+          {members.map(m => (
+            <div className="member" key={m.userId}>
+              <span className="name">{m.name}{m.email && <span className="sub">{m.email}</span>}</span>
+              <span className="k">{m.role}</span>
+              {owner && (
+                <span className="tune-btns">
+                  <button className="btn small" onClick={() => toggle(m)}>Make {m.role === "editor" ? "viewer" : "editor"}</button>
+                  <button className="btn small" aria-label="Remove" onClick={() => remove(m)}>{armed === m.userId ? "Remove?" : "✕"}</button>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>}
+      {owner ? (
+        <>
+          <form className="inline-form" onSubmit={add}>
+            <input type="email" aria-label="Email" placeholder="Add by email" autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} />
+            <select aria-label="Role" value={role} onChange={e => setRole(e.target.value as Member["role"])}>
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
+            </select>
+            <button className="btn" type="submit" disabled={busy}>Add</button>
+          </form>
+          {err && <p className="hint" role="alert">{err}</p>}
+          <p className="hint">Viewers can read the setlist and add notes. Editors can also change tunes, order and keys.</p>
+        </>
+      ) : (
+        <div className="danger-zone">
+          <button className="btn small" id="leave-set" onClick={async () => {
+            if (armed !== "leave") { setArmed("leave"); return; }
+            if (await app.leaveSetlist(s)) router.push("/");
+          }}>{armed === "leave" ? "Tap again to leave " + s.name : "Leave this setlist"}</button>
+        </div>
+      )}
+    </section>
   );
 }

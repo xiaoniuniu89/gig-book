@@ -88,6 +88,7 @@ interface Ctx {
   itemOf(c: Current): SetlistItem | undefined;
   addSetlist(s: Setlist): Promise<void>;
   removeSetlist(s: Setlist): Promise<void>;
+  leaveSetlist(s: Setlist): Promise<boolean>;
   addLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   removeLibraryPlaylist(id: string): Promise<void>;
   copyLocalToAccount(): Promise<number>;
@@ -341,6 +342,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applySetlists(prev => prev.filter(x => x.id !== s.id));
   }, [saves, toast, applySetlists]);
 
+  const leaveSetlist = useCallback(async (s: Setlist) => {
+    await saves.cancel(s.id);
+    try { await storeRef.current.leaveSetlist(s.id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't leave."); return false; }
+    applySetlists(prev => prev.filter(x => x.id !== s.id));
+    return true;
+  }, [saves, toast, applySetlists]);
+
   const addLibraryPlaylist = useCallback(async (p: LibraryPlaylist) => {
     try { await storeRef.current.saveLibraryPlaylist(p); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save."); return; }
     setLibrary(prev => prev.filter(x => x.id !== p.id).concat(p));
@@ -587,7 +595,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [band]);
 
   const value: Ctx = {
-    ready, authChecked, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, itemOf, addSetlist, removeSetlist,
+    ready, authChecked, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, itemOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
