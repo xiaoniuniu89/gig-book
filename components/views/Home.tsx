@@ -16,6 +16,8 @@ export function Home() {
   const [text, setText] = useState("");
   const [over, setOver] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
@@ -45,6 +47,14 @@ export function Home() {
       await app.addSetlist(s);
       router.push("/set/" + encodeURIComponent(id));
     }
+  };
+
+  const create = async () => {
+    const name = newName.trim().slice(0, 200);
+    if (!name) { app.toast("A setlist needs a name."); return; }
+    const id = app.store.newId(name, id => !!app.setlistById(id));
+    await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
+    router.push("/set/" + encodeURIComponent(id));
   };
 
   const total = library.reduce((n, p) => n + p.songs.length, 0);
@@ -82,6 +92,16 @@ export function Home() {
           }}>{copying ? "Copying…" : "Copy them to my account"}</button>
         </section>
       )}
+      <section className="panel" aria-label="New setlist">
+        <h2>New setlist</h2>
+        {naming ? (
+          <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
+            <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="e.g. Bebop practice" value={newName} onChange={e => setNewName(e.target.value)} />
+            <button className="btn primary" type="submit">Create</button>
+            <button className="btn" type="button" onClick={() => { setNaming(false); setNewName(""); }}>Cancel</button>
+          </form>
+        ) : <div className="row-btns"><button className="btn primary" id="new-set" onClick={() => setNaming(true)}>New setlist</button><span className="hint">Start empty, then add tunes from your library.</span></div>}
+      </section>
       <section className={"panel import" + (over ? " over" : "")} aria-label="Import"
         onDragOver={e => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}

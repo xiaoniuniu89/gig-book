@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import { useApp, songHref } from "../AppProvider";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
-import { meta, norm, song } from "@/lib/songs";
+import { song } from "@/lib/songs";
+import { TunePicker, newItem } from "../TunePicker";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import type { Setlist } from "@/lib/data/types";
 
@@ -44,7 +45,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [plLink, setPlLink] = useState(s.spotify ? webUrl(s.spotify) : "");
   const [armed, setArmed] = useState<number | null>(null);
   const [delArmed, setDelArmed] = useState(false);
-  const [addQ, setAddQ] = useState("");
+  const [picking, setPicking] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -120,17 +121,9 @@ function SetBody({ s }: { s: Setlist }) {
     edit(x => ({ ...x, name: v }));
   };
 
-  const all = useMemo(() => {
-    const out: { raw: string; m: ReturnType<typeof meta> }[] = [];
-    library.forEach(p => p.songs.forEach(raw => out.push({ raw, m: meta(raw) })));
-    return out;
-  }, [library]);
-  const nq = norm(addQ);
-  const hits = nq ? all.filter(x => norm(x.m.title + " " + x.m.composer).includes(nq)).slice(0, 12) : [];
-  const add = (k: number, n: 1 | 2) => {
-    const h = hits[k];
-    const item = { id: "s" + Date.now(), raw: h.raw, set: n, shift: null, versions: [] };
-    edit(x => ({ ...x, items: [...x.items, item] })); toast(`Added ${h.m.title} to set ${n}.`);
+  const addTunes = (raws: string[], n: 1 | 2) => {
+    edit(x => ({ ...x, items: [...x.items, ...raws.map(r => newItem(r, n))] }));
+    toast(`Added ${raws.length} tune${raws.length === 1 ? "" : "s"} to set ${n}.`);
   };
 
   return (
@@ -150,6 +143,7 @@ function SetBody({ s }: { s: Setlist }) {
           )}
         </div>
         <div className="row-btns">
+          {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}>Add tunes</button>}
           <button className="btn primary" data-gig="all" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
           <button className="btn" data-gig="1" onClick={() => app.startGig(s, "1")}>Set 1</button>
           <button className="btn" data-gig="2" onClick={() => app.startGig(s, "2")}>Set 2</button>
@@ -200,25 +194,7 @@ function SetBody({ s }: { s: Setlist }) {
           <p className="hint">Sharing a setlist with bandmates is coming soon. For now only you can see it.</p>
         </section>
       )}
-      {canEdit && (
-        <section className="panel">
-          <h2>Add tunes from the library</h2>
-          <input id="add-q" className="search" type="search" placeholder="Search the library" autoComplete="off" value={addQ} onChange={e => setAddQ(e.target.value)} />
-          <div id="add-list" className="list">
-            {hits.map((x, k) => (
-              <div className="tune t3" key={k}>
-                <span className="name">{x.m.title}<span className="sub">{x.m.composer} · {x.m.style}</span></span>
-                <span className="k">{x.m.key}</span>
-                <span className="tune-btns">
-                  <button className="btn small" onClick={() => add(k, 1)}>+ Set 1</button>
-                  <button className="btn small" onClick={() => add(k, 2)}>+ Set 2</button>
-                </span>
-              </div>
-            ))}
-            {nq && !hits.length && <p className="hint pad">{all.length ? "No match in the library." : "The library is empty."}</p>}
-          </div>
-        </section>
-      )}
+      {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
         <section className="danger-zone">
           <button className="btn small" id="del-set" onClick={async () => {

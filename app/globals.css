@@ -356,3 +356,20 @@ html, body { overflow-x: clip; }
   main { padding-top: 12px; }
   h1 { font-size: 38px; }
 }
+
+/* tune picker: full-screen sheet */
+.sheet { position: fixed; inset: 0; z-index: 50; background: var(--paper); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.sheet-head, .sheet-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); }
+.sheet-head { border-bottom: 1px solid var(--rule); }
+.sheet-foot { border-top: 1px solid var(--rule); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.sheet-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 10px 14px; }
+.sheet-tools .search { flex: 1; min-width: min(220px, 100%); }
+.sheet-list { flex: 1; overflow-y: auto; background: var(--surface); }
+.pick { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; min-height: 52px; padding: 8px 14px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.pick.on { background: var(--brass-soft); }
+.pick input { width: 22px; height: 22px; }
+.pick .name { font-weight: 500; min-width: 0; }
+.pick .sub { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.pick .k { font-family: var(--chord); font-size: 18px; }
+.new-set { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.new-set input { flex: 1; min-width: min(180px, 100%); font-size: 16px; }
