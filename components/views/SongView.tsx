@@ -8,6 +8,7 @@ import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { songLink } from "@/lib/ireal";
 import { song, norm } from "@/lib/songs";
+import { newItem } from "../TunePicker";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
 import type { Setlist, SetlistItem } from "@/lib/data/types";
@@ -259,7 +260,7 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
   const sg = cur.song;
   const add = async () => {
     let s: Setlist | undefined;
-    const item = { id: "s" + Date.now(), raw: sg.raw, set: 1 as const, shift: app.prefs.libShift[sg.title + "|" + sg.composer] ?? null, versions: [] };
+    const item = newItem(sg.raw, 1, app.prefs.libShift[sg.title + "|" + sg.composer] ?? null);
     if (target === "__new" || !app.setlistById(target)) {
       const name = "New setlist " + new Date().toLocaleDateString();
       s = { id: app.store.newId(name + " " + Date.now().toString(36), id => !!app.setlistById(id)), name, spotify: null, items: [item], visibility: "private", role: "owner" };
@@ -277,7 +278,7 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
         {own.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
         <option value="__new">New setlist…</option>
       </select>
-      <button className="btn" id="add-btn" onClick={add}>Add to setlist</button>
+      <button className="btn" id="add-btn" onClick={add}>Add to setlist…</button>
     </div>
   );
 }
