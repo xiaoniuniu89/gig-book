@@ -7,3 +7,4 @@ Next.js (App Router) + TypeScript + React + plain CSS. See README.md for the lay
 - Before committing, run `npm run typecheck` and `npm run lint`. Both must pass with no new warnings.
 - Match the surrounding code: terse comments, short helpers, no new dependencies unless really needed.
 - App state lives in `components/AppProvider.tsx`; storage goes through the `DataStore` interface (`lib/data/`), which has local (IndexedDB) and Supabase adapters. Changes must work in both.
+- Product scope and build order: `docs/REQUIREMENTS.md`. Each issue names the requirement ids (R1, R5.2…) it implements.
