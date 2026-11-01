@@ -10,9 +10,10 @@ import { songLink } from "@/lib/ireal";
 import { song, norm, songKey } from "@/lib/songs";
 import { newItem } from "../TunePicker";
 import { Notes } from "../Notes";
+import { useChartChoice } from "../Attachments";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
-import type { Setlist, SetlistItem } from "@/lib/data/types";
+import type { Attachment, Setlist, SetlistItem } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -63,6 +64,11 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
   const list = s ? s.items : null;
   const item = cur.kind === "set" && s ? s.items[cur.itemIdx] : undefined;
   const canEdit = !s || s.role !== "viewer";
+  const pick = useChartChoice(app.store, s?.id, item?.id);
+  const chart = s && item ? {
+    current: pick.att?.id ?? null,
+    set: (a: Attachment | null) => { app.flushSetlist(s.id).then(() => pick.set(a)).catch(e => app.toast(e instanceof Error ? e.message : "Couldn't save that.")); },
+  } : undefined;
 
   // register as the tune on screen (the dock plays it, the band highlights it)
   useEffect(() => { setCurrent(cur); }, [cur, setCurrent]);
@@ -135,11 +141,11 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
       </section>
       {cur.kind === "set" && s && item && (
         <Notes key={"band:" + item.id} title="Band notes" hint="For this tune in this setlist. Everyone in the band can read and reply."
-          home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw}
+          home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw} chart={chart}
           legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
       )}
       <Notes key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
-        home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} />
+        home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} chart={chart} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} item={item} canEdit={canEdit} />

@@ -8,9 +8,11 @@ import { ChartHost } from "./SongView";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
+import { FileChart, useChartChoice } from "../Attachments";
+import type { Attachment } from "@/lib/data/types";
 
 /** What the view shows. R3.4 adds an attached PDF/image kind here. */
-export type ChartSource = { kind: "ireal" };
+export type ChartSource = { kind: "ireal" } | { kind: "file"; att: Attachment };
 
 /** /set/[id]/[index]/chart */
 export function SetChartView() {
@@ -30,7 +32,8 @@ export function SetChartView() {
   const cur = useMemo<Current | null>(() => (setId && raw ? { kind: "set", setId, itemIdx: idx, song: song(raw) } : null), [setId, raw, idx]);
   const prev = s && idx > 0 ? songHref(id, idx - 1) + "/chart" : "";
   const next = s && idx < s.items.length - 1 ? songHref(id, idx + 1) + "/chart" : "";
-  return <Focus cur={cur} back={songHref(id, idx)} prev={prev} next={next} missing={missing || !!(s && !raw)} />;
+  const itemId = s && Number.isInteger(idx) ? s.items[idx]?.id : undefined;
+  return <Focus cur={cur} back={songHref(id, idx)} prev={prev} next={next} missing={missing || !!(s && !raw)} tune={setId && itemId ? { setlistId: setId, itemId } : undefined} />;
 }
 
 /** /library/[playlistId]/[index]/chart */
@@ -46,8 +49,13 @@ export function LibraryChartView() {
     prev={p && idx > 0 ? base + (idx - 1) + "/chart" : ""} next={p && idx < p.songs.length - 1 ? base + (idx + 1) + "/chart" : ""} />;
 }
 
-function Focus({ cur, back, prev, next, missing }: { cur: Current | null; back: string; prev: string; next: string; missing: boolean }) {
+function Focus({ cur, back, prev, next, missing, tune }: {
+  cur: Current | null; back: string; prev: string; next: string; missing: boolean; tune?: { setlistId: string; itemId: string };
+}) {
   const app = useApp();
+  const pick = useChartChoice(app.store, tune?.setlistId, tune?.itemId); // R3.4: a PDF/image you picked for this tune
+  const [showIreal, setShowIreal] = useState(false); // overrides the picked file for this view
+  useEffect(() => setShowIreal(false), [tune?.itemId]);
   const router = useRouter();
   const { prefs, setCurrent } = app;
   const [fs, setFs] = useState<"no" | "off" | "on">("no");
@@ -100,7 +108,8 @@ function Focus({ cur, back, prev, next, missing }: { cur: Current | null; back: 
   const shift = cur ? app.shiftOf(cur) : 0;
   const html = useMemo(() => sg ? chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn }) : "",
     [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn]);
-  const source: ChartSource = { kind: "ireal" };
+  const file = pick.att && !showIreal ? pick.att : null;
+  const source: ChartSource = file ? { kind: "file", att: file } : { kind: "ireal" };
 
   if (!cur || !sg) return (
     <div className="focus"><div className="focus-body">
@@ -136,14 +145,18 @@ function Focus({ cur, back, prev, next, missing }: { cur: Current | null; back: 
           <button aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>
           <button aria-label="Transpose up a half step" onClick={() => tr(1)}>+</button>
         </span>
+        {pick.att && (
+          <button className="btn" aria-pressed={!!file} aria-label={file ? "Show the iReal chart" : "Show the attached " + pick.att.kind}
+            onClick={() => setShowIreal(v => !v)}>{file ? "iReal" : pick.att.kind === "pdf" ? "PDF" : "Image"}</button>
+        )}
         <button className="btn icon-btn" aria-label={playing ? "Stop the band" : "Play with the band"} disabled={!app.band}
           onClick={() => playing ? app.stopBand() : app.startBand(cur)}>{playing ? "■" : "▶"}</button>
         {fs !== "no" && <button className="btn icon-btn" aria-label={fs === "on" ? "Leave full screen" : "Full screen"}
           onClick={() => (fs === "on" ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}>⛶</button>}
       </div>
-      <div className="focus-body" onPointerDown={e => { start.current = { x: e.clientX, y: e.clientY }; }}
+      <div className="focus-body" onPointerDown={e => { start.current = file ? null : { x: e.clientX, y: e.clientY }; }}
         onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
-        {source.kind === "ireal" && <ChartHost html={html} live={playing} />}
+        {source.kind === "ireal" ? <ChartHost html={html} live={playing} /> : <FileChart store={app.store} a={source.att} />}
       </div>
     </div>
   );

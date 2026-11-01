@@ -59,6 +59,34 @@ export interface Note {
   updatedAt: string;
 }
 
+export type AttachmentKind = "pdf" | "image" | "audio";
+
+/** A file on a note (R6). Accounts only; local mode has no attachments. */
+export interface Attachment {
+  id: string;
+  noteId: string;
+  path: string;
+  kind: AttachmentKind;
+  name: string;
+  mime: string;
+  size: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** pdf / image / audio from the mime type, falling back to the file extension; null for anything else. */
+export function attachmentKind(mime: string, name: string): AttachmentKind | null {
+  const m = mime.toLowerCase();
+  if (m === "application/pdf") return "pdf";
+  if (m.startsWith("image/")) return "image";
+  if (m.startsWith("audio/")) return "audio";
+  const ext = name.toLowerCase().split(".").pop() || "";
+  if (ext === "pdf") return "pdf";
+  if (["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"].includes(ext)) return "image";
+  if (["mp3", "m4a", "wav", "webm", "aac", "ogg", "oga", "caf"].includes(ext)) return "audio";
+  return null;
+}
+
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
 /** A fresh id for a setlist item (a UUID, so Supabase keeps it). */
@@ -92,6 +120,17 @@ export interface DataStore {
   deleteNote(id: string): Promise<void>;
   /** Independent copy of a note (no replies) into another home, authored by you. */
   copyNote(noteId: string, to: NoteHome): Promise<void>;
+  /** Files on the given notes. Empty in local mode. */
+  listAttachments(noteIds: string[]): Promise<Attachment[]>;
+  /** Uploads a file to a note you can write to (accounts only). Progress is 0..1. */
+  uploadAttachment(home: NoteHome, noteId: string, file: File, onProgress?: (p: number) => void): Promise<Attachment>;
+  /** Uploader, or the setlist owner. Removes the file too. */
+  deleteAttachment(a: Attachment): Promise<void>;
+  /** A short-lived URL to read the file. */
+  attachmentUrl(a: Attachment): Promise<string>;
+  /** The PDF/image you picked as the chart for a tune, if any (R3.4). */
+  getChartChoice(setlistId: string, itemId: string): Promise<Attachment | null>;
+  setChartChoice(setlistId: string, itemId: string, attachmentId: string | null): Promise<void>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;
