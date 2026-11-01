@@ -7,7 +7,7 @@ import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
 import { meta, norm, song } from "@/lib/songs";
 import { toUri, webUrl } from "@/lib/spotify/uri";
-import type { Setlist, Visibility } from "@/lib/data/types";
+import type { Setlist } from "@/lib/data/types";
 
 export function SetView() {
   const params = useParams<{ id: string }>();
@@ -119,7 +119,6 @@ function SetBody({ s }: { s: Setlist }) {
     if (v === s.name) return;
     edit(x => ({ ...x, name: v }));
   };
-  const setVisibility = (v: Visibility) => edit(x => ({ ...x, visibility: v }));
 
   const all = useMemo(() => {
     const out: { raw: string; m: ReturnType<typeof meta> }[] = [];
@@ -198,17 +197,7 @@ function SetBody({ s }: { s: Setlist }) {
       {app.store.kind === "supabase" && isOwner && (
         <section className="panel">
           <h2>Sharing</h2>
-          <div className="inline-form">
-            <select id="visibility" value={s.visibility || "private"} onChange={e => setVisibility(e.target.value as Visibility)}>
-              <option value="private">Only you</option>
-              <option value="link">Anyone with the link can view</option>
-              <option value="public">Public</option>
-            </select>
-            {s.visibility && s.visibility !== "private" && (
-              <button className="btn" onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => toast("Link copied."), () => toast(window.location.href)); }}>Copy link</button>
-            )}
-          </div>
-          <p className="hint">People who open a shared link see the setlist and charts. Only you can change it.</p>
+          <p className="hint">Sharing a setlist with bandmates is coming soon. For now only you can see it.</p>
         </section>
       )}
       {canEdit && (

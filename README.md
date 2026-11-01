@@ -10,7 +10,7 @@ Old static version (until it is retired): https://xiaoniuniu89.github.io/gig-boo
 - **Band**: piano, bass and drums generated from the chords. Any key, any tempo, mute any instrument, loop a section. The current bar is highlighted.
 - **Record**: the Spotify player sits in the dock. Load a setlist's playlist and the chart follows the track that's playing. Search Spotify for other versions of a tune and save the ones you like.
 - **Practice gig**: plays a set start to finish with the band.
-- **Accounts** (once Supabase is set up): sign in with an email link, keep setlists and the library in your account, share a setlist by link.
+- **Accounts** (once Supabase is set up): sign in with an email link, keep setlists and the library in your account. Closed beta: only people you add can sign in, and nothing is visible signed out. Sharing with bandmates is coming.
 
 Without Supabase settings, everything lives in your browser (IndexedDB), exactly like the static version.
 
@@ -53,7 +53,11 @@ Spotify login is no longer used, so the Spotify app's redirect URIs and its 25-u
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 6. Redeploy. These two are baked in at build time, so a redeploy is required after any change.
-7. Check it: open `YOUR_SITE`. A **Sign in** button now sits next to **Library**. Enter your email, open the link from the email on the same device, and you land back on Gig Book signed in. If you had setlists in that browser before signing in, the home page offers to copy them to your account.
+7. Close the beta:
+   1. **SQL Editor → New query**, paste the whole of [`supabase/migrations/0002_closed_beta.sql`](supabase/migrations/0002_closed_beta.sql) and **Run** (it removes anonymous read access).
+   2. **Authentication → Sign In / Providers**: turn **off** "Allow new users to sign up" and save.
+   3. Add each person: **Authentication → Users → Add user** (or **Send invitation**). Only emails added here can get a sign-in link.
+8. Check it: open `YOUR_SITE`. You see only a sign-in screen. Enter your email, open the link from the email on the same device, and you land back on Gig Book signed in. If you had setlists in that browser before signing in, the home page offers to copy them to your account.
 
 Supabase's built-in email sender only sends a few sign-in emails per hour. That is fine for a handful of people; for more, add your own SMTP server under **Authentication → Emails → SMTP Settings**.
 
