@@ -113,6 +113,7 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
           </div>
         </div>
         <div className="nav-pair">
+          <Link className="btn" href={(cur.kind === "set" ? songHref(cur.setId, cur.itemIdx) : "/library/" + encodeURIComponent(cur.plId) + "/" + cur.songIdx) + "/chart"}>Chart view</Link>
           {prevHref ? <Link className="btn icon-btn" href={prevHref} aria-label="Previous tune">‹</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Previous tune">‹</a>}
           {nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>}
         </div>
@@ -152,7 +153,7 @@ function SongBody({ cur, setlist }: { cur: Current; setlist?: Setlist }) {
  * bar highlight (a class toggled straight on the DOM) survives the many re-renders during playback.
  * chartHTML escapes every piece of text it outputs.
  */
-function ChartHost({ html, live }: { html: string; live: boolean }) {
+export function ChartHost({ html, live }: { html: string; live: boolean }) {
   const app = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const markRef = useRef(app.markBar); markRef.current = app.markBar;
