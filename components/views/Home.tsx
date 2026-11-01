@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../AppProvider";
+import { AiDraft } from "../AiDraft";
 import { splitPlaylists, type Playlist } from "@/lib/ireal";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
@@ -101,6 +102,7 @@ export function Home() {
             <button className="btn" type="button" onClick={() => { setNaming(false); setNewName(""); }}>Cancel</button>
           </form>
         ) : <div className="row-btns"><button className="btn primary" id="new-set" onClick={() => setNaming(true)}>New setlist</button><span className="hint">Start empty, then add tunes from your library.</span></div>}
+        <AiDraft />
       </section>
       <section className={"panel import" + (over ? " over" : "")} aria-label="Import"
         onDragOver={e => { e.preventDefault(); setOver(true); }}

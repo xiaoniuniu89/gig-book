@@ -63,9 +63,17 @@ Spotify login is no longer used, so the Spotify app's redirect URIs and its 25-u
 11. Notifications: **SQL Editor → New query**, paste the whole of [`supabase/migrations/0006_notifications.sql`](supabase/migrations/0006_notifications.sql) and **Run**. It adds the bell: people are told when they're added to a setlist, when someone adds a note on a setlist they share, and when someone replies to their note. Run it after step 10.
 12. Licks (personal snippet library, attachable to any tune): **SQL Editor → New query**, paste the whole of [`supabase/migrations/0007_licks.sql`](supabase/migrations/0007_licks.sql) and **Run**. It adds the `licks` and `lick_links` tables and lets attachments belong to a lick. Run it after step 10. No other settings needed.
 13. Lick chord progressions (iReal Pro export, "Practise here"): **SQL Editor → New query**, paste the whole of [`supabase/migrations/0008_lick_progression.sql`](supabase/migrations/0008_lick_progression.sql) and **Run**. It adds two optional columns to `licks`. Run it after step 12. No other settings needed.
-14. Check it: open `YOUR_SITE`. You see only a sign-in screen. Enter your email, open the link from the email on the same device, and you land back on Gig Book signed in. If you had setlists in that browser before signing in, the home page offers to copy them to your account.
+14. AI draft limits: **SQL Editor → New query**, paste the whole of [`supabase/migrations/0009_ai_usage.sql`](supabase/migrations/0009_ai_usage.sql) and **Run**. It adds the `ai_usage` table behind the 20-drafts-per-day limit. Run it before turning on Part 4.
+15. Check it: open `YOUR_SITE`. You see only a sign-in screen. Enter your email, open the link from the email on the same device, and you land back on Gig Book signed in. If you had setlists in that browser before signing in, the home page offers to copy them to your account.
 
 Supabase's built-in email sender only sends a few sign-in emails per hour. That is fine for a handful of people; for more, add your own SMTP server under **Authentication → Emails → SMTP Settings**.
+
+### Part 4: AI setlist drafts
+1. Create a key at https://openrouter.ai/keys. Set a monthly credit limit on it so costs stay capped.
+2. In Vercel: **Settings → Environment Variables**. Add (all environments):
+   - `OPENROUTER_API_KEY`
+   - `AI_MODEL` (optional; default `anthropic/claude-haiku-5.5`)
+3. Redeploy. Without the key, "Help me pick" on **New setlist** says AI drafts aren't set up. It only shows for signed-in users (Part 3) and needs migration 0009. Only tune title, composer, style and key are sent to the model.
 
 ### Using the CLI instead of the SQL editor (optional)
 ```bash
