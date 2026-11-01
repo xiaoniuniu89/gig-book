@@ -132,6 +132,20 @@ with sync_playwright() as p:
     sw = dp.evaluate("() => document.documentElement.scrollWidth")
     ok("no horizontal scroll at 390px", sw <= 390, f"scrollWidth={sw}")
 
+    # R2: no horizontal page scroll on any route at 375px portrait and 667px landscape
+    for vw, vh in ((375, 667), (667, 375)):
+        mctx = b.new_context(viewport={"width": vw, "height": vh}, has_touch=True)
+        mp = mctx.new_page()
+        mp.goto(BASE + "/"); mp.locator("a.book", has_text="Billie Holiday").click(); mp.wait_for_selector(".sets .tune")
+        set_url = mp.url.replace(BASE, "")
+        mp.locator(".sets a.name").first.click(); mp.wait_for_selector("#chart-wrap .mbar")
+        for r in ("/", "/library", set_url, mp.url.replace(BASE, "")):
+            mp.goto(BASE + r); mp.wait_for_timeout(600)
+            sw = mp.evaluate("() => [document.documentElement.scrollWidth, innerWidth]")
+            ok(f"no horizontal scroll at {vw}px on {r}", sw[0] <= sw[1], f"scrollWidth={sw[0]} innerWidth={sw[1]}")
+            if vw == 375: mp.screenshot(path=OUT + "m375-" + (r.strip("/").replace("/", "-") or "home") + ".png", full_page=True)
+        mctx.close()
+
     # the 503s are the Spotify routes tested above; fonts.googleapis.com may be unreachable in sandboxes
     real_errors = [e for e in errors if "favicon" not in e and "ERR_TUNNEL_CONNECTION_FAILED" not in e and "503" not in e]
     ok("no console errors", not real_errors, real_errors[:5])
