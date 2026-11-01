@@ -17,4 +17,10 @@ export const meta = (raw: string): SongMeta => {
 
 export const norm = (s: string): string => s.toLowerCase().replace(/\(.*?\)|\[.*?\]/g, "").replace(/\s+-\s+.*$/, "").replace(/^the\s+|,\s*the$/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
+/**
+ * Key for personal song notes (R5.6): norm(title) + "|" + norm(composer) of the iReal string. Stored in
+ * notes.song_key (supabase/migrations/0004_notes.sql); the database never recomputes it, so this is the one definition.
+ */
+export const songKey = (raw: string): string => { const m = meta(raw); return norm(m.title) + "|" + norm(m.composer); };
+
 export const prettyKey = (k: string): string => k.replace("-", "–").replace("b", "♭").replace("#", "♯");

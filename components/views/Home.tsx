@@ -6,7 +6,7 @@ import { useApp } from "../AppProvider";
 import { splitPlaylists, type Playlist } from "@/lib/ireal";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
-import { slug, type Setlist } from "@/lib/data/types";
+import { newItemId, slug, type Setlist } from "@/lib/data/types";
 
 export function Home() {
   const app = useApp();
@@ -42,7 +42,7 @@ export function Home() {
       const half = Math.ceil(p.songs.length / 2);
       const s: Setlist = {
         id, name: p.name, spotify: null, visibility: "private", role: "owner",
-        items: p.songs.map((raw, k) => ({ id: "s" + (k + 1), raw, set: p.songs.length > 6 && k >= half ? 2 : 1, shift: null, versions: [] })),
+        items: p.songs.map((raw, k) => ({ id: newItemId(), raw, set: p.songs.length > 6 && k >= half ? 2 : 1, shift: null, versions: [] })),
       };
       await app.addSetlist(s);
       router.push("/set/" + encodeURIComponent(id));

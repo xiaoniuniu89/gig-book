@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, type DataStore, type LibraryPlaylist, type Member, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, type DataStore, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -18,11 +18,23 @@ interface ItemRow {
   song: string;
   shift: number | null;
   versions: Version[] | null;
-  note: string | null;
+}
+interface NoteRow {
+  id: string;
+  author: string;
+  setlist_id: string | null;
+  setlist_item_id: string | null;
+  song_key: string | null;
+  parent_id: string | null;
+  tag: NoteTag | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
 }
 interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
-const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions, note)";
+const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions)";
+const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
 function fail(what: string, error: { message: string } | null): never {
   throw new Error(`Couldn't ${what}: ${error ? error.message : "unknown error"}`);
@@ -32,11 +44,28 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
   const items: SetlistItem[] = (r.setlist_items || [])
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map(it => ({ id: it.id, raw: it.song, set: it.set_no === 2 ? 2 : 1, shift: it.shift, versions: it.versions || [], note: it.note }));
+    .map(it => ({ id: it.id, raw: it.song, set: it.set_no === 2 ? 2 : 1, shift: it.shift, versions: it.versions || [] }));
   return { id: r.id, name: r.name, spotify: r.spotify_uri, visibility: r.visibility, role, items };
 }
 
 const newUuid = () => crypto.randomUUID();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Item ids must be UUIDs and stay the same on every save (notes point at them). Older ids ("s1", from seeds and
+ * local setlists) map to a fixed UUID derived from the setlist id + the old id, so an item always gets the same one.
+ */
+export function itemUuid(setlistId: string, id: string): string {
+  if (UUID.test(id)) return id;
+  const src = setlistId + ":" + id;
+  let hex = "";
+  for (let k = 0; k < 4; k++) {
+    let h = 0x811c9dc5 ^ (k * 0x9e3779b1);
+    for (let i = 0; i < src.length; i++) h = Math.imul(h ^ src.charCodeAt(i), 0x01000193);
+    hex += (h >>> 0).toString(16).padStart(8, "0");
+  }
+  return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-8" + hex.slice(17, 20) + "-" + hex.slice(20, 32);
+}
 
 export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   const roleFor = async (rows: SetlistRow[]): Promise<Map<string, Role>> => {
@@ -50,6 +79,23 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     }
     return roles;
   };
+
+  const names = new Map<string, string>();
+  const namesOf = async (ids: string[]): Promise<Map<string, string>> => {
+    const need = [...new Set(ids)].filter(i => !names.has(i));
+    if (need.length) {
+      const { data } = await sb.from("profiles").select("id, display_name").in("id", need);
+      (data || []).forEach((p: { id: string; display_name: string | null }) => names.set(p.id, p.display_name || "Member"));
+    }
+    return names;
+  };
+  const toNote = (r: NoteRow, nm: Map<string, string>): Note => ({
+    id: r.id, authorId: r.author, authorName: r.author === userId ? "You" : nm.get(r.author) || "Member", parentId: r.parent_id,
+    tag: r.tag, body: r.body, createdAt: r.created_at, updatedAt: r.updated_at,
+  });
+  const homeCols = (h: NoteHome) => h.kind === "song" ? { song_key: h.songKey }
+    : h.kind === "setlist" ? { setlist_id: h.setlistId }
+    : { setlist_id: h.setlistId, setlist_item_id: itemUuid(h.setlistId, h.itemId) };
 
   return {
     kind: "supabase",
@@ -96,7 +142,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
         if (ins.error) fail("create the setlist", ins.error);
       }
       const items = s.items.map((it, position) => ({
-        position, set_no: it.set || 1, song: it.raw, shift: it.shift ?? null, versions: it.versions || [], note: it.note ?? null,
+        id: itemUuid(s.id, it.id), position, set_no: it.set || 1, song: it.raw, shift: it.shift ?? null, versions: it.versions || [],
       }));
       const { error } = await sb.rpc("replace_setlist_items", { p_setlist_id: s.id, p_items: items });
       if (error) fail("save the tunes in the setlist", error);
@@ -136,6 +182,56 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async leaveSetlist(setlistId) {
       const { error } = await sb.from("setlist_members").delete().eq("setlist_id", setlistId).eq("user_id", userId);
       if (error) fail("leave the setlist", error);
+    },
+
+    async listNotes(home) {
+      let q = sb.from("notes").select(NOTE_COLS);
+      if (home.kind === "setlist") q = q.eq("setlist_id", home.setlistId).is("setlist_item_id", null);
+      else if (home.kind === "item") q = q.eq("setlist_item_id", itemUuid(home.setlistId, home.itemId));
+      else q = q.eq("song_key", home.songKey).is("setlist_id", null).eq("author", userId);
+      const { data, error } = await q.order("created_at");
+      if (error) fail("load the notes", error);
+      const rows = (data || []) as NoteRow[];
+      const nm = await namesOf(rows.map(r => r.author));
+      return rows.map(r => toNote(r, nm));
+    },
+
+    async countNotes(setlistId, itemIds) {
+      const { data, error } = await sb.from("notes").select("setlist_item_id").eq("setlist_id", setlistId).not("setlist_item_id", "is", null);
+      if (error) fail("load the notes", error);
+      const per = new Map<string, number>();
+      (data || []).forEach((r: { setlist_item_id: string }) => per.set(r.setlist_item_id, (per.get(r.setlist_item_id) || 0) + 1));
+      const out: Record<string, number> = {};
+      itemIds.forEach(id => { const n = per.get(itemUuid(setlistId, id)); if (n) out[id] = n; });
+      return out;
+    },
+
+    async addNote(home, n) {
+      const { data, error } = await sb.from("notes")
+        .insert({ ...homeCols(home), body: n.body, tag: n.parentId ? null : n.tag ?? null, parent_id: n.parentId ?? null })
+        .select(NOTE_COLS).single();
+      if (error) fail("save that note", error);
+      const row = data as NoteRow;
+      return toNote(row, await namesOf([row.author]));
+    },
+
+    async updateNote(id, n) {
+      const { data, error } = await sb.from("notes").update({ body: n.body, tag: n.tag ?? null }).eq("id", id).select("id");
+      if (error) fail("save that note", error);
+      if (!data || !data.length) fail("save that note", { message: "not allowed" });
+    },
+
+    async deleteNote(id) {
+      const { error } = await sb.from("notes").delete().eq("id", id);
+      if (error) fail("delete that note", error);
+    },
+
+    async copyNote(noteId, to) {
+      const { data, error } = await sb.from("notes").select("body, tag, parent_id").eq("id", noteId).single();
+      if (error) fail("copy that note", error);
+      const src = data as { body: string; tag: NoteTag | null; parent_id: string | null };
+      const ins = await sb.from("notes").insert({ ...homeCols(to), body: src.body, tag: src.parent_id ? null : src.tag });
+      if (ins.error) fail("copy that note", ins.error);
     },
 
     async listLibrary() {

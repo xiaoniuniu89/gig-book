@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { meta, norm, prettyKey } from "@/lib/songs";
-import type { LibraryPlaylist, SetlistItem } from "@/lib/data/types";
+import { newItemId, type LibraryPlaylist, type SetlistItem } from "@/lib/data/types";
 
 export interface LibTune { raw: string; title: string; composer: string; style: string; key: string; hay: string }
 
@@ -21,9 +21,8 @@ export function libraryTunes(library: LibraryPlaylist[]): LibTune[] {
   return out.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-let seq = 0;
 export const newItem = (raw: string, set: 1 | 2, shift: number | null = null): SetlistItem =>
-  ({ id: "s" + Date.now().toString(36) + (seq++).toString(36), raw, set, shift, versions: [] });
+  ({ id: newItemId(), raw, set, shift, versions: [] });
 
 export function TunePicker({ library, have, onAdd, onClose }: {
   library: LibraryPlaylist[];

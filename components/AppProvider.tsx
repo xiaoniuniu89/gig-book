@@ -85,6 +85,8 @@ interface Ctx {
   /** Replace a setlist with fn(its current state); saved unless you're a viewer. */
   updateSetlist(id: string, fn: (s: Setlist) => Setlist): void;
   updateItem(setId: string, idx: number, fn: (it: SetlistItem) => SetlistItem): void;
+  /** Save any pending edits to a setlist now (notes on a brand-new tune need the tune saved first). */
+  flushSetlist(id: string): Promise<void>;
   itemOf(c: Current): SetlistItem | undefined;
   addSetlist(s: Setlist): Promise<void>;
   removeSetlist(s: Setlist): Promise<void>;
@@ -595,7 +597,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [band]);
 
   const value: Ctx = {
-    ready, authChecked, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, itemOf, addSetlist, removeSetlist, leaveSetlist,
+    ready, authChecked, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
