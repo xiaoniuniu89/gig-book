@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@/components/AppProvider";
-import { TopBar } from "@/components/TopBar";
-import { Dock } from "@/components/Dock";
+import { Gate } from "@/components/Gate";
 import { Toast } from "@/components/Toast";
 import "./globals.css";
 
@@ -26,10 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body data-docksize="full">
         <AppProvider>
-          <TopBar />
-          <main><div className="wrap" id="view">{children}</div></main>
+          <Gate>{children}</Gate>
           <Toast />
-          <Dock />
         </AppProvider>
       </body>
     </html>

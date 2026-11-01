@@ -74,6 +74,8 @@ export function sectionRanges(sg: Song) {
 
 interface Ctx {
   ready: boolean;
+  /** False until the stored session (if any) has been restored. */
+  authChecked: boolean;
   store: DataStore;
   account: Account | null;
   setlists: Setlist[];
@@ -150,6 +152,7 @@ export const songHref = (setId: string, idx: number) => `/set/${encodeURICompone
 export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [authChecked, setAuthChecked] = useState(!supabaseConfigured);
   const [store, setStore] = useState<DataStore>(localStore);
   const [account, setAccount] = useState<Account | null>(null);
   const [setlists, setSetlists] = useState<Setlist[]>([]);
@@ -245,14 +248,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAccount(null);
         setStore(localStore);
       }
+      setAuthChecked(true);
     };
-    sb.auth.getSession().then(({ data }) => apply(data.session));
+    sb.auth.getSession().then(({ data }) => apply(data.session), () => setAuthChecked(true));
     const { data: sub } = sb.auth.onAuthStateChange((_ev, session) => apply(session));
     return () => sub.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    // closed beta: signed out means no data at all, not even this device's
+    if (supabaseConfigured && store.kind !== "supabase") {
+      applySetlists(() => []); setLibrary([]); setLocalCounts(null); setReady(false);
+      return;
+    }
     (async () => {
       setReady(false);
       try {
@@ -298,8 +307,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let found: Setlist | null = null;
     try {
       found = await storeRef.current.getSetlist(id);
-      const sb = getSupabase();
-      if (!found && sb && storeRef.current.kind === "local") found = await supabaseStore(sb, "").getSetlist(id);
     } catch (e) { console.warn(e); }
     if (found) { const f = found; applySetlists(prev => prev.some(s => s.id === f.id) ? prev : prev.concat(f)); }
     return found;
@@ -580,7 +587,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [band]);
 
   const value: Ctx = {
-    ready, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, itemOf, addSetlist, removeSetlist,
+    ready, authChecked, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, itemOf, addSetlist, removeSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,

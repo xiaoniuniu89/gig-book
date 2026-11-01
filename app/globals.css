@@ -289,5 +289,7 @@ body[data-docksize="hidden"] { --dw: var(--rail); }
 .bar-top .acct { display: inline-flex; gap: 8px; align-items: center; }
 .auth-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(340px, calc(100vw - 32px)); z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
 .acct-wrap { position: relative; }
+.signin { max-width: 420px; margin: 12vh auto 0; display: grid; gap: 10px; }
+.signin .brand { font-size: 2rem; }
 .auth-panel input[type="email"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; width: 100%; }
 .sync-note { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
