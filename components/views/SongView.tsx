@@ -171,7 +171,9 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
  * bar highlight (a class toggled straight on the DOM) survives the many re-renders during playback.
  * chartHTML escapes every piece of text it outputs.
  */
-export function ChartHost({ html, live }: { html: string; live: boolean }) {
+/** `fit` scales the chart down (never up) so it fills the parent's height without scrolling; it stops at MIN_FIT and scrolls past that. */
+const MIN_FIT = 0.45;
+export function ChartHost({ html, live, fit }: { html: string; live: boolean; fit?: boolean }) {
   const app = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const markRef = useRef(app.markBar); markRef.current = app.markBar;
@@ -182,6 +184,27 @@ export function ChartHost({ html, live }: { html: string; live: boolean }) {
     ref.current.innerHTML = html;
     if (liveRef.current && bar.current !== null) markRef.current(bar.current); // re-apply the playing bar after a redraw
   }, [html, bar]);
+  useLayoutEffect(() => {
+    const el = ref.current, box = el?.parentElement;
+    if (!fit || !el || !box) return;
+    const run = () => {
+      const cs = getComputedStyle(box);
+      const room = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      let z = 1;
+      // zoom reflows the width too, so height isn't exactly linear; a few passes settle it
+      for (let i = 0; i < 4; i++) {
+        el.style.zoom = String(z);
+        const h = el.getBoundingClientRect().height;
+        if (h <= room + 1 || z <= MIN_FIT) break;
+        z = Math.max(MIN_FIT, Math.floor(z * (room / h) * 100) / 100);
+      }
+    };
+    run();
+    const ro = new ResizeObserver(run);
+    ro.observe(box);
+    document.fonts?.ready.then(run).catch(() => {});
+    return () => { ro.disconnect(); el.style.zoom = ""; };
+  }, [fit, html]);
   return <div id="chart-wrap" ref={ref} />;
 }
 

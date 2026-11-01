@@ -167,7 +167,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
       </div>
       <div className="focus-body" onPointerDown={e => { start.current = file ? null : { x: e.clientX, y: e.clientY }; }}
         onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
-        {source.kind === "ireal" ? <ChartHost html={html} live={playing} /> : <FileChart store={app.store} a={source.att} />}
+        {source.kind === "ireal" ? <ChartHost html={html} live={playing} fit /> : <FileChart store={app.store} a={source.att} />}
       </div>
     </div>
   );

@@ -469,6 +469,9 @@ html, body { overflow-x: clip; }
 .focus-body:has(.file-chart) { touch-action: auto; user-select: auto; -webkit-user-select: auto; }
 .file-chart { display: block; width: 100%; }
 .file-chart img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.focus-body:has(.file-chart img) { display: flex; }
+.focus-body .file-chart img { max-height: 100%; width: auto; object-fit: contain; }
+.focus-body:has(.file-chart img) .file-chart { flex: 1; min-height: 0; display: flex; justify-content: center; }
 object.file-chart { height: 100%; min-height: 80vh; }
 @media (max-width: 640px) {
   .attach-menu .btn.small, .upload .btn.small, .attachment .btn.small { min-height: 44px; }
