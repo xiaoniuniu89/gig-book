@@ -45,8 +45,15 @@ const plain = (s: Setlist): Setlist => {
   return JSON.parse(JSON.stringify(copy));
 };
 
+const noMembers = () => Promise.reject(new Error("Sharing needs an account."));
+
 export const localStore: DataStore = {
   kind: "local",
+  listMembers: async () => [],
+  addMember: noMembers,
+  setMemberRole: noMembers,
+  removeMember: noMembers,
+  leaveSetlist: noMembers,
   newId(name, taken) {
     let id = slug(name), n = 2;
     while (taken(id)) id = slug(name) + "-" + n++;

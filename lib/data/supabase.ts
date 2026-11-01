@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DataStore, LibraryPlaylist, Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, type DataStore, type LibraryPlaylist, type Member, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -105,6 +105,37 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async deleteSetlist(id) {
       const { error } = await sb.from("setlists").delete().eq("id", id);
       if (error) fail("delete the setlist", error);
+    },
+
+    async listMembers(setlistId) {
+      const { data, error } = await sb.rpc("setlist_member_list", { p_setlist: setlistId });
+      if (error) fail("load the band", error);
+      return ((data || []) as { user_id: string; display_name: string | null; email: string | null; role: Member["role"] }[])
+        .map(m => ({ userId: m.user_id, name: m.display_name || "Member", email: m.email, role: m.role }));
+    },
+
+    async addMember(setlistId, email, role) {
+      const { error } = await sb.rpc("add_setlist_member", { p_setlist: setlistId, p_email: email, p_role: role });
+      if (error) {
+        if (error.code === "P0002") throw new Error(MEMBER_NOT_FOUND);
+        fail("add that person", error);
+      }
+    },
+
+    async setMemberRole(setlistId, uid, role) {
+      const { data, error } = await sb.from("setlist_members").update({ role }).eq("setlist_id", setlistId).eq("user_id", uid).select("user_id");
+      if (error) fail("change that role", error);
+      if (!data || !data.length) fail("change that role", { message: "not allowed" });
+    },
+
+    async removeMember(setlistId, uid) {
+      const { error } = await sb.from("setlist_members").delete().eq("setlist_id", setlistId).eq("user_id", uid);
+      if (error) fail("remove that person", error);
+    },
+
+    async leaveSetlist(setlistId) {
+      const { error } = await sb.from("setlist_members").delete().eq("setlist_id", setlistId).eq("user_id", userId);
+      if (error) fail("leave the setlist", error);
     },
 
     async listLibrary() {

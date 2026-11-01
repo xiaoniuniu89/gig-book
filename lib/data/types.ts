@@ -27,6 +27,16 @@ export interface Setlist {
   role?: Role;
 }
 
+export interface Member {
+  userId: string;
+  name: string;
+  /** Only the owner sees emails. */
+  email: string | null;
+  role: "viewer" | "editor";
+}
+
+export const MEMBER_NOT_FOUND = "No Gig Book account for that email";
+
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
 export interface DataStore {
@@ -38,6 +48,13 @@ export interface DataStore {
   getSetlist(id: string): Promise<Setlist | null>;
   saveSetlist(s: Setlist): Promise<void>;
   deleteSetlist(id: string): Promise<void>;
+  /** Setlist members (accounts only; local mode has none). */
+  listMembers(setlistId: string): Promise<Member[]>;
+  /** Owner only. Throws Error(MEMBER_NOT_FOUND) when no account has that email. */
+  addMember(setlistId: string, email: string, role: Member["role"]): Promise<void>;
+  setMemberRole(setlistId: string, userId: string, role: Member["role"]): Promise<void>;
+  removeMember(setlistId: string, userId: string): Promise<void>;
+  leaveSetlist(setlistId: string): Promise<void>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;
