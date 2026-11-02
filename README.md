@@ -98,7 +98,7 @@ Checks:
 - `python3 scripts/smoke.py path/to/iReal-export.html http://localhost:3000` runs a Playwright smoke test against a running server (no Spotify secret set).
 
 ## Testing
-Three layers, all against a throwaway local Supabase (never the real project). CI runs them on every push and pull request (`docs/ci/test.yml`, to be moved into `.github/workflows/`).
+Three layers, all against a throwaway local Supabase (never the real project). CI runs them on every push and pull request (`.github/workflows/test.yml`).
 
 ```bash
 npx supabase start            # needs Docker; applies supabase/config.toml and every migration
