@@ -7,7 +7,6 @@ import { useApp, songHref, type Current, type TuneCurrent } from "../AppProvider
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey } from "@/lib/songs";
-import { newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
 import { useChartChoice } from "../Attachments";
@@ -155,7 +154,6 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} item={item} canEdit={canEdit} />
-        {cur.kind === "lib" && <section className="panel"><h2>Add to a setlist</h2><AddToSetlist cur={cur} /></section>}
       </>, app.drawerSlot)}
     </>
   );
@@ -255,7 +253,7 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
     <section className="panel" aria-label="Recordings">
       <div className="panel-head"><h2>Recordings</h2></div>
       <div id="versions">
-        {cur.kind !== "set" ? <p className="hint">Add this tune to a setlist to keep the versions you like.</p>
+        {cur.kind !== "set" ? null
           : vs.length ? vs.map((v, k) => (
             <div className="ver" key={v.uri}>
               <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => app.playSpotify(v.uri, true)}>▶</button>
@@ -279,35 +277,5 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
         ))}
       </div>
     </section>
-  );
-}
-
-function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
-  const app = useApp();
-  const own = app.setlists.filter(s => s.role !== "viewer");
-  const [target, setTarget] = useState(own[0] ? own[0].id : "__new");
-  const sg = cur.song;
-  const add = async () => {
-    let s: Setlist | undefined;
-    const item = newItem(sg.raw, 1, app.prefs.libShift[sg.title + "|" + sg.composer] ?? null);
-    if (target === "__new" || !app.setlistById(target)) {
-      const name = "New setlist " + new Date().toLocaleDateString();
-      s = { id: app.store.newId(name + " " + Date.now().toString(36), id => !!app.setlistById(id)), name, spotify: null, items: [item], visibility: "private", role: "owner" };
-      await app.addSetlist(s);
-      setTarget(s.id);
-    } else {
-      s = app.setlistById(target) as Setlist;
-      app.updateSetlist(s.id, x => ({ ...x, items: [...x.items, item] }));
-    }
-    app.toast(`Added to ${s.name}.`);
-  };
-  return (
-    <div className="inline-form">
-      <select id="add-to" value={target} onChange={e => setTarget(e.target.value)}>
-        {own.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
-        <option value="__new">New setlist…</option>
-      </select>
-      <button className="btn" id="add-btn" onClick={add}>Add to setlist…</button>
-    </div>
   );
 }

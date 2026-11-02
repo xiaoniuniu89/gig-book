@@ -290,7 +290,7 @@ a.tune:hover { background: var(--brass-soft); }
 .pane-record { display: grid; gap: 8px; }
 .rec-head { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; }
 #sp-embed { min-height: 152px; border-radius: 12px; overflow: hidden; }
-#sp-embed:empty::before { content: "Nothing loaded. Play a recording from a tune, or load the setlist's playlist."; display: block; padding: 20px; color: var(--muted); font-size: 13px; border: 1px dashed var(--rule); border-radius: 12px; }
+#sp-embed:empty::before { content: "Nothing playing. Find a recording of a tune to hear it here."; display: block; padding: 20px; color: var(--muted); font-size: 13px; border: 1px dashed var(--rule); border-radius: 12px; }
 .dock-slot { display: grid; gap: 16px; }
 .dock-slot:not(:empty) { border-top: 1px solid var(--rule); padding-top: 16px; }
 .dock-slot .panel { padding: 0; border: 0; background: none; }
