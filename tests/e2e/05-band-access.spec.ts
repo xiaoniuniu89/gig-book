@@ -36,8 +36,9 @@ test("5. band members see and do exactly what their permissions allow; outsiders
   await go(cleo.page, BAND);
   await cleo.page.getByRole("tab", { name: "Notes" }).click();
   const text = unique("Load-in at 5", info.project.name);
-  await cleo.page.getByLabel("New note").fill(text);
   await cleo.page.getByRole("button", { name: "Add note" }).click();
+  await cleo.page.getByLabel("New note").fill(text);
+  await cleo.page.getByRole("dialog").getByRole("button", { name: "Add note" }).click();
   await expect(cleo.page.getByText(text)).toBeVisible();
   await cleo.page.getByRole("tab", { name: "People" }).click();
   await expect(cleo.page.getByText("Ava (you)")).toHaveCount(0);

@@ -9,6 +9,7 @@ import { feelOf } from "@/lib/band/gen";
 import { song } from "@/lib/songs";
 import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
+import { Modal } from "../Modal";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { isBuiltin } from "@/lib/seeds";
 import { MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
@@ -50,6 +51,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [armed, setArmed] = useState<number | null>(null);
   const [delArmed, setDelArmed] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
   // notes per tune, for the little count under each title
@@ -174,6 +176,7 @@ function SetBody({ s }: { s: Setlist }) {
           <button className="btn primary" data-gig="all" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
           <button className="btn" data-gig="1" onClick={() => app.startGig(s, "1")}>Set 1</button>
           <button className="btn" data-gig="2" onClick={() => app.startGig(s, "2")}>Set 2</button>
+          {!builtin && app.store.kind === "supabase" && <button className="btn" id="share-set" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button>}
           {s.spotify && <button className="btn" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play the Spotify playlist</button>}
         </div>
       </div>
@@ -216,8 +219,10 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
       </section>
       {!builtin && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
-      {!builtin && app.store.kind === "supabase" && isOwner && <BandPick s={s} />}
-      {!builtin && app.store.kind === "supabase" && <Band s={s} owner={isOwner} />}
+      <Modal open={sharing} title={"Share " + s.name} onClose={() => setSharing(false)}>
+        {isOwner && <BandPick s={s} />}
+        <Band s={s} owner={isOwner} />
+      </Modal>
       {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
         <section className="danger-zone">
@@ -252,8 +257,8 @@ function BandPick({ s }: { s: Setlist }) {
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn't change the band."); }
   };
   return (
-    <section className="panel" id="band-pick">
-      <h2>Band: {s.band ? <Link href={"/bands/" + s.band.id}>{s.band.name}</Link> : "none"}</h2>
+    <div className="share-part" id="band-pick">
+      <h3 className="modal-sub">Band</h3>
       <div className="inline-form">
         <select aria-label="Share with a band" value={s.band?.id || ""} onChange={e => void change(e.target.value)}>
           <option value="">Not shared with a band</option>
@@ -261,7 +266,7 @@ function BandPick({ s }: { s: Setlist }) {
         </select>
       </div>
       <p className="hint">Everyone in the band can read this setlist and save their own copy. You stay the owner; if you leave the band or take it out, it leaves the band.</p>
-    </section>
+    </div>
   );
 }
 
@@ -309,8 +314,8 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
   };
 
   return (
-    <section className="panel" id="band">
-      <h2>Shared with</h2>
+    <div className="share-part" id="band">
+      <h3 className="modal-sub">People</h3>
       {members === null ? <p className="hint">Loading…</p> : !members.length
         ? <p className="hint">{owner ? "Nobody else is on this setlist yet." : "Just the owner."}</p>
         : <div className="list">
@@ -348,6 +353,6 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
           }}>{armed === "leave" ? "Tap again to leave " + s.name : "Leave this setlist"}</button>
         </div>
       )}
-    </section>
+    </div>
   );
 }
