@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
+    "seed:dev": "tsx --env-file=.env.development.local scripts/seed.ts",
+    "db:dev": "node --env-file=.env.development.local scripts/db-dev.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

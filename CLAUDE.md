@@ -12,9 +12,11 @@ Next.js (App Router) + TypeScript + React + plain CSS. See README.md for the lay
 - Product scope and build order: `docs/REQUIREMENTS.md`. Each issue names the requirement ids (R1, R5.2…) it implements.
 
 ## Shipping
-- **Commit straight to `main`** and push once typecheck and lint pass. No branches or PRs unless Dan asks for one.
-- `@claude` on an issue builds it in GitHub Actions and lands it on `main` as one commit (say "as a PR" in the request to get a pull request instead). Don't run two builds at once that touch the same migration rules or files: run them one after another.
-- The test suite (`.github/workflows/test.yml`) runs on every push and PR against a throwaway local Supabase. It uses no AI tokens. Check it after pushing: `gh run list --workflow test.yml --limit 1`.
+- **`develop` is where work happens.** Commit straight to `develop` and push once typecheck and lint pass. No feature branches or PRs unless Dan asks for one. Pushes to `develop` run no CI and no Vercel deploy.
+- Dan smoke-tests `develop` on localhost against the **dev Supabase project** (`.env.development.local`, see `.env.development.example`; `npm run dev` picks it up over `.env.local`). `npm run db:dev` applies migrations to it and `npm run seed:dev` (re)creates the fake musicians (`tests/fixtures.ts`, password in there).
+- **`main` is live.** Only merge `develop` into `main` when Dan says to release: `git checkout main && git merge --ff-only develop && git push`, then back to `develop`. That push runs the test suite and Vercel deploys it. Apply any new migrations to live at the same time (below). Check the run: `gh run list --workflow test.yml --limit 1`.
+- `@claude` on an issue builds it in GitHub Actions from `develop` and lands it on `develop` as one commit (say "as a PR" in the request to get a pull request into `develop` instead). Don't run two builds at once that touch the same migration rules or files: run them one after another.
+- The test suite (`.github/workflows/test.yml`) uses a throwaway local Supabase and no AI tokens. It runs on pushes to `main` and PRs into `main`.
 - The bot can't write under `.github/workflows/`; workflow changes are made locally and pushed.
 
 ## Database migrations
@@ -24,5 +26,6 @@ Next.js (App Router) + TypeScript + React + plain CSS. See README.md for the lay
 - Claude Code applies them to the linked project (`gig-book`, ref in `supabase/.temp/project-ref`) with the Supabase CLI:
   1. `npx supabase migration list --linked` shows what's applied (remote column) and what's pending.
   2. `npx supabase db push --linked --dry-run` must list only the new files.
-  3. `npx supabase db push --linked --yes` applies them. This changes the live database: only run it when Dan has asked for migrations to be applied.
+  3. `npx supabase db push --linked --yes` applies them. This changes the live database: only run it when Dan has asked for migrations to be applied (normally as part of a release to `main`).
+- On `develop`, apply new migrations to the dev project with `npm run db:dev` instead (no `--linked`).
 - New tables need RLS and access tests in `tests/access/`.

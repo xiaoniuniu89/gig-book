@@ -1,12 +1,12 @@
-// Fake musicians for the tests (npm run seed). Local Supabase only: uses the service role key and wipes + recreates
+// Fake musicians for the tests and the dev project (npm run seed / npm run seed:dev). Local Supabase or the dev project only: uses the service role key and wipes + recreates
 // the fixture users (tests/fixtures.ts) and everything they own. Safe to run again.
 import { createClient } from "@supabase/supabase-js";
-import { SB_URL, SERVICE_KEY, assertLocal } from "../tests/env";
+import { SB_URL, SERVICE_KEY, assertSeedTarget } from "../tests/env";
 import { FILES, IDS, INVITES, PASSWORD, SET_TUNES, TINY_PDF, USERS, WHO } from "../tests/fixtures";
 import { songKey } from "../lib/songs";
 import { STARTER_LICKS } from "../lib/starterLicks";
 
-assertLocal();
+assertSeedTarget();
 const sb = createClient(SB_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
 // rows with different columns: leave missing ones to the column defaults instead of sending null

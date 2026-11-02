@@ -9,7 +9,17 @@ export const ANON_KEY = e.SUPABASE_ANON_KEY || e.ANON_KEY || e.NEXT_PUBLIC_SUPAB
 export const SERVICE_KEY = e.SUPABASE_SERVICE_ROLE_KEY || e.SERVICE_ROLE_KEY || DEMO_SERVICE;
 export const MAILPIT = e.MAILPIT_URL || "http://127.0.0.1:54324";
 
-/** The seed holds the service role key and deletes users: only ever run it against a local stack. */
+const LIVE_REF = "lctxtseylqyxiideluth";
+
+/** The seed may also fill the dev project (DEV_SUPABASE_REF in .env.development.local), never the live one. */
+export function assertSeedTarget(): void {
+  const host = new URL(SB_URL).hostname, dev = e.DEV_SUPABASE_REF;
+  if (host.startsWith(LIVE_REF + ".")) throw new Error("Refusing to seed the live project.");
+  if (dev && dev !== LIVE_REF && host === dev + ".supabase.co") return;
+  assertLocal();
+}
+
+/** The tests hold the service role key and delete users: only ever run them against a local stack. */
 export function assertLocal(): void {
   const host = new URL(SB_URL).hostname;
   if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(host)) {
