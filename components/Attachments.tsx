@@ -77,8 +77,8 @@ function Recorder({ onDone, onCancel }: { onDone: (f: File) => void; onCancel: (
   );
 }
 
-/** "Attach" button with: Take photo, Record audio, Choose file. */
-export function AttachMenu({ onFiles }: { onFiles: (f: File[]) => void }) {
+/** "Attach" button with: Take photo, Record audio (unless `noAudio`), Choose file. */
+export function AttachMenu({ onFiles, noAudio }: { onFiles: (f: File[]) => void; noAudio?: boolean }) {
   const [open, setOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const photo = useRef<HTMLInputElement>(null);
@@ -98,7 +98,7 @@ export function AttachMenu({ onFiles }: { onFiles: (f: File[]) => void }) {
       {open && !recording && (
         <div className="attach-opts">
           <button className="btn small" type="button" onClick={() => photo.current?.click()}>Take photo</button>
-          {canRecord && <button className="btn small" type="button" onClick={() => setRecording(true)}>Record audio</button>}
+          {canRecord && !noAudio && <button className="btn small" type="button" onClick={() => setRecording(true)}>Record audio</button>}
           <button className="btn small" type="button" onClick={() => file.current?.click()}>Choose file</button>
         </div>
       )}

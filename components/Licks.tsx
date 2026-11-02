@@ -91,7 +91,7 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
         </div>
       )}
       <div className="compose-row">
-        {newFiles && <AttachMenu onFiles={f => setFiles(l => l.concat(f))} />}
+        {newFiles && <AttachMenu noAudio onFiles={f => setFiles(l => l.concat(f))} />}
         {onCancel && <button className="btn" type="button" onClick={onCancel}>Cancel</button>}
         <button className="btn primary" type="submit" disabled={busy || !title.trim()}>{cta}</button>
       </div>

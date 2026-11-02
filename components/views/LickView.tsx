@@ -1,5 +1,5 @@
 "use client";
-// /licks/[id]: one lick. Its notation (or the photo/PDF you uploaded), your recordings, and its chords to loop with the band.
+// /licks/[id]: one lick. Its notation (or the photo/PDF you uploaded) and its chords to loop with the band.
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -130,9 +130,9 @@ export function LickView() {
 
         {lick.body && <section className="panel"><p className="note-body">{linkify(lick.body)}</p></section>}
 
-        {!starter && signedIn && (lick.mine || files.atts.length > 0) && <section className="panel" aria-label="Files and recordings">
-          <div className="panel-head"><h2>Files and recordings</h2>{lick.mine && <AttachMenu onFiles={f => files.uploads.add(lick.id, f)} />}</div>
-          {!files.atts.length && !files.uploads.ups.length && <p className="hint">Add a recording of you playing it, a photo of the page, or a PDF.</p>}
+        {!starter && signedIn && (lick.mine || files.atts.length > 0) && <section className="panel" aria-label="Files">
+          <div className="panel-head"><h2>Files</h2>{lick.mine && <AttachMenu noAudio onFiles={f => files.uploads.add(lick.id, f)} />}</div>
+          {!files.atts.length && !files.uploads.ups.length && <p className="hint">Add a photo of the page or a PDF.</p>}
           <AttachmentList store={store} items={files.atts} canDelete={() => lick.mine} onDelete={files.remove} />
           <UploadRows ups={files.uploads.ups} noteId={lick.id} retry={files.uploads.retry} dismiss={files.uploads.dismiss} />
         </section>}
