@@ -45,7 +45,7 @@ export async function triage(text: string, page: string): Promise<Triage> {
 /** Opens the issue. Returns its URL, or null when GitHub isn't set up or refused. */
 export async function openIssue(t: Triage, text: string, page: string, id: string): Promise<string | null> {
   const token = process.env.GITHUB_FEEDBACK_TOKEN;
-  const repo = process.env.GITHUB_FEEDBACK_REPO || "xiaoniuniu89/gig-book";
+  const repo = process.env.GITHUB_FEEDBACK_REPO || "xiaoniuniu89/niu-real-book";
   const owner = process.env.GITHUB_FEEDBACK_ASSIGNEE || repo.split("/")[0];
   if (!token) return null;
   const quoted = text.split("\n").map(l => "> " + l).join("\n");

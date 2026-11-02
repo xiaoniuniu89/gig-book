@@ -4,7 +4,7 @@ Niu (牛, cow) was Dan's Chinese name; the rest is a nod to The New Real Book.
 
 Setlists from iReal Pro with analysed chord charts, a built-in backing band, and Spotify recordings.
 
-Old static version (until it is retired): https://xiaoniuniu89.github.io/gig-book/
+Old static version (until it is retired): https://xiaoniuniu89.github.io/niu-real-book/
 
 ## What it does
 - **Import** an iReal Pro playlist (share it from iReal Pro as HTML). Make it a setlist, or add it to your library.
@@ -22,11 +22,11 @@ Do these in order. Each part works on its own: the site runs without Supabase (l
 
 ### Part 1: Vercel
 1. Go to https://vercel.com/new and sign in with GitHub.
-2. Under "Import Git Repository", pick `xiaoniuniu89/gig-book` and click **Import**.
+2. Under "Import Git Repository", pick `xiaoniuniu89/niu-real-book` and click **Import**.
 3. Leave Framework Preset as **Next.js** and the build settings as they are. Click **Deploy**.
 4. When it finishes, open the project and set the production branch to `next-migration`: **Settings → Environments → Production → Branch Tracking** (on older dashboards: **Settings → Git → Production Branch**). Save. Switch it back to `main` after the pull request is merged.
 5. Go to **Deployments**, open the menu (⋯) on the latest `next-migration` deployment and click **Redeploy**, or push any commit to the branch.
-6. Note your site address, e.g. `https://gig-book.vercel.app`. The steps below call it `YOUR_SITE`.
+6. Note your site address, e.g. `https://niu-real-book.vercel.app`. The steps below call it `YOUR_SITE`.
 
 ### Part 2: Spotify search
 1. Go to https://developer.spotify.com/dashboard, open the Gig Book app (client ID `84afdb07…`), then **Settings → View client secret**. Copy it.
@@ -45,7 +45,7 @@ Spotify login is no longer used, so the Spotify app's redirect URIs and its 25-u
    2. Open [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) in this repo, copy the whole file, paste it into the editor.
    3. Click **Run**. It should finish with "Success. No rows returned".
 3. Set the sign-in link addresses: **Authentication → URL Configuration**.
-   1. **Site URL**: `YOUR_SITE` (e.g. `https://gig-book.vercel.app`).
+   1. **Site URL**: `YOUR_SITE` (e.g. `https://niu-real-book.vercel.app`).
    2. **Redirect URLs** → **Add URL**, add each of these:
       - `YOUR_SITE/auth/callback`
       - `http://localhost:3000/auth/callback`
