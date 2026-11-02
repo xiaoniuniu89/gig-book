@@ -49,7 +49,7 @@ jobs:
           claude_args: '--allowedTools "Bash(npm ci),Bash(npm install:*),Bash(npm run:*),Bash(node:*),Bash(npx:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*)"'
 
       # Work started from an issue: bring in the latest main (Claude resolves any conflicts) and run the checks.
-      # Then, if the @claude request says "merge", push it to main as one commit; otherwise open a PR for review.
+      # Then push it to main as one commit, unless the @claude request says "as a PR" (then open a PR for review).
       # Comments on an existing PR leave that PR to be merged by hand.
       - name: Bring Claude's branch up to date with main
         id: sync
@@ -85,7 +85,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.claude.outputs.branch_name }}
           ISSUE: ${{ github.event.issue.number }}
-          MERGE: ${{ contains(github.event_name == 'issue_comment' && github.event.comment.body || github.event.issue.body, 'merge') }}
+          # straight to main by default; say "as a PR" in the @claude request to get a pull request instead
+          MERGE: ${{ !contains(github.event_name == 'issue_comment' && github.event.comment.body || github.event.issue.body, 'as a PR') }}
         run: |
           if [ "${{ steps.sync.outputs.conflict }}" = true ]; then
             if git grep -nE '^(<<<<<<<|>>>>>>>)' -- . ':!package-lock.json'; then echo "Conflict markers left."; exit 1; fi
