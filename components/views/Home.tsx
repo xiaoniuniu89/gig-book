@@ -28,6 +28,10 @@ export function Home() {
             <span className="t">Licks</span>
             <span className="m">Phrases and ideas to keep with any tune</span>
           </Link>
+          <Link className="book res" href="/resources">
+            <span className="t">Resources</span>
+            <span className="m">Bookmarks, books and PDFs to pin to tunes</span>
+          </Link>
         </div>
       )}
       {app.localCounts && (

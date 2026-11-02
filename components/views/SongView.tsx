@@ -9,6 +9,7 @@ import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey } from "@/lib/songs";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
+import { MyResources } from "../Resources";
 import { Icon } from "../Icon";
 import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
@@ -153,6 +154,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
       )}
       <Licks key={"my-licks:" + songKey(sg.raw)} title="My licks on this song" hint="Private to you. They show on this song in every setlist and in the library."
         home={{ kind: "song", songKey: songKey(sg.raw) }} />
+      <MyResources key={"my-res:" + songKey(sg.raw)} songKey={songKey(sg.raw)} />
       <Notes key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
         home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} chart={chart} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}

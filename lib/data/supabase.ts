@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -43,6 +43,7 @@ interface AttachmentRow {
   id: string;
   note_id: string | null;
   lick_id: string | null;
+  resource_id: string | null;
   storage_path: string;
   kind: Attachment["kind"];
   name: string;
@@ -71,8 +72,14 @@ const LICK_COLS = "id, owner, title, body, tags, progression, prog_key, notation
 const lickCols = (f: LickFields) =>
   ({ title: f.title, body: f.body, tags: f.tags, progression: f.progression || null, prog_key: f.progression && f.key ? f.key : null, notation: f.notation || null });
 const LINK_COLS = "id, created_by, licks(" + LICK_COLS + ")";
-const ATT_COLS = "id, note_id, lick_id, storage_path, kind, name, mime, size, created_by, created_at";
-const BUCKET = "attachments";
+const ATT_COLS = "id, note_id, lick_id, resource_id, storage_path, kind, name, mime, size, created_by, created_at";
+interface ResourceRow { id: string; kind: Resource["kind"]; title: string; url: string | null; tags: string[] | null; note: string; created_at: string; updated_at: string }
+const RES_COLS = "id, kind, title, url, tags, note, created_at, updated_at";
+const toResource = (r: ResourceRow): Resource => ({
+  id: r.id, kind: r.kind, title: r.title, url: r.url || "", tags: r.tags || [], note: r.note, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const resCols = (f: ResourceFields) => ({ kind: f.kind, title: f.title, url: f.kind === "link" ? f.url : null, tags: f.tags, note: f.note });
+const BUCKET ="attachments";
 const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
@@ -89,7 +96,7 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
 }
 
 const toAttachment = (r: AttachmentRow): Attachment => ({
-  id: r.id, noteId: r.note_id, lickId: r.lick_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
+  id: r.id, noteId: r.note_id, lickId: r.lick_id, resourceId: r.resource_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
   createdBy: r.created_by, createdAt: r.created_at,
 });
 
@@ -152,7 +159,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   });
 
   /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
-  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
+  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { resource_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
     const kind = attachmentKind(file.type, file.name);
     if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
     const mime = (file.type || "application/octet-stream").split(";")[0].trim();
@@ -394,6 +401,63 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (paths.length) await sb.storage.from(BUCKET).remove(paths);
       const { error } = await sb.from("licks").delete().eq("id", id);
       if (error) fail("delete that lick", error);
+    },
+
+    async listResources() {
+      const { data, error } = await sb.from("resources").select(RES_COLS).eq("owner", userId).order("created_at", { ascending: false });
+      if (error) fail("load your resources", error);
+      return ((data || []) as ResourceRow[]).map(toResource);
+    },
+
+    async createResource(f) {
+      const { data, error } = await sb.from("resources").insert(resCols(f)).select(RES_COLS).single();
+      if (error) fail("save that resource", error);
+      return toResource(data as ResourceRow);
+    },
+
+    async updateResource(id, f) {
+      const { data, error } = await sb.from("resources").update(resCols(f)).eq("id", id).select("id");
+      if (error) fail("save that resource", error);
+      if (!data || !data.length) fail("save that resource", { message: "not allowed" });
+    },
+
+    async deleteResource(id) {
+      const at = await sb.from("attachments").select("storage_path").eq("resource_id", id);
+      const paths = ((at.data || []) as { storage_path: string }[]).map(r => r.storage_path);
+      if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+      const { error } = await sb.from("resources").delete().eq("id", id);
+      if (error) fail("delete that resource", error);
+    },
+
+    async uploadResourceFile(resourceId, file, onProgress) {
+      return upload(`user/${userId}/resources/${resourceId}`, { resource_id: resourceId }, file, onProgress);
+    },
+
+    async listResourceFiles(ids) {
+      if (!ids.length) return [];
+      const { data, error } = await sb.from("attachments").select(ATT_COLS).in("resource_id", ids).order("created_at");
+      if (error) fail("load the files", error);
+      return ((data || []) as AttachmentRow[]).map(toAttachment);
+    },
+
+    async listResourceLinks(songKey) {
+      const { data, error } = await sb.from("resource_links").select("id, resources(" + RES_COLS + ")").eq("created_by", userId).eq("song_key", songKey).order("created_at");
+      if (error) fail("load the resources", error);
+      return ((data || []) as unknown as { id: string; resources: ResourceRow | null }[]).filter(r => r.resources)
+        .map(r => ({ id: r.id, resource: toResource(r.resources as ResourceRow) }));
+    },
+
+    async linkResource(id, songKey) {
+      const { data, error } = await sb.from("resource_links").insert({ resource_id: id, song_key: songKey }).select("id, resources(" + RES_COLS + ")").single();
+      if (error) fail(error.code === "23505" ? "add that resource: it's already here" : "add that resource", error);
+      const r = data as unknown as { id: string; resources: ResourceRow };
+      return { id: r.id, resource: toResource(r.resources) };
+    },
+
+    async unlinkResource(linkId) {
+      const { data, error } = await sb.from("resource_links").delete().eq("id", linkId).select("id");
+      if (error) fail("remove that resource", error);
+      if (!data || !data.length) fail("remove that resource", { message: "not allowed" });
     },
 
     async listLickLinks(home) {

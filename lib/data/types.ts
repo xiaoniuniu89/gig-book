@@ -81,6 +81,7 @@ export interface Attachment {
   /** The note it's on, or null for a lick's file. */
   noteId: string | null;
   lickId: string | null;
+  resourceId: string | null;
   path: string;
   kind: AttachmentKind;
   name: string;
@@ -132,6 +133,23 @@ export interface LickFields { title: string; body: string; tags: string[]; progr
 /** Comma-separated tags to a clean list: trimmed, lowercase, no repeats, at most 20. */
 export const parseTags = (s: string): string[] =>
   [...new Set(s.split(",").map(t => t.trim().toLowerCase().slice(0, 30)).filter(Boolean))].slice(0, 20);
+
+/** A bookmark or an uploaded book/PDF in your own Resources (R12). Private to you. */
+export interface Resource {
+  id: string;
+  kind: "link" | "file";
+  title: string;
+  /** Links only. */
+  url: string;
+  tags: string[];
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResourceFields { kind: Resource["kind"]; title: string; url: string; tags: string[]; note: string }
+
+export interface ResourceLink { id: string; resource: Resource }
 
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
@@ -201,6 +219,19 @@ export interface DataStore {
   listLickAttachments(lickIds: string[]): Promise<Attachment[]>;
   /** Owner only. Progress is 0..1. */
   uploadLickAttachment(lickId: string, file: File, onProgress?: (p: number) => void): Promise<Attachment>;
+  /** Your resources, newest first (accounts only; local mode has none). */
+  listResources(): Promise<Resource[]>;
+  createResource(f: ResourceFields): Promise<Resource>;
+  updateResource(id: string, f: ResourceFields): Promise<void>;
+  /** Removes its links and files too. */
+  deleteResource(id: string): Promise<void>;
+  /** Progress is 0..1. */
+  uploadResourceFile(resourceId: string, file: File, onProgress?: (p: number) => void): Promise<Attachment>;
+  listResourceFiles(resourceIds: string[]): Promise<Attachment[]>;
+  /** Your resources pinned to a song (key: `songKey()`). */
+  listResourceLinks(songKey: string): Promise<ResourceLink[]>;
+  linkResource(id: string, songKey: string): Promise<ResourceLink>;
+  unlinkResource(linkId: string): Promise<void>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;

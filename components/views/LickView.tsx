@@ -159,7 +159,7 @@ export function LickView() {
 }
 
 /** Search the library and pick a tune. */
-function AttachToTune({ onPick }: { onPick: (raw: string) => Promise<void> }) {
+export function AttachToTune({ onPick }: { onPick: (raw: string) => Promise<void> }) {
   const { library } = useApp();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);

@@ -120,8 +120,8 @@ export const dropProps = (onFiles: (f: File[]) => void) => ({
 
 export interface Upload { key: string; noteId: string; file: File; pct: number; error?: string }
 
-/** Upload queue for one thread: progress, retry, and a callback with each finished attachment. With "lick", `noteId` is a lick id. */
-export function useUploads(store: DataStore, home: NoteHome | "lick", onDone: (a: Attachment) => void) {
+/** Upload queue for one thread: progress, retry, and a callback with each finished attachment. With "lick" or "resource", `noteId` is that id. */
+export function useUploads(store: DataStore, home: NoteHome | "lick" | "resource", onDone: (a: Attachment) => void) {
   const [ups, setUps] = useState<Upload[]>([]);
   const homeRef = useRef(home); homeRef.current = home;
   const run = useCallback(async (u: Upload) => {
@@ -130,6 +130,7 @@ export function useUploads(store: DataStore, home: NoteHome | "lick", onDone: (a
     try {
       const h = homeRef.current;
       const a = h === "lick" ? await store.uploadLickAttachment(u.noteId, u.file, p => patch({ pct: p }))
+        : h === "resource" ? await store.uploadResourceFile(u.noteId, u.file, p => patch({ pct: p }))
         : await store.uploadAttachment(h, u.noteId, u.file, p => patch({ pct: p }));
       setUps(l => l.filter(x => x.key !== u.key));
       onDone(a);

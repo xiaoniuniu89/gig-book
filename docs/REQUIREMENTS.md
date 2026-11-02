@@ -79,9 +79,15 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R9.1 Create an empty setlist and add tunes from the library (no import needed).
 - R9.2 AI-assisted: describe what you want ("bebop heads, medium-up") and get a draft setlist from tunes in your library, plus a suggested Spotify search. Needs an LLM API key; built last.
 
+### R12 Resources
+- R12.1 A personal **Resources** section (`/resources`) for bookmarks (links) and books/PDFs/images: title, tags, note. Private to the owner; accounts only, hidden in local mode.
+- R12.2 Search by title or tag; tabs All / Links / Books & PDFs.
+- R12.3 A resource page embeds YouTube and Spotify links, shows PDFs and images inline, and opens any other link in a new tab.
+- R12.4 Pin a resource to a tune; it shows under "My resources on this song" on that tune in every setlist and in the library, for that user only.
+- R12.5 Files use the private `attachments` bucket at `user/<owner>/resources/<resource_id>/…`. Migration `0011_resources.sql`.
+
 ### Later (captured, not v1)
 - Offline chart view (service worker caching of setlists and attachments).
-- Lead-sheet (Real Book) PDFs per song in the library.
 - Storage quotas, open sign-up, public setlists.
 - Notation editor for licks; MusicXML export.
 - iPad-specific layout.
