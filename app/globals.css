@@ -524,3 +524,5 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .lib-tools { display: flex; gap: 8px; align-items: center; }
 .lib-tools .search { flex: 1; min-width: 0; }
 @media (max-width: 900px), (pointer: coarse) { .pl-tab { min-height: 44px; } }
+/* tags are labels, not buttons: no tap-target height */
+.note-meta .chip { min-height: 0; padding: 2px 10px; }

@@ -24,12 +24,10 @@ export function Home() {
             <span className="t">Library</span>
             <span className="m">{total} charts · {names(library)}</span>
           </Link>
-          {app.store.kind === "supabase" && (
-            <Link className="book licks" href="/licks">
-              <span className="t">Licks</span>
-              <span className="m">Phrases and ideas to keep with any tune</span>
-            </Link>
-          )}
+          <Link className="book licks" href="/licks">
+            <span className="t">Licks</span>
+            <span className="m">Phrases and ideas to keep with any tune</span>
+          </Link>
         </div>
       )}
       {app.localCounts && (

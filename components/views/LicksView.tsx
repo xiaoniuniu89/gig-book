@@ -5,6 +5,7 @@ import { Icon } from "../Icon";
 import { useApp } from "../AppProvider";
 import { LickCard, LickForm, useLickFiles } from "../Licks";
 import { norm } from "@/lib/songs";
+import { STARTER_LICKS } from "@/lib/starterLicks";
 import type { Lick, LickFields } from "@/lib/data/types";
 
 export function LicksView() {
@@ -13,6 +14,10 @@ export function LicksView() {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [armed, setArmed] = useState<string | null>(null);
+  const [picked, setPicked] = useState<"mine" | "starter" | null>(null);
+  const signedIn = store.kind === "supabase";
+  // your own licks first once you have some; until then, the ones that ship with the app
+  const tab = picked ?? (signedIn && licks?.length ? "mine" : "starter");
   const files = useLickFiles(store, (licks || []).map(l => l.id));
   const err = (e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback);
 
@@ -30,12 +35,9 @@ export function LicksView() {
 
   const shown = useMemo(() => {
     const nq = norm(q);
-    return nq ? (licks || []).filter(l => norm(l.title + " " + l.tags.join(" ")).includes(nq)) : licks || [];
-  }, [licks, q]);
-
-  if (store.kind !== "supabase") return (
-    <section className="panel"><h2>Licks</h2><p className="hint">Licks need an account. Sign in to keep them.</p></section>
-  );
+    const list = tab === "starter" ? STARTER_LICKS : licks || [];
+    return nq ? list.filter(l => norm(l.title + " " + l.tags.join(" ") + " " + l.progression).includes(nq)) : list;
+  }, [licks, q, tab]);
 
   const create = async (f: LickFields, fs: File[]) => {
     try {
@@ -62,17 +64,22 @@ export function LicksView() {
     <>
       <div className="page-head">
         <h1>Licks</h1>
-        <button className="btn primary" aria-expanded={adding} onClick={() => setAdding(a => !a)}><Icon name="plus" size={18} /> New lick</button>
+        {signedIn && <button className="btn primary" aria-expanded={adding} onClick={() => { setAdding(a => !a); setPicked("mine"); }}><Icon name="plus" size={18} /> New lick</button>}
       </div>
-      <p className="hint">Keep an idea once, then attach it to any tune from the tune page. Anyone in a setlist where you attach it can see it there.</p>
       {adding && <section className="panel"><LickForm newFiles cta="Save lick" onSubmit={create} onCancel={() => setAdding(false)} /></section>}
-      <input className="search" type="search" placeholder="Search title or tag" aria-label="Search licks" value={q} onChange={e => setQ(e.target.value)} />
-      <section className="panel licks" aria-label="Your licks">
-        {licks === null ? <p className="hint">Loading…</p> : !shown.length ? <p className="hint">{licks.length ? "No match." : "No licks yet."}</p> : (
+      <div className="pl-tabs" role="tablist" aria-label="Lick collections">
+        <button role="tab" className="pl-tab" aria-selected={tab === "mine"} onClick={() => setPicked("mine")}>My licks<span>{licks?.length ?? ""}</span></button>
+        <button role="tab" className="pl-tab" aria-selected={tab === "starter"} onClick={() => setPicked("starter")}>Starter licks<span>{STARTER_LICKS.length}</span></button>
+      </div>
+      <input className="search" type="search" placeholder="Search title, tag or chords" aria-label="Search licks" value={q} onChange={e => setQ(e.target.value)} />
+      <section className="panel licks" role="tabpanel" aria-label={tab === "mine" ? "My licks" : "Starter licks"}>
+        {tab === "mine" && !signedIn ? <p className="hint">Sign in to keep your own licks.</p>
+          : tab === "mine" && licks === null ? <p className="hint">Loading…</p>
+          : !shown.length ? <p className="hint">{q ? "No match." : "No licks yet. Add one with New lick, or start from the starter licks."}</p> : (
           <div className="thread-list">
             {shown.map(l => (
               <LickCard key={l.id} lick={l} files={files} onSave={save}
-                actions={<button className="btn small" onClick={() => void remove(l)}>{armed === l.id ? "Delete?" : "Delete"}</button>} />
+                actions={l.mine ? <button className="btn small" onClick={() => void remove(l)}>{armed === l.id ? "Delete?" : "Delete"}</button> : undefined} />
             ))}
           </div>
         )}

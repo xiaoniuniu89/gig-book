@@ -106,7 +106,7 @@ export function LickCard({ lick, files, onSave, actions }: {
     <div className="lick" {...(lick.mine ? dropProps(f => files.uploads.add(lick.id, f)) : {})}>
       <h3>{lick.title}</h3>
       <div className="note-meta">
-        {!lick.mine && <b>{lick.ownerName}</b>}
+        {!lick.mine && lick.ownerName && <b>{lick.ownerName}</b>}
         {lick.tags.map(t => <span className="chip" key={t}>{t}</span>)}
       </div>
       {lick.body && <p className="note-body">{linkify(lick.body)}</p>}
