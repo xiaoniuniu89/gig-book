@@ -20,8 +20,13 @@ async function get<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function searchTracks(query: string, limit = 20): Promise<TrackResult[]> {
-  const d = await get<{ tracks: TrackResult[] }>("/api/spotify/search?" + new URLSearchParams({ q: query, limit: String(limit) }));
+const searchCache = new Map<string, TrackResult[]>(); // for this app session; the server caches too
+export async function searchTracks(query: string, limit = 20, offset = 0): Promise<TrackResult[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) }).toString();
+  const hit = searchCache.get(params);
+  if (hit) return hit;
+  const d = await get<{ tracks: TrackResult[] }>("/api/spotify/search?" + params);
+  searchCache.set(params, d.tracks);
   return d.tracks;
 }
 

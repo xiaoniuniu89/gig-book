@@ -73,16 +73,16 @@ interface ApiTrack {
   album: { name: string; release_date?: string; images: { url: string }[] };
 }
 
-export async function searchTracks(query: string, limit = 20): Promise<TrackResult[]> {
-  const key = "s|" + limit + "|" + query;
+export async function searchTracks(query: string, limit = 20, offset = 0): Promise<TrackResult[]> {
+  const key = "s|" + limit + "|" + offset + "|" + query;
   const hit = cached<TrackResult[]>(key);
   if (hit) return hit;
   let d: { tracks: { items: ApiTrack[] } };
   try {
-    d = await api("/search?" + new URLSearchParams({ q: query, type: "track", limit: String(limit) }));
+    d = await api("/search?" + new URLSearchParams({ q: query, type: "track", limit: String(limit), offset: String(offset) }));
   } catch (e) {
     // Some app tiers cap the page size; fall back to a smaller page rather than failing.
-    if (e instanceof SpotifyError && e.status === 502 && limit > 10) return searchTracks(query, 10);
+    if (e instanceof SpotifyError && e.status === 502 && limit > 10) return searchTracks(query, 10, offset);
     throw e;
   }
   const out = d.tracks.items.map(t => ({ uri: t.uri, name: t.name, artists: t.artists.map(a => a.name).join(", "),

@@ -201,40 +201,73 @@ export function ChartHost({ html, live, fit }: { html: string; live: boolean; fi
   return <div id="chart-wrap" ref={ref} />;
 }
 
+const PER = 25, MAX_PAGES = 4; // "Find more" goes up to 100 results per search
+type Found = { rows: TrackResult[]; page: number; more: boolean };
+const foundCache = new Map<string, Found>(); // last results per tune and query, so coming back doesn't search again
+/** One row per recording: the same take reissued on compilations (same lead artist, length within ~3s) and more than 3 per artist are dropped. */
+function distinctTakes(rows: TrackResult[]): TrackResult[] {
+  const takes: { who: string; ms: number }[] = [], per = new Map<string, number>();
+  return rows.filter(r => {
+    const who = norm(r.artists.split(",")[0]);
+    if (takes.some(t => t.who === who && Math.abs(t.ms - r.ms) <= 3000)) return false;
+    if ((per.get(who) || 0) >= 3) return false;
+    takes.push({ who, ms: r.ms }); per.set(who, (per.get(who) || 0) + 1);
+    return true;
+  });
+}
+const composerName = (c: string) => c.split(" ").reverse().join(" ").replace(/"/g, "").trim();
+
 function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; canEdit: boolean }) {
   const app = useApp();
   const [q, setQ] = useState(cur.song.title);
-  const [results, setResults] = useState<TrackResult[] | null>(null);
+  const [found, setFound] = useState<Found | null>(null);
+  const [busy, setBusy] = useState(false);
+  const results = found?.rows ?? null;
   const [status, setStatus] = useState<{ msg: string; flag?: boolean } | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
-  useEffect(() => { setQ(cur.song.title); setResults(null); setStatus(null); setSaved(new Set()); }, [cur.song]);
+  useEffect(() => {
+    setQ(cur.song.title); setStatus(null); setSaved(new Set());
+    setFound(foundCache.get(norm(cur.song.title) + "|" + composerName(cur.song.composer)) ?? null);
+  }, [cur.song]);
 
   const vs = item?.versions ?? [];
 
-  const find = async () => {
+  const find = async (page = 0) => {
     const query = q.trim() || cur.song.title;
-    setStatus({ msg: "Searching…" }); setResults(null);
+    const who = composerName(cur.song.composer);
+    const key = norm(query) + "|" + who;
+    if (page === 0) {
+      const hit = foundCache.get(key);
+      if (hit) { setFound(hit); setStatus(null); return; }
+      setFound(null);
+    }
+    setStatus({ msg: "Searching…" }); setBusy(true);
     try {
       // Composer as artist first (Coltrane, Monk…), then jazz recordings, then anything with the title
       const t = `track:"${query.replace(/"/g, "")}"`;
-      const who = cur.song.composer.split(" ").reverse().join(" ").replace(/"/g, "").trim();
       const runs = await Promise.allSettled([
-        who ? searchTracks(`${t} artist:"${who}"`, 10) : Promise.resolve([]),
-        searchTracks(`${t} genre:jazz`, 25),
-        searchTracks(t, 25),
+        page === 0 && who ? searchTracks(`${t} artist:"${who}"`, 10) : Promise.resolve([]),
+        searchTracks(`${t} genre:jazz`, PER, page * PER),
+        searchTracks(t, PER, page * PER),
       ]);
       if (runs.every(r => r.status === "rejected")) throw (runs[2] as PromiseRejectedResult).reason;
-      const seen = new Set<string>();
-      const res = runs.flatMap(r => r.status === "fulfilled" ? r.value : []).filter(r => !seen.has(r.uri) && !!seen.add(r.uri));
+      const got = runs.map(r => r.status === "fulfilled" ? r.value : []);
+      const prev = page ? found?.rows ?? [] : [];
+      const seen = new Set(prev.map(r => r.uri));
+      const res = got.flat().filter(r => !seen.has(r.uri) && !!seen.add(r.uri));
       // the title must match as whole words: "26-2" shouldn't find "26/27", but "Body And Soul - Remastered" is fine
       const want = norm(query);
       const rows = res.filter(r => { const n = norm(r.name); return n === want || n.startsWith(want + " "); });
-      const shown = rows.length ? rows : res;
-      setResults(shown);
-      setStatus(shown.length ? null : { msg: "No versions found." });
+      const added = rows.length || page ? rows : res;
+      const grew = distinctTakes(prev.concat(added)).length > prev.length;
+      const more = page + 1 < MAX_PAGES && (got[1].length === PER || got[2].length === PER) && (page === 0 || grew);
+      const next = { rows: distinctTakes(prev.concat(added)), page, more };
+      foundCache.set(key, next); setFound(next);
+      setStatus(next.rows.length ? (page && !grew ? { msg: "No more versions found." } : null) : { msg: "No versions found." });
     } catch (e) {
       setStatus({ msg: e instanceof SpotifyUnavailable || e instanceof Error ? e.message : "Search failed.", flag: true });
     }
+    setBusy(false);
   };
   const saveVersion = (r: TrackResult) => {
     if (cur.kind !== "set") return;
@@ -264,7 +297,7 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
       </div>
       <div className="inline-form">
         <input id="v-q" type="search" placeholder="Search Spotify" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") find(); }} />
-        <button className="btn" id="v-go" onClick={find}>Find versions</button>
+        <button className="btn" id="v-go" onClick={() => find()} disabled={busy}>Find versions</button>
       </div>
       <div id="v-results" className="list">
         {status && <p className={status.flag ? "flag" : "hint"}>{status.msg}</p>}
@@ -275,6 +308,7 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
             {cur.kind === "set" && canEdit && <button className="btn small" disabled={saved.has(r.uri)} onClick={() => saveVersion(r)}>{saved.has(r.uri) ? "Saved" : "Save"}</button>}
           </div>
         ))}
+        {found?.more && <button className="btn small v-more" onClick={() => find(found.page + 1)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
       </div>
     </section>
   );
