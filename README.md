@@ -97,6 +97,21 @@ Checks:
 - `node scripts/parity.mjs path/to/iReal-export.html` compares the TypeScript parser, analysis and chart output with the original `js/` modules (needs Node 22.18+).
 - `python3 scripts/smoke.py path/to/iReal-export.html http://localhost:3000` runs a Playwright smoke test against a running server (no Spotify secret set).
 
+## Testing
+Three layers, all against a throwaway local Supabase (never the real project). CI runs them on every push and pull request (`docs/ci/test.yml`, to be moved into `.github/workflows/`).
+
+```bash
+npx supabase start            # needs Docker; applies supabase/config.toml and every migration
+npm run seed                  # six fake musicians (Ava, Ben, Cleo, Dev, Eli, Fay), two bands, setlists, notes, files. Safe to repeat
+npm test                      # unit tests + access tests (who can see and change what)
+npm run test:e2e              # Playwright in Chromium, desktop and phone sizes; builds and starts the app itself
+```
+- The keys come from `supabase status -o env` (`API_URL`, `ANON_KEY`, `SERVICE_ROLE_KEY`); without them the tests use the standard local-stack demo keys. `npm run seed` and the tests refuse to run if the URL isn't localhost.
+- `tests/fixtures.ts` has the fake people, their ids and the seeded rows. Every password is `gigbook-fake-pw-1`.
+- `tests/unit/`: pure code (iReal parsing and export, theory, ABC, QR). No services needed: `npx vitest run --project unit`.
+- `tests/access/`: signs each fake musician in with a real supabase-js client and runs the real `supabaseStore` adapter plus direct table, RPC and storage calls. Mutating tests use scratch setlists and bands and remove them afterwards.
+- `tests/e2e/`: about ten flows through the real sign-in page (magic link read from the local Mailpit). Outside services (YouTube, Spotify) are stubbed. Reports land in `playwright-report/`; first time: `npx playwright install --with-deps chromium`.
+
 ## Code
 Next.js (App Router), TypeScript, React, plain CSS.
 - `app/`: routes. `/` (setlists and import), `/library`, `/licks`, `/library/[playlistId]/[index]`, `/set/[id]`, `/set/[id]/[index]`, `/auth/callback`, and the Spotify API routes `/api/spotify/search?q=` and `/api/spotify/track/[id]`. The root layout holds the dock, so the band and the Spotify embed keep playing while you move around.

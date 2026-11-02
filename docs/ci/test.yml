@@ -1,0 +1,69 @@
+# Move this file to .github/workflows/test.yml (the bot that wrote it can't write to .github/workflows).
+#
+# Runs the whole suite on every push to main and on pull requests, against a throwaway local Supabase:
+# supabase start applies supabase/config.toml and every migration, so nothing here touches the real project.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Studio, realtime, edge functions, logs and imgproxy aren't used by the app or the tests.
+      - name: Start Supabase
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime
+
+      # `supabase status -o env` prints KEY="value" lines: API_URL, ANON_KEY, SERVICE_ROLE_KEY, MAILPIT_URL...
+      - name: Export the local URL and keys
+        run: supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY|MAILPIT_URL|INBUCKET_URL)=' | tr -d '"' >> "$GITHUB_ENV"
+
+      - name: Seed the fake musicians
+        run: npm run seed
+
+      - name: Unit and access tests
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Show Supabase logs on failure
+        if: failure()
+        run: supabase status || true

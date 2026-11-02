@@ -38,6 +38,11 @@ $$;
 drop trigger if exists profiles_touch on public.profiles;
 create trigger profiles_touch before update on public.profiles for each row execute function public.profiles_touch();
 
+-- Added here, before the functions below: a SQL function can't be created against a column that doesn't exist yet
+-- (found by the test suite on a fresh database).
+alter table public.attachments add column if not exists profile_id uuid references public.profiles (id) on delete cascade;
+create index if not exists attachments_profile_idx on public.attachments (profile_id);
+
 -- ---------------------------------------------------------------- reading
 -- Your whole profile.
 create or replace function public.my_profile()
@@ -106,8 +111,6 @@ grant execute on function public.public_profile(text), public.public_profile_fil
 grant execute on function public.band_member_profile(uuid) to authenticated;
 
 -- ---------------------------------------------------------------- promo files
-alter table public.attachments add column if not exists profile_id uuid references public.profiles (id) on delete cascade;
-create index if not exists attachments_profile_idx on public.attachments (profile_id);
 alter table public.attachments drop constraint if exists attachments_one_parent;
 alter table public.attachments add constraint attachments_one_parent
   check ((note_id is not null)::int + (lick_id is not null)::int + (resource_id is not null)::int + (profile_id is not null)::int = 1);

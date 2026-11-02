@@ -2,18 +2,11 @@
 // Sheet music from ABC notation, drawn by abcjs (loaded on first use), with swung playback and the chords comped underneath.
 import { useEffect, useRef, useState } from "react";
 import type { MidiBuffer, TuneObject } from "abcjs";
+import { fullAbc } from "@/lib/abc";
 
 type Abcjs = typeof import("abcjs");
 let lib: Promise<Abcjs> | null = null;
 const load = () => (lib ??= import("abcjs").then(m => (m as unknown as { default?: Abcjs }).default ?? m));
-
-/** Fill in the headers a lick usually leaves out: 4/4, eighth-note unit, key of C. */
-export function fullAbc(abc: string): string {
-  const t = abc.trim();
-  const head = (h: string, v: string) => (new RegExp("^" + h + ":", "m").test(t) ? "" : h + ":" + v + "\n");
-  const k = /^K:/m.test(t) ? "" : "K:C\n";
-  return "X:1\n" + head("M", "4/4") + head("L", "1/8") + k + t;
-}
 
 /** Draws `abc` (moved by `transpose` semitones). `play` adds Play/Stop and a tempo slider. */
 export function Notation({ abc, transpose = 0, play, compact }: { abc: string; transpose?: number; play?: boolean; compact?: boolean }) {
