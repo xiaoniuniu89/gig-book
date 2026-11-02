@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "./Icon";
 import { useApp } from "./AppProvider";
 import { itemUuid } from "@/lib/data/supabase";
 import type { AppNotification } from "@/lib/data/types";
@@ -73,9 +74,9 @@ export function Bell() {
 
   return (
     <span className="acct-wrap">
-      <button className="btn small bell" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} aria-expanded={open}
+      <button className="btn small icon-btn bell" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} aria-expanded={open}
         onClick={() => { setOpen(o => !o); if (!open) load(); }}>
-        <span aria-hidden="true">🔔</span>
+        <Icon name="bell" size={18} />
         {unread > 0 && <span className="bell-count">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && <>

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type PointerEvent } from "react";
+import { Icon } from "../Icon";
 import { useApp, songHref } from "../AppProvider";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
@@ -152,7 +153,7 @@ function SetBody({ s }: { s: Setlist }) {
                 else if (e.key === "Escape") setRenaming(false);
               }} />
           ) : (
-            <h1>{s.name}{canEdit && <button className="btn small rename-btn" onClick={startRename}>Rename</button>}</h1>
+            <h1>{s.name}{canEdit && <button className="btn icon-btn rename-btn" aria-label="Rename setlist" title="Rename" onClick={startRename}><Icon name="edit" /></button>}</h1>
           )}
         </div>
         <div className="row-btns">

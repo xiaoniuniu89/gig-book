@@ -64,8 +64,9 @@ export function AiDraft() {
 
   return (
     <div className="ai-draft">
+      <h3 className="modal-sub">Draft with AI</h3>
       <form className="new-set" onSubmit={e => { e.preventDefault(); void run(); }}>
-        <input aria-label="Help me pick" maxLength={300} placeholder="Help me pick: bebop heads, medium-up, 10 tunes" value={prompt} onChange={e => setPrompt(e.target.value)} />
+        <input aria-label="Help me pick" maxLength={300} placeholder="e.g. bebop heads, medium-up, 10 tunes" value={prompt} onChange={e => setPrompt(e.target.value)} />
         <button className="btn" type="submit" disabled={busy || !prompt.trim()}>{busy ? "Thinking…" : "Draft"}</button>
       </form>
       {err && <p className="flag" role="alert">{err}</p>}

@@ -1,25 +1,22 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../AppProvider";
 import { AiDraft } from "../AiDraft";
-import { splitPlaylists, type Playlist } from "@/lib/ireal";
+import { Icon } from "../Icon";
+import { ImportPanel } from "../ImportPanel";
+import { Modal } from "../Modal";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
-import { newItemId, slug, type Setlist } from "@/lib/data/types";
 
 export function Home() {
   const app = useApp();
   const router = useRouter();
   const { setlists, library, setCrumb, setCurrent, ready } = app;
-  const [found, setFound] = useState<Playlist[] | null>(null);
-  const [text, setText] = useState("");
-  const [over, setOver] = useState(false);
   const [copying, setCopying] = useState(false);
-  const [naming, setNaming] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
 
@@ -28,33 +25,12 @@ export function Home() {
     keys: [...new Set(s.items.slice(0, 8).map(it => keyLabel(song(it.raw), it.shift ?? irealShift(song(it.raw)))))].join("  "),
   })), [setlists]);
 
-  const handle = (t: string) => setFound(splitPlaylists(t));
-
-  const importAs = async (p: Playlist, as: "set" | "lib") => {
-    if (as === "lib") {
-      // Re-importing a playlist with the same name replaces it.
-      const existing = library.find(x => x.name === p.name || x.id === slug(p.name));
-      const id = existing ? existing.id : app.store.newId(p.name, id => library.some(x => x.id === id));
-      await app.addLibraryPlaylist({ id, name: p.name, songs: p.songs });
-      app.toast(`Added ${p.songs.length} charts to the library.`);
-      setFound(null); setText("");
-    } else {
-      const id = app.store.newId(p.name, id => !!app.setlistById(id));
-      const half = Math.ceil(p.songs.length / 2);
-      const s: Setlist = {
-        id, name: p.name, spotify: null, visibility: "private", role: "owner",
-        items: p.songs.map((raw, k) => ({ id: newItemId(), raw, set: p.songs.length > 6 && k >= half ? 2 : 1, shift: null, versions: [] })),
-      };
-      await app.addSetlist(s);
-      router.push("/set/" + encodeURIComponent(id));
-    }
-  };
-
   const create = async () => {
     const name = newName.trim().slice(0, 200);
     if (!name) { app.toast("A setlist needs a name."); return; }
     const id = app.store.newId(name, id => !!app.setlistById(id));
     await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
+    setAdding(false); setNewName("");
     router.push("/set/" + encodeURIComponent(id));
   };
 
@@ -62,22 +38,23 @@ export function Home() {
 
   return (
     <>
-      <section className="intro">
+      <div className="page-head">
         <h1>Your gigs</h1>
-      </section>
+        <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" size={18} /> New setlist</button>
+      </div>
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelf">
           {books.map(({ s, keys }) => (
             <Link key={s.id} className="book" href={"/set/" + encodeURIComponent(s.id)}>
-              <span className="eyebrow">{s.items.length} tunes{s.spotify ? " · Spotify linked" : ""}{s.role && s.role !== "owner" ? ` · shared (${s.role})` : ""}</span>
+              <span className="m">{s.items.length} tunes{s.role && s.role !== "owner" ? " · shared with you" : ""}</span>
               <span className="t">{s.name}</span>
               <span className="keys">{keys}</span>
             </Link>
           ))}
           <Link className="book lib" href="/library">
-            <span className="eyebrow">Library</span>
-            <span className="t">{total || "No"} charts</span>
-            <span className="m">{library.length ? library.map(p => p.name).join(", ") : "Import an iReal Pro playlist to start"}</span>
+            <span className="m">Library</span>
+            <span className="t">{total} charts</span>
+            <span className="m">{library.map(p => p.name).join(", ")}</span>
           </Link>
         </div>
       )}
@@ -92,44 +69,15 @@ export function Home() {
           }}>{copying ? "Copying…" : "Copy them to my account"}</button>
         </section>
       )}
-      <section className="panel" aria-label="New setlist">
-        <h2>New setlist</h2>
-        {naming ? (
-          <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
-            <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="e.g. Bebop practice" value={newName} onChange={e => setNewName(e.target.value)} />
-            <button className="btn primary" type="submit">Create</button>
-            <button className="btn" type="button" onClick={() => { setNaming(false); setNewName(""); }}>Cancel</button>
-          </form>
-        ) : <div className="row-btns"><button className="btn primary" id="new-set" onClick={() => setNaming(true)}>New setlist</button><span className="hint">Start empty, then add tunes from your library.</span></div>}
+      <Modal open={adding} title="New setlist" onClose={() => setAdding(false)}>
+        <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
+          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Name it, e.g. Friday at Dolan's" value={newName} onChange={e => setNewName(e.target.value)} />
+          <button className="btn primary" type="submit" disabled={!newName.trim()}>Create</button>
+        </form>
         <AiDraft />
-      </section>
-      <section className={"panel import" + (over ? " over" : "")} aria-label="Import"
-        onDragOver={e => { e.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) f.text().then(handle); }}>
-        <h2>Import from iReal Pro</h2>
-        <p className="hint">In iReal Pro, share a playlist as HTML, then drop the file here or choose it. You can also paste an irealb:// link.</p>
-        <div className="drop" id="drop">
-          <label className="btn primary" htmlFor="imp-file">Choose file</label>
-          <input ref={fileRef} className="file-in" id="imp-file" type="file" accept=".html,.htm,.txt"
-            onChange={e => { const f = e.target.files && e.target.files[0]; if (f) f.text().then(handle); }} />
-          <span className="hint">or drop it anywhere on this box</span>
-        </div>
-        <textarea id="imp-text" rows={2} placeholder="irealb://…" value={text} onChange={e => setText(e.target.value)} />
-        <div className="row-btns"><button className="btn" id="imp-go" onClick={() => handle(text)}>Read link</button></div>
-        <div id="imp-result">
-          {found && !found.length && <p className="flag">No iReal Pro playlist found in that. Share the playlist from iReal Pro as HTML and try again.</p>}
-          {found && found.map((p, i) => (
-            <div className="imp-row" key={i}>
-              <div><b>{p.name}</b><span className="hint"> · {p.songs.length} tune{p.songs.length === 1 ? "" : "s"}</span></div>
-              <div className="row-btns">
-                <button className="btn primary" data-imp="set" onClick={() => importAs(p, "set")}>Make it a setlist</button>
-                <button className="btn" data-imp="lib" onClick={() => importAs(p, "lib")}>Add to library</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+        <h3 className="modal-sub">From iReal Pro</h3>
+        <ImportPanel onDone={() => setAdding(false)} />
+      </Modal>
     </>
   );
 }

@@ -4,14 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../AppProvider";
 import { meta, norm, prettyKey } from "@/lib/songs";
 import { BUILTIN_LIBRARY } from "@/lib/seeds";
+import { Icon } from "../Icon";
+import { ImportPanel } from "../ImportPanel";
+import { Modal } from "../Modal";
 
 let lastQuery = ""; // remembered while the app is open, like the static app
 const PAGE = 100; // rows rendered per scroll step
 
+let lastPick = ""; // which playlist was open, remembered like the query
+
 export function Library() {
   const { library, setCrumb, setCurrent, ready, removeLibraryPlaylist } = useApp();
   const [q, setQ] = useState(lastQuery);
-  const [delArmed, setDelArmed] = useState<string | null>(null);
+  const [pickId, setPickId] = useState(lastPick || BUILTIN_LIBRARY.id);
+  const [delArmed, setDelArmed] = useState(false);
+  const [importing, setImporting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const [shown, setShown] = useState(PAGE);
   const more = useRef<HTMLDivElement>(null);
@@ -22,11 +29,14 @@ export function Library() {
   }, [setCrumb, setCurrent]);
   useEffect(() => { if (!matchMedia("(pointer: coarse)").matches) input.current?.focus(); }, []);
 
-  const all = useMemo(() => {
-    const out: { plId: string; i: number; m: ReturnType<typeof meta>; hay: string }[] = [];
-    library.forEach(p => p.songs.forEach((raw, i) => { const m = meta(raw); out.push({ plId: p.id, i, m, hay: norm(m.title + " " + m.composer + " " + m.style) }); }));
-    return out;
-  }, [library]);
+  // the open playlist; falls back to the first when the remembered one was removed
+  const pl = library.find(p => p.id === pickId) ?? library[0];
+  const pick = (id: string) => { setPickId(id); lastPick = id; setDelArmed(false); setShown(PAGE); };
+
+  const all = useMemo(() => (pl ? pl.songs.map((raw, i) => {
+    const m = meta(raw);
+    return { plId: pl.id, i, m, hay: norm(m.title + " " + m.composer + " " + m.style) };
+  }) : []), [pl]);
   const nq = norm(q);
   const matches = useMemo(() => nq ? all.filter(x => x.hay.includes(nq)) : all, [all, nq]);
   const hits = matches.slice(0, shown);
@@ -42,25 +52,30 @@ export function Library() {
 
   return (
     <>
-      <div className="set-head">
-        <div><span className="eyebrow">Library</span><h1>{all.length === 1 ? "1 chart" : all.length ? all.length + " charts" : "No charts yet"}</h1></div>
+      <div className="page-head">
+        <h1>Library</h1>
+        <button className="btn" onClick={() => setImporting(true)}><Icon name="plus" size={18} /> Import playlist</button>
       </div>
-      {ready && library.length > 0 && (
-        <div className="panel list" id="lib-playlists">
-          {library.map(p => (
-            <div key={p.id} className="tune lib-pl">
-              <span className="name">{p.name}<span className="sub">{p.songs.length} charts</span></span>
-              {p.id === BUILTIN_LIBRARY.id ? <span className="hint">Built in</span> : <button className="btn small" onClick={() => {
-                if (delArmed !== p.id) { setDelArmed(p.id); return; }
-                setDelArmed(null); removeLibraryPlaylist(p.id);
-              }} onBlur={() => setDelArmed(null)}>{delArmed === p.id ? "Tap again to remove" : "Remove"}</button>}
-            </div>
-          ))}
-        </div>
-      )}
-      <input ref={input} id="lib-q" className="search" type="search" placeholder="Search by title, composer or style" autoComplete="off"
-        value={q} onChange={e => { setQ(e.target.value); lastQuery = e.target.value; }} />
-      <div className="panel list" id="lib-list">
+      <Modal open={importing} title="Import from iReal Pro" onClose={() => setImporting(false)}><ImportPanel onDone={() => setImporting(false)} /></Modal>
+      <div className="pl-tabs" role="tablist" aria-label="Playlists">
+        {library.map(p => (
+          <button key={p.id} role="tab" aria-selected={p.id === pl?.id} className="pl-tab" onClick={() => pick(p.id)}>
+            {p.name}<span>{p.songs.length}</span>
+          </button>
+        ))}
+      </div>
+      <div className="lib-tools">
+        <input ref={input} id="lib-q" className="search" type="search" placeholder={pl ? "Search " + pl.name : "Search"} autoComplete="off"
+          value={q} onChange={e => { setQ(e.target.value); lastQuery = e.target.value; }} />
+        {pl && pl.id !== BUILTIN_LIBRARY.id && (
+          <button className={"btn" + (delArmed ? "" : " icon-btn")} aria-label={"Remove " + pl.name} title={"Remove " + pl.name}
+            onBlur={() => setDelArmed(false)}
+            onClick={() => { if (!delArmed) { setDelArmed(true); return; } setDelArmed(false); pick(BUILTIN_LIBRARY.id); removeLibraryPlaylist(pl.id); }}>
+            {delArmed ? "Tap again to remove" : <Icon name="trash" />}
+          </button>
+        )}
+      </div>
+      <div className="panel list" id="lib-list" role="tabpanel">
         {!ready ? <p className="hint pad">Loading…</p> : hits.length ? (
           <>
             {hits.map(x => (
@@ -71,7 +86,7 @@ export function Library() {
             ))}
             {hits.length < matches.length && <div ref={more} className="hint pad">Loading more…</div>}
           </>
-        ) : <p className="hint pad">{all.length ? "Nothing matches that search." : "The library is empty. Import an iReal Pro playlist from the home page."}</p>}
+        ) : <p className="hint pad">{all.length ? "Nothing matches that search." : "This playlist is empty."}</p>}
       </div>
     </>
   );

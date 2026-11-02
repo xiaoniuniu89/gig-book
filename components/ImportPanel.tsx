@@ -1,0 +1,68 @@
+"use client";
+// Import from iReal Pro: a shared HTML file or an irealb:// link, then make it a setlist or add it to the library.
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useApp } from "./AppProvider";
+import { splitPlaylists, type Playlist } from "@/lib/ireal";
+import { newItemId, slug, type Setlist } from "@/lib/data/types";
+
+export function ImportPanel({ onDone }: { onDone?: () => void }) {
+  const app = useApp();
+  const router = useRouter();
+  const { library } = app;
+  const [found, setFound] = useState<Playlist[] | null>(null);
+  const [text, setText] = useState("");
+  const [over, setOver] = useState(false);
+
+  const handle = (t: string) => setFound(splitPlaylists(t));
+
+  const importAs = async (p: Playlist, as: "set" | "lib") => {
+    if (as === "lib") {
+      // Re-importing a playlist with the same name replaces it.
+      const existing = library.find(x => x.name === p.name || x.id === slug(p.name));
+      const id = existing ? existing.id : app.store.newId(p.name, id => library.some(x => x.id === id));
+      await app.addLibraryPlaylist({ id, name: p.name, songs: p.songs });
+      app.toast(`Added ${p.songs.length} charts to the library.`);
+      setFound(null); setText(""); onDone?.();
+    } else {
+      const id = app.store.newId(p.name, id => !!app.setlistById(id));
+      const half = Math.ceil(p.songs.length / 2);
+      const s: Setlist = {
+        id, name: p.name, spotify: null, visibility: "private", role: "owner",
+        items: p.songs.map((raw, k) => ({ id: newItemId(), raw, set: p.songs.length > 6 && k >= half ? 2 : 1, shift: null, versions: [] })),
+      };
+      await app.addSetlist(s);
+      onDone?.();
+      router.push("/set/" + encodeURIComponent(id));
+    }
+  };
+
+  return (
+    <div className={"import" + (over ? " over" : "")}
+      onDragOver={e => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) f.text().then(handle); }}>
+      <p className="hint">In iReal Pro, share a playlist as HTML, then choose the file or drop it here. You can also paste an irealb:// link.</p>
+      <div className="drop">
+        <label className="btn primary" htmlFor="imp-file">Choose file</label>
+        <input className="file-in" id="imp-file" type="file" accept=".html,.htm,.txt"
+          onChange={e => { const f = e.target.files && e.target.files[0]; if (f) f.text().then(handle); }} />
+      </div>
+      <div className="new-set">
+        <input aria-label="iReal Pro link" placeholder="irealb://…" value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") handle(text); }} />
+        <button className="btn" onClick={() => handle(text)} disabled={!text.trim()}>Read link</button>
+      </div>
+      {found && !found.length && <p className="flag">No iReal Pro playlist found in that. Share the playlist from iReal Pro as HTML and try again.</p>}
+      {found && found.map((p, i) => (
+        <div className="imp-row" key={i}>
+          <div><b>{p.name}</b><span className="hint"> · {p.songs.length} tune{p.songs.length === 1 ? "" : "s"}</span></div>
+          <div className="row-btns">
+            <button className="btn primary" onClick={() => importAs(p, "set")}>Make it a setlist</button>
+            <button className="btn" onClick={() => importAs(p, "lib")}>Add to library</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
