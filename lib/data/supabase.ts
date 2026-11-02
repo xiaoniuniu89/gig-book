@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -9,6 +9,8 @@ interface SetlistRow {
   name: string;
   spotify_uri: string | null;
   visibility: Visibility;
+  band_id?: string | null;
+  bands?: { name: string } | null;
   setlist_items?: ItemRow[];
 }
 interface ItemRow {
@@ -34,7 +36,7 @@ interface NoteRow {
 interface NotificationRow {
   id: string;
   kind: AppNotification["kind"];
-  payload: { setlist_id?: string; setlist_name?: string; item_id?: string };
+  payload: { setlist_id?: string; setlist_name?: string; item_id?: string; band_id?: string; band_name?: string };
   actor: string | null;
   read_at: string | null;
   created_at: string;
@@ -44,6 +46,7 @@ interface AttachmentRow {
   note_id: string | null;
   lick_id: string | null;
   profile_id?: string | null;
+  band_id?: string | null;
   resource_id: string | null;
   storage_path: string;
   kind: Attachment["kind"];
@@ -73,7 +76,7 @@ const LICK_COLS = "id, owner, title, body, tags, progression, prog_key, notation
 const lickCols = (f: LickFields) =>
   ({ title: f.title, body: f.body, tags: f.tags, progression: f.progression || null, prog_key: f.progression && f.key ? f.key : null, notation: f.notation || null });
 const LINK_COLS = "id, created_by, licks(" + LICK_COLS + ")";
-const ATT_COLS = "id, note_id, lick_id, profile_id, resource_id, storage_path, kind, name, mime, size, created_by, created_at";
+const ATT_COLS = "id, note_id, lick_id, profile_id, band_id, resource_id, storage_path, kind, name, mime, size, created_by, created_at";
 interface ResourceRow { id: string; kind: Resource["kind"]; title: string; url: string | null; tags: string[] | null; note: string; created_at: string; updated_at: string }
 const RES_COLS = "id, kind, title, url, tags, note, created_at, updated_at";
 const toResource = (r: ResourceRow): Resource => ({
@@ -81,7 +84,7 @@ const toResource = (r: ResourceRow): Resource => ({
 });
 const resCols = (f: ResourceFields) => ({ kind: f.kind, title: f.title, url: f.kind === "link" ? f.url : null, tags: f.tags, note: f.note });
 const BUCKET = "attachments";
-const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions)";
+const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, band_id, bands(name), setlist_items(id, position, set_no, song, shift, versions)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
 function fail(what: string, error: { message: string } | null): never {
@@ -93,11 +96,11 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
     .slice()
     .sort((a, b) => a.position - b.position)
     .map(it => ({ id: it.id, raw: it.song, set: it.set_no === 2 ? 2 : 1, shift: it.shift, versions: it.versions || [] }));
-  return { id: r.id, name: r.name, spotify: r.spotify_uri, visibility: r.visibility, role, items };
+  return { id: r.id, name: r.name, spotify: r.spotify_uri, visibility: r.visibility, role, items, band: r.band_id && r.bands ? { id: r.band_id, name: r.bands.name } : null };
 }
 
 const toAttachment = (r: AttachmentRow): Attachment => ({
-  id: r.id, noteId: r.note_id, lickId: r.lick_id, profileId: r.profile_id ?? null, resourceId: r.resource_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
+  id: r.id, noteId: r.note_id, lickId: r.lick_id, profileId: r.profile_id ?? null, bandId: r.band_id ?? null, resourceId: r.resource_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
   createdBy: r.created_by, createdAt: r.created_at,
 });
 
@@ -123,6 +126,21 @@ export function itemUuid(setlistId: string, id: string): string {
   return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-8" + hex.slice(17, 20) + "-" + hex.slice(20, 32);
 }
 
+interface BandRow { id: string; name: string; default_perms: BandPerms; bio: string | null; contact: Record<string, string> | null; epk_slug: string | null }
+interface MemberRow { band_id: string; role: BandRole; plays: string[] | null; perms: Partial<BandPerms> | null }
+interface MemberListRow {
+  user_id: string; display_name: string | null; role: BandRole; plays: string[] | null; perms: Partial<BandPerms> | null;
+  bio: string | null; instruments: string[] | null; contact: Record<string, string> | null;
+}
+const BAND_COLS = "id, name, default_perms, bio, contact, epk_slug";
+function toBand(b: BandRow, m: MemberRow): Band {
+  const defaultPerms = { ...DEFAULT_BAND_PERMS, ...(b.default_perms || {}) };
+  return {
+    id: b.id, name: b.name, role: m.role, defaultPerms, perms: effectivePerms(m.role, m.perms, defaultPerms), plays: m.plays || [],
+    bio: b.bio || "", contact: b.contact || {}, epkSlug: b.epk_slug,
+  };
+}
+
 export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   const roleFor = async (rows: SetlistRow[]): Promise<Map<string, Role>> => {
     const roles = new Map<string, Role>();
@@ -132,6 +150,11 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.from("setlist_members").select("setlist_id, role").eq("user_id", userId).in("setlist_id", others);
       if (error) fail("load your shared setlists", error);
       (data || []).forEach((m: { setlist_id: string; role: Role }) => roles.set(m.setlist_id, m.role));
+      // no direct share: you may be in through a band (editor or viewer, by the band's permissions)
+      for (const id of others.filter(i => !roles.has(i))) {
+        const r = await sb.rpc("setlist_role", { p_setlist: id });
+        if (r.data === "editor" || r.data === "viewer") roles.set(id, r.data);
+      }
     }
     return roles;
   };
@@ -150,6 +173,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     tag: r.tag, body: r.body, createdAt: r.created_at, updatedAt: r.updated_at,
   });
   const homeCols = (h: NoteHome) => h.kind === "song" ? { song_key: h.songKey }
+    : h.kind === "band" ? { band_id: h.bandId }
     : h.kind === "setlist" ? { setlist_id: h.setlistId }
     : { setlist_id: h.setlistId, setlist_item_id: itemUuid(h.setlistId, h.itemId) };
 
@@ -160,7 +184,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   });
 
   /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
-  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
+  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string } | { band_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
     const kind = attachmentKind(file.type, file.name);
     if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
     const mime = (file.type || "application/octet-stream").split(";")[0].trim();
@@ -207,11 +231,11 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (memberships.length) {
         const r = await sb.from("setlists").select(SETLIST_COLS).in("id", memberships.map(m => m.setlist_id)).order("created_at");
         if (r.error) fail("load your shared setlists", r.error);
-        shared = (r.data || []) as SetlistRow[];
+        shared = (r.data || []) as unknown as SetlistRow[];
       }
       const roles = new Map(memberships.map(m => [m.setlist_id, m.role]));
       return [
-        ...((own.data || []) as SetlistRow[]).map(r => toSetlist(r, "owner")),
+        ...((own.data || []) as unknown as SetlistRow[]).map(r => toSetlist(r, "owner")),
         ...shared.filter(r => r.owner !== userId).map(r => toSetlist(r, roles.get(r.id) || "viewer")),
       ];
     },
@@ -221,7 +245,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.from("setlists").select(SETLIST_COLS).eq("id", id).maybeSingle();
       if (error) fail("open that setlist", error);
       if (!data) return null;
-      const row = data as SetlistRow;
+      const row = data as unknown as SetlistRow;
       const roles = await roleFor([row]);
       return toSetlist(row, roles.get(row.id) || "viewer");
     },
@@ -282,10 +306,11 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.from("notifications").select("id, kind, payload, actor, read_at, created_at")
         .order("created_at", { ascending: false }).limit(50);
       if (error) fail("load notifications", error);
-      const rows = ((data || []) as NotificationRow[]).filter(r => r.payload?.setlist_id);
+      const rows = ((data || []) as NotificationRow[]).filter(r => r.payload?.setlist_id || r.payload?.band_id);
       const nm = await namesOf(rows.flatMap(r => r.actor ? [r.actor] : []));
       return rows.map(r => ({
-        id: r.id, kind: r.kind, setlistId: r.payload.setlist_id as string, setlistName: r.payload.setlist_name || "a setlist",
+        id: r.id, kind: r.kind, setlistId: r.payload.setlist_id || null, setlistName: r.payload.setlist_name || "a setlist",
+        bandId: r.payload.band_id || null, bandName: r.payload.band_name || "a band",
         itemId: r.payload.item_id || null, actorName: (r.actor && nm.get(r.actor)) || "Someone", read: !!r.read_at, createdAt: r.created_at,
       }));
     },
@@ -299,7 +324,8 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
 
     async listNotes(home) {
       let q = sb.from("notes").select(NOTE_COLS);
-      if (home.kind === "setlist") q = q.eq("setlist_id", home.setlistId).is("setlist_item_id", null);
+      if (home.kind === "band") q = q.eq("band_id", home.bandId);
+      else if (home.kind === "setlist") q = q.eq("setlist_id", home.setlistId).is("setlist_item_id", null);
       else if (home.kind === "item") q = q.eq("setlist_item_id", itemUuid(home.setlistId, home.itemId));
       else q = q.eq("song_key", home.songKey).is("setlist_id", null).eq("author", userId);
       const { data, error } = await q.order("created_at");
@@ -361,7 +387,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async uploadAttachment(home, noteId, file, onProgress) {
-      const base = home.kind === "song" ? "user/" + userId : "setlist/" + home.setlistId;
+      const base = home.kind === "song" ? "user/" + userId : home.kind === "band" ? "band/" + home.bandId : "setlist/" + home.setlistId;
       return upload(`${base}/${noteId}`, { note_id: noteId }, file, onProgress);
     },
 
@@ -566,6 +592,161 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
         ? await sb.from("chart_choices").upsert({ user_id: userId, setlist_item_id: item, attachment_id: attachmentId })
         : await sb.from("chart_choices").delete().eq("user_id", userId).eq("setlist_item_id", item);
       if (error) fail("save the chart choice", error);
+    },
+
+    async listBands() {
+      const mem = await sb.from("band_members").select("band_id, role, plays, perms").eq("user_id", userId);
+      if (mem.error) fail("load your bands", mem.error);
+      const rows = (mem.data || []) as MemberRow[];
+      if (!rows.length) return [];
+      const { data, error } = await sb.from("bands").select(BAND_COLS).in("id", rows.map(r => r.band_id)).order("created_at");
+      if (error) fail("load your bands", error);
+      const mine = new Map(rows.map(r => [r.band_id, r]));
+      return ((data || []) as BandRow[]).flatMap(b => mine.has(b.id) ? [toBand(b, mine.get(b.id) as MemberRow)] : []);
+    },
+
+    async getBand(id) {
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+      const [b, m] = await Promise.all([
+        sb.from("bands").select(BAND_COLS).eq("id", id).maybeSingle(),
+        sb.from("band_members").select("band_id, role, plays, perms").eq("band_id", id).eq("user_id", userId).maybeSingle(),
+      ]);
+      if (b.error) fail("open that band", b.error);
+      if (m.error) fail("open that band", m.error);
+      return b.data && m.data ? toBand(b.data as BandRow, m.data as MemberRow) : null;
+    },
+
+    async createBand(name, defaultPerms) {
+      const { data, error } = await sb.rpc("create_band", { p_name: name, p_default_perms: defaultPerms });
+      if (error) fail("create the band", error);
+      const band = await this.getBand(data as string);
+      if (!band) fail("create the band", { message: "not found" });
+      return band;
+    },
+
+    async updateBand(id, f) {
+      const { data, error } = await sb.from("bands").update({
+        name: f.name, default_perms: f.defaultPerms, bio: f.bio.trim() || null, contact: f.contact, epk_slug: f.epkSlug,
+      }).eq("id", id).select("id");
+      if (error?.code === "23505") throw new Error("That page address is taken. Try another.");
+      if (error) fail("save the band", error);
+      if (!data || !data.length) fail("save the band", { message: "not allowed" });
+    },
+
+    async deleteBand(id) {
+      // remove the files of the press kit and the band notes first (the rows go with the band)
+      const notes = await sb.from("notes").select("id").eq("band_id", id);
+      const ids = ((notes.data || []) as { id: string }[]).map(r => r.id);
+      const kit = await sb.from("attachments").select("storage_path").eq("band_id", id);
+      const att = ids.length ? await sb.from("attachments").select("storage_path").in("note_id", ids) : { data: [] };
+      const paths = [...(kit.data || []), ...(att.data || [])].map((r: { storage_path: string }) => r.storage_path);
+      if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+      const { error } = await sb.rpc("band_delete", { p_band: id });
+      if (error) fail("delete the band", error);
+    },
+
+    async listBandMembers(bandId) {
+      const [list, def] = await Promise.all([
+        sb.rpc("band_member_list", { p_band: bandId }),
+        sb.from("bands").select("default_perms").eq("id", bandId).maybeSingle(),
+      ]);
+      if (list.error) fail("load the members", list.error);
+      const dp = { ...DEFAULT_BAND_PERMS, ...((def.data as { default_perms: Partial<BandPerms> } | null)?.default_perms || {}) };
+      return ((list.data || []) as MemberListRow[]).map(r => ({
+        userId: r.user_id, name: r.display_name || "Member", role: r.role, plays: r.plays || [], perms: r.perms,
+        effective: effectivePerms(r.role, r.perms, dp), bio: r.bio || "", instruments: r.instruments || [], contact: r.contact || {},
+      }));
+    },
+
+    async searchBandUsers(bandId, q) {
+      const { data, error } = await sb.rpc("band_search_users", { p_band: bandId, p_q: q });
+      if (error) fail("search for people", error);
+      return ((data || []) as { user_id: string; display_name: string | null; instruments: string[] | null }[])
+        .map((r): BandCandidate => ({ userId: r.user_id, name: r.display_name || "Member", instruments: r.instruments || [] }));
+    },
+
+    async addBandMember(bandId, uid, plays) {
+      const { error } = await sb.rpc("band_add_member", { p_band: bandId, p_user: uid, p_plays: plays });
+      if (error) fail("add that person", error);
+    },
+
+    async createBandInvite(bandId) {
+      const { data, error } = await sb.rpc("band_create_invite", { p_band: bandId });
+      if (error) fail("make an invite link", error);
+      return data as string;
+    },
+
+    async revokeBandInvites(bandId) {
+      const { error } = await sb.rpc("band_revoke_invites", { p_band: bandId });
+      if (error) fail("switch off the links", error);
+    },
+
+    async bandInviteInfo(token) {
+      const { data, error } = await sb.rpc("band_invite_info", { p_token: token });
+      if (error) fail("check that invite", error);
+      const r = ((data || []) as { band_id: string; band_name: string }[])[0];
+      return r ? { bandId: r.band_id, name: r.band_name } : null;
+    },
+
+    async acceptBandInvite(token, plays) {
+      const { data, error } = await sb.rpc("band_accept_invite", { p_token: token, p_plays: plays });
+      if (error) fail("join the band", error);
+      return data as string;
+    },
+
+    async setBandMember(bandId, uid, role, perms) {
+      const { error } = await sb.rpc("band_set_member", { p_band: bandId, p_user: uid, p_role: role, p_perms: perms });
+      if (error) fail("change that person", error);
+    },
+
+    async removeBandMember(bandId, uid) {
+      const { error } = await sb.rpc("band_remove_member", { p_band: bandId, p_user: uid });
+      if (error) fail("remove that person", error);
+    },
+
+    async leaveBand(bandId) {
+      const { error } = await sb.rpc("band_leave", { p_band: bandId });
+      if (error) fail("leave the band", error);
+    },
+
+    async setBandPlays(bandId, plays) {
+      const { error } = await sb.rpc("band_set_plays", { p_band: bandId, p_plays: plays });
+      if (error) fail("save what you play", error);
+    },
+
+    async getBandShare(bandId) {
+      const { data, error } = await sb.rpc("band_my_share", { p_band: bandId });
+      if (error) fail("load what the band sees", error);
+      return (data as BandShare | null) ?? null;
+    },
+
+    async setBandShare(bandId, share) {
+      const { error } = await sb.rpc("band_set_share", { p_band: bandId, p_share: share });
+      if (error) fail("save what the band sees", error);
+    },
+
+    async listBandSetlists(bandId) {
+      const { data, error } = await sb.from("setlists").select("id, owner, name, setlist_items(id)").eq("band_id", bandId).order("created_at");
+      if (error) fail("load the band's setlists", error);
+      const rows = (data || []) as { id: string; owner: string; name: string; setlist_items: { id: string }[] | null }[];
+      const nm = await namesOf(rows.map(r => r.owner));
+      return rows.map(r => ({ id: r.id, name: r.name, tunes: (r.setlist_items || []).length, ownerId: r.owner, mine: r.owner === userId, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member" }));
+    },
+
+    async setSetlistBand(setlistId, bandId) {
+      const { data, error } = await sb.from("setlists").update({ band_id: bandId }).eq("id", setlistId).select("id");
+      if (error) fail("share the setlist with the band", error);
+      if (!data || !data.length) fail("share the setlist with the band", { message: "not allowed" });
+    },
+
+    async listBandFiles(bandId) {
+      const { data, error } = await sb.from("attachments").select(ATT_COLS).eq("band_id", bandId).order("created_at");
+      if (error) fail("load the band's files", error);
+      return ((data || []) as AttachmentRow[]).map(toAttachment);
+    },
+
+    async uploadBandFile(bandId, file, onProgress) {
+      return upload(`band/${bandId}/kit`, { band_id: bandId }, file, onProgress);
     },
 
     async listLibrary() {

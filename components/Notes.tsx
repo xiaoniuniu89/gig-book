@@ -73,12 +73,16 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   );
 }
 
-export function Notes({ title, hint, home, setlist, itemRaw, legacy, chart }: {
+export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, chart }: {
   title: string;
   hint?: string;
   home: NoteHome;
   /** The setlist this thread belongs to (its owner can delete anyone's note). */
   setlist?: Setlist;
+  /** For a band thread: you're an admin of the band (can delete anyone's note). */
+  admin?: boolean;
+  /** No posting or replying (a band member without the notes permission). */
+  readOnly?: boolean;
   /** The tune's iReal string, for "copy to": the same song in another setlist, or your own notes. */
   itemRaw?: string;
   /** Local mode only: an old single-line tune note, turned into a note once. */
@@ -97,7 +101,7 @@ export function Notes({ title, hint, home, setlist, itemRaw, legacy, chart }: {
   const canAttach = store.kind === "supabase"; // local mode has no attachments (R6)
   const uploads = useUploads(store, home, useCallback((a: Attachment) => setAtts(p => p.concat(a)), []));
   const homeKey = JSON.stringify(home);
-  const isOwner = setlist?.role === "owner" || (!!setlist && !setlist.role);
+  const isOwner = home.kind === "band" ? !!admin : setlist?.role === "owner" || (!!setlist && !setlist.role);
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
 
   useEffect(() => {
@@ -122,7 +126,7 @@ export function Notes({ title, hint, home, setlist, itemRaw, legacy, chart }: {
 
   const add = async (body: string, tag: NoteTag | null, files: File[], parentId?: string) => {
     try {
-      if (home.kind !== "song") await app.flushSetlist(home.setlistId);
+      if (home.kind === "setlist" || home.kind === "item") await app.flushSetlist(home.setlistId);
       const n = await store.addNote(home, { body, tag, parentId });
       setNotes(p => (p || []).concat(n));
       if (files.length && canAttach) uploads.add(n.id, files);
@@ -157,12 +161,12 @@ export function Notes({ title, hint, home, setlist, itemRaw, legacy, chart }: {
     const out: { label: string; to: NoteHome }[] = [];
     const key = itemRaw ? songKey(itemRaw) : null;
     for (const l of app.setlists) {
-      if (home.kind !== "song" && l.id === home.setlistId) continue;
+      if ((home.kind === "setlist" || home.kind === "item") && l.id === home.setlistId) continue;
       const it = key ? l.items.find(x => songKey(x.raw) === key) : undefined;
       out.push(it ? { label: l.name + " (this tune)", to: { kind: "item", setlistId: l.id, itemId: it.id } }
         : { label: l.name + " (setlist note)", to: { kind: "setlist", setlistId: l.id } });
     }
-    if (itemRaw && home.kind !== "song") out.push({ label: "My notes on this song", to: { kind: "song", songKey: songKey(itemRaw) } });
+    if (itemRaw && (home.kind === "setlist" || home.kind === "item")) out.push({ label: "My notes on this song", to: { kind: "song", songKey: songKey(itemRaw) } });
     return out;
   }, [app.setlists, home, itemRaw]);
   const copy = async (n: Note, i: number) => {
@@ -186,9 +190,9 @@ export function Notes({ title, hint, home, setlist, itemRaw, legacy, chart }: {
     const mine = isMine(n);
     return (
       <div className="note-actions">
-        {!reply && <button className="btn small" onClick={() => setReplying(replying === n.id ? null : n.id)}>Reply</button>}
-        {mine && <button className="btn small" onClick={() => setEditing(n.id)}>Edit</button>}
-        {mine && canAttach && <AttachMenu onFiles={f => uploads.add(n.id, f)} />}
+        {!reply && !readOnly && <button className="btn small" onClick={() => setReplying(replying === n.id ? null : n.id)}>Reply</button>}
+        {mine && !readOnly && <button className="btn small" onClick={() => setEditing(n.id)}>Edit</button>}
+        {mine && !readOnly && canAttach && <AttachMenu onFiles={f => uploads.add(n.id, f)} />}
         {(mine || (isOwner && home.kind !== "song")) && <button className="btn small" onClick={() => remove(n)}>{armed === n.id ? "Delete?" : "Delete"}</button>}
         {!reply && targets.length > 0 && (
           <select className="copy-to" aria-label="Copy to…" value="" onChange={e => { if (e.target.value !== "") void copy(n, Number(e.target.value)); }}>
@@ -240,7 +244,9 @@ export function Notes({ title, hint, home, setlist, itemRaw, legacy, chart }: {
           })}
         </div>
       )}
-      <Compose label="New note" placeholder="Add a note…" tags attach={canAttach} cta="Add note" onSubmit={(b, t, f) => add(b, t, f)} />
+      {readOnly
+        ? <p className="hint">You can read notes here, but not post. Ask an admin.</p>
+        : <Compose label="New note" placeholder="Add a note…" tags attach={canAttach} cta="Add note" onSubmit={(b, t, f) => add(b, t, f)} />}
     </section>
   );
 }

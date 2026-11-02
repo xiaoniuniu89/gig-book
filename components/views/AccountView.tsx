@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
 import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachments";
 import { Qr } from "../Qr";
-import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, parseTags, slug, type Attachment, type Profile, type Share } from "@/lib/data/types";
+import { InstrumentPicker } from "../Instruments";
+import { canonInstruments } from "@/lib/instruments";
+import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, type Profile, type Share } from "@/lib/data/types";
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 const HINTS = [50, 100, 250];
@@ -21,7 +23,6 @@ export function AccountView() {
   const { store, ready, setCrumb, setCurrent, toast, setAccountName } = useApp();
   const [p, setP] = useState<Profile | null>(null);
   const [files, setFiles] = useState<Attachment[]>([]);
-  const [instr, setInstr] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [slugText, setSlugText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -35,7 +36,7 @@ export function AccountView() {
     let gone = false;
     Promise.all([store.getMyProfile(), store.listProfileFiles()]).then(([pr, fl]) => {
       if (gone) return;
-      setP(pr); setFiles(fl); setInstr(pr.instruments.join(", "));
+      setP({ ...pr, instruments: canonInstruments(pr.instruments) }); setFiles(fl);
       setIsPublic(!!pr.epkSlug); setSlugText(pr.epkSlug || "");
     }, e => { if (!gone) err(e, "Couldn't load your profile."); });
     return () => { gone = true; };
@@ -61,7 +62,7 @@ export function AccountView() {
     setBusy(true);
     try {
       const contact = Object.fromEntries(Object.entries(p.contact).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
-      const next = { ...p, contact, instruments: parseTags(instr), epkSlug: isPublic ? slugText : null };
+      const next = { ...p, contact, instruments: canonInstruments(p.instruments), epkSlug: isPublic ? slugText : null };
       await store.updateMyProfile(next);
       setP(next); setDirty(false); setAccountName(next.displayName);
       toast("Saved.");
@@ -90,12 +91,11 @@ export function AccountView() {
           <input type="text" value={p.displayName} maxLength={80} onChange={e => edit(x => ({ ...x, displayName: e.target.value }))} />
         </label>
         <div className="acct-field">
-          <label htmlFor="acct-instr">Instruments</label>
           <div className="acct-row">
-            <input id="acct-instr" type="text" value={instr} placeholder="piano, double bass" onChange={e => { setInstr(e.target.value); setDirty(true); }} />
+            <span id="acct-instr">Instruments</span>
             <ShareSelect label="your instruments" value={p.share.instruments} onChange={v => setShare("instruments", v)} />
           </div>
-          {parseTags(instr).length > 0 && <div className="tags">{parseTags(instr).map(t => <span className="tag" key={t}>{t}</span>)}</div>}
+          <InstrumentPicker label="Instruments" value={p.instruments} onChange={v => edit(x => ({ ...x, instruments: v }))} />
         </div>
         <div className="acct-field">
           <label htmlFor="acct-bio">Bio</label>

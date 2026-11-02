@@ -28,6 +28,12 @@ export function Home() {
             <span className="t">Licks</span>
             <span className="m">Phrases and ideas to keep with any tune</span>
           </Link>
+          {app.store.kind === "supabase" && (
+            <Link className="book bands" href="/bands">
+              <span className="t">Bands</span>
+              <span className="m">Members, shared setlists and band notes</span>
+            </Link>
+          )}
           <Link className="book res" href="/resources">
             <span className="t">Resources</span>
             <span className="m">Bookmarks, books and PDFs to pin to tunes</span>

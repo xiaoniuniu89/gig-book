@@ -26,6 +26,8 @@ export interface Setlist {
   visibility?: Visibility;
   /** Your role on this setlist (accounts only). Local setlists are always yours. */
   role?: Role;
+  /** The band it's shared with (accounts only). */
+  band?: { id: string; name: string } | null;
 }
 
 export interface Member {
@@ -45,7 +47,8 @@ export type NoteTag = typeof NOTE_TAGS[number];
 export type NoteHome =
   | { kind: "setlist"; setlistId: string }
   | { kind: "item"; setlistId: string; itemId: string }
-  | { kind: "song"; songKey: string };
+  | { kind: "song"; songKey: string }
+  | { kind: "band"; bandId: string };
 
 export interface Note {
   id: string;
@@ -59,13 +62,17 @@ export interface Note {
   updatedAt: string;
 }
 
-export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note";
+export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note" | "added_to_band" | "note_in_band";
 
 export interface AppNotification {
   id: string;
   kind: NotificationKind;
-  setlistId: string;
+  /** Setlist notifications. */
+  setlistId: string | null;
   setlistName: string;
+  /** Band notifications. */
+  bandId: string | null;
+  bandName: string;
   /** Setlist item (a tune) the note is on, when it's on a tune. */
   itemId: string | null;
   actorName: string;
@@ -83,6 +90,8 @@ export interface Attachment {
   lickId: string | null;
   /** Set on promo files (R11). */
   profileId?: string | null;
+  /** Set on a band's press kit files (R10). */
+  bandId?: string | null;
   resourceId: string | null;
   path: string;
   kind: AttachmentKind;
@@ -136,6 +145,69 @@ export interface Profile {
 }
 
 export const SLUG_RE = /^[a-z0-9-]{3,40}$/;
+
+/** What a band member may do. Admins may do all of it. */
+export const BAND_PERMS = [
+  { key: "notes", label: "Post band notes and setlist notes" },
+  { key: "edit_setlists", label: "Change tunes, order and keys of band setlists" },
+  { key: "add_setlists", label: "Add their own setlists to the band" },
+  { key: "invite", label: "Invite people" },
+] as const;
+export type BandPerm = typeof BAND_PERMS[number]["key"];
+export type BandPerms = Record<BandPerm, boolean>;
+export const DEFAULT_BAND_PERMS: BandPerms = { notes: true, edit_setlists: false, add_setlists: false, invite: false };
+export const ALL_BAND_PERMS: BandPerms = { notes: true, edit_setlists: true, add_setlists: true, invite: true };
+
+export type BandRole = "admin" | "member";
+
+/** A member's permissions: everything for admins, else their own settings over the band's defaults. */
+export const effectivePerms = (role: BandRole, own: Partial<BandPerms> | null, def: BandPerms): BandPerms =>
+  role === "admin" ? ALL_BAND_PERMS : { ...def, ...(own || {}) };
+
+/** A band you're in (accounts only). */
+export interface Band {
+  id: string;
+  name: string;
+  role: BandRole;
+  defaultPerms: BandPerms;
+  /** Your own permissions here. */
+  perms: BandPerms;
+  /** What you play in this band. */
+  plays: string[];
+  bio: string;
+  /** The band's links (same keys as `CONTACT_FIELDS`). */
+  contact: Record<string, string>;
+  /** The public page is /epk/<slug>; null = no public page. */
+  epkSlug: string | null;
+}
+
+export interface BandFields { name: string; defaultPerms: BandPerms; bio: string; contact: Record<string, string>; epkSlug: string | null }
+
+export interface BandMember {
+  userId: string;
+  name: string;
+  role: BandRole;
+  plays: string[];
+  /** Per-person settings; null = the band defaults. */
+  perms: Partial<BandPerms> | null;
+  effective: BandPerms;
+  /** What they share with this band. */
+  bio: string;
+  instruments: string[];
+  contact: Record<string, string>;
+}
+
+/** Someone you can add to a band. Instruments are only known if they share them with bands. */
+export interface BandCandidate { userId: string; name: string; instruments: string[] }
+
+/** A setlist shared with a band. */
+export interface BandSetlist { id: string; name: string; tunes: number; ownerId: string; ownerName: string; mine: boolean }
+
+/** Per-field choices for what one band sees of your profile: true = shown, false = hidden, missing = your account-wide choice. */
+export type BandShare = Record<string, boolean>;
+
+/** Is a profile field shown to bands by your account-wide settings? */
+export const sharedWithBands = (share: Record<string, Share>, key: string): boolean => share[key] === "bands" || share[key] === "public";
 
 /** A snippet in the owner's library (R8). Visible to its owner and to members of setlists it's linked into. */
 export interface Lick {
@@ -271,6 +343,41 @@ export interface DataStore {
   listResourceLinks(songKey: string): Promise<ResourceLink[]>;
   linkResource(id: string, songKey: string): Promise<ResourceLink>;
   unlinkResource(linkId: string): Promise<void>;
+  /** Bands you're in (accounts only; local mode has none). */
+  listBands(): Promise<Band[]>;
+  getBand(id: string): Promise<Band | null>;
+  /** You become its admin. */
+  createBand(name: string, defaultPerms: BandPerms): Promise<Band>;
+  /** Admins only. */
+  updateBand(id: string, f: BandFields): Promise<void>;
+  /** Admins only. Setlists stay with their owners; band notes and files go. */
+  deleteBand(id: string): Promise<void>;
+  listBandMembers(bandId: string): Promise<BandMember[]>;
+  /** Needs the invite permission. Email exactly, or part of a display name. */
+  searchBandUsers(bandId: string, q: string): Promise<BandCandidate[]>;
+  addBandMember(bandId: string, userId: string, plays: string[]): Promise<void>;
+  /** A link token (needs the invite permission). */
+  createBandInvite(bandId: string): Promise<string>;
+  /** Admins only: switches off every open link. */
+  revokeBandInvites(bandId: string): Promise<void>;
+  /** The band a link is for, or null when it's expired or switched off. */
+  bandInviteInfo(token: string): Promise<{ bandId: string; name: string } | null>;
+  acceptBandInvite(token: string, plays: string[]): Promise<string>;
+  /** Admins only. perms null = the band defaults. */
+  setBandMember(bandId: string, userId: string, role: BandRole, perms: Partial<BandPerms> | null): Promise<void>;
+  removeBandMember(bandId: string, userId: string): Promise<void>;
+  leaveBand(bandId: string): Promise<void>;
+  setBandPlays(bandId: string, plays: string[]): Promise<void>;
+  /** Your choices for this band; null = not confirmed yet. */
+  getBandShare(bandId: string): Promise<BandShare | null>;
+  setBandShare(bandId: string, share: BandShare): Promise<void>;
+  listBandSetlists(bandId: string): Promise<BandSetlist[]>;
+  /** Owner only: share a setlist with a band you can add setlists to, or null to take it out. */
+  setSetlistBand(setlistId: string, bandId: string | null): Promise<void>;
+  /** The band's press kit files, oldest first. */
+  listBandFiles(bandId: string): Promise<Attachment[]>;
+  /** Admins only. Progress is 0..1. */
+  uploadBandFile(bandId: string, file: File, onProgress?: (p: number) => void): Promise<Attachment>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;

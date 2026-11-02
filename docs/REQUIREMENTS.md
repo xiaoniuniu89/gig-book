@@ -79,14 +79,26 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R9.1 Create an empty setlist and add tunes from the library (no import needed).
 - R9.2 AI-assisted: describe what you want ("bebop heads, medium-up") and get a draft setlist from tunes in your library, plus a suggested Spotify search. Needs an LLM API key; built last.
 
+### R10 Bands
+- R10.1 Anyone with an account can create a band and becomes its **admin**. A band can have several admins; admins promote and demote each other. The last admin can't leave or be demoted. Accounts only; local mode hides bands.
+- R10.2 New members join as **members** with the band's **default permissions**, set at creation and editable in band settings. An admin can override them **per person**. Permissions: `notes` (post band notes and setlist notes/replies, default on), `edit_setlists` (change tunes, order, keys of band setlists, default off), `add_setlists` (share own setlists with the band, default off), `invite` (default off). Admins have all four.
+- R10.3 **Setlist ownership**: a setlist stays owned by its creator and is *shared with* the band (`setlists.band_id`). If the creator takes it out or leaves the band (or is removed), it leaves the band. Band members read it; with `edit_setlists` they edit it (`setlist_role()` returns viewer/editor for band members; a direct setlist share still wins). Every member can **Save to my setlists** (a full copy they own).
+- R10.4 **Band notes**: threaded notes with attachments, reusing R5/R6 with a band home (`notes.band_id`, files at `band/<band_id>/<note_id>/…`). No chat. Admins can delete any band note. Setlist notes on a band setlist need `notes` for people who are only in via the band.
+- R10.5 **Inviting** (existing accounts only): search by exact email or part of a display name (needs `invite`), or an invite link (token, 14 days, admins can switch all off) opened while signed in shows "Join <band>?".
+- R10.6 **Contact sharing**: on first opening the band a member is asked what the band sees of their profile (R11), starting from their account-wide "My bands" choices. Saved as per-band overrides (`band_members.share`), editable from the band page. `band_member_profile(user, band)` only answers for people who share a band with the caller.
+- R10.7 **Instruments**: the shared list in `lib/instruments.ts` is used by the account page picker (chips plus a custom entry) and by bands. Each membership has `plays` (what they play in this band): preselected when the profile lists one instrument, an **Add as** dropdown when several, the full list when none. Members change their own `plays`; the People tab labels members "Dan · Piano".
+- R10.8 **Band press kit**: bio, links, photos/files and an optional public page at `/epk/<slug>` (same page as R11.6; addresses are unique across people and bands). Admins edit; members read.
+- R10.9 Notifications (R7): "added to band" and "new band note".
+- R10.10 Migration `0013_bands.sql`.
+
 ### R11 Account and press kit
 - R11.1 `/account` (signed in only; local mode shows "Sign in to set up your profile"): display name, instruments (tags), bio with a live word count (hints for 50 / 100 / 250 words).
 - R11.2 Contact fields: phone, email, WhatsApp, website, Instagram, TikTok, YouTube, Facebook, Spotify, Bandcamp, SoundCloud, and a payment link (Revolut / PayPal.me / any URL) shown as a QR code (`lib/qr.ts`, no dependency).
 - R11.3 Promo files (press photos, one-sheet/EPK PDF, demo audio) reuse the attachment components. Stored at `user/<uid>/profile/…`.
-- R11.4 Every field and file has its own share setting: Only me / My bands / Public (default Only me). Joining a band (#40) prompts to confirm what that band sees; `band_member_profile` returns only the caller's own profile until #40 tightens it to bandmates.
+- R11.4 Every field and file has its own share setting: Only me / My bands / Public (default Only me). Joining a band (#40) prompts to confirm what that band sees; `band_member_profile(user, band)` returns fields only for people who share a band with the caller, honouring per-band overrides (R10.6).
 - R11.5 Contact details and bio are never exposed by broad selects: only `id` and `display_name` are readable by other users. The rest is read through `my_profile()`, `public_profile(slug)`, `public_profile_files(slug)` and `band_member_profile(user)`.
 - R11.6 Optional public page `/epk/<slug>` (`[a-z0-9-]{3,40}`): server-rendered, no sign-in, shows the name plus whatever is shared Public. Public files get short-lived (10 min) signed URLs created on the server with `SUPABASE_SERVICE_ROLE_KEY`; without that key the page omits files.
-- R11.7 A band can have its own press kit (built in #40, reusing these components). Messaging is out of scope.
+- R11.7 A band has its own press kit (R10.8, reusing these components). Messaging is out of scope.
 
 ### R12 Resources
 - R12.1 A personal **Resources** section (`/resources`) for bookmarks (links) and books/PDFs/images: title, tags, note. Private to the owner; accounts only, hidden in local mode.

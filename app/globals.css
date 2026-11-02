@@ -607,3 +607,24 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .res-file .file-chart { height: auto; max-height: 80vh; }
 .res-file .file-chart img { max-height: 80vh; width: auto; max-width: 100%; }
 .res-file object.file-chart { height: 80vh; min-height: 400px; }
+
+/* Bands (R10) */
+.book.bands { border-left-color: var(--brass); }
+.pick { display: grid; gap: 8px; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.multi { position: relative; }
+.multi summary { cursor: pointer; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); min-height: 36px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-list { display: grid; gap: 4px; padding: 8px; margin-top: 4px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); max-height: 240px; overflow-y: auto; }
+.share-form { display: grid; gap: 10px; }
+.share-row { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; }
+.share-row input { margin-top: 4px; }
+.share-row > span { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.share-row .sub { color: var(--muted); font-size: 13px; }
+.member-block { display: grid; border-bottom: 1px solid var(--rule); }
+.member-block .member { border-bottom: 0; }
+.member-more { padding: 0 0 8px 4px; display: grid; gap: 8px; }
+.member-more summary { cursor: pointer; color: var(--muted); font-size: 13px; min-height: 32px; }
+.plays { color: var(--muted); font-weight: 400; }
+.perms { display: grid; gap: 4px; }
+.add-as { display: inline-flex; align-items: center; gap: 8px; }
+.new-band { display: grid; gap: 12px; }

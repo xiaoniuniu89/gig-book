@@ -11,7 +11,7 @@ import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { isBuiltin } from "@/lib/seeds";
-import { MEMBER_NOT_FOUND, newItemId, type Member, type Setlist } from "@/lib/data/types";
+import { MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
 
 export function SetView() {
   const params = useParams<{ id: string }>();
@@ -156,7 +156,7 @@ function SetBody({ s }: { s: Setlist }) {
     <>
       <div className="set-head">
         <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-          <span className="eyebrow">Setlist{!builtin && s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}</span>
+          <span className="eyebrow">Setlist{!builtin && s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}{s.band && <> · Band: <Link href={"/bands/" + s.band.id}>{s.band.name}</Link></>}</span>
           {renaming ? (
             <input className="rename" aria-label="Setlist name" autoFocus maxLength={200} value={draft}
               onChange={e => setDraft(e.target.value)} onBlur={commitRename}
@@ -216,6 +216,7 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
       </section>
       {!builtin && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
+      {!builtin && app.store.kind === "supabase" && isOwner && <BandPick s={s} />}
       {!builtin && app.store.kind === "supabase" && <Band s={s} owner={isOwner} />}
       {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
@@ -230,7 +231,41 @@ function SetBody({ s }: { s: Setlist }) {
   );
 }
 
-// Band section (accounts only): the owner manages members, everyone else sees who's in and can leave.
+// Owner: share this setlist with one of your bands (R10), or take it out. Only bands where you may add setlists are offered.
+function BandPick({ s }: { s: Setlist }) {
+  const app = useApp();
+  const { toast, store } = app;
+  const [bands, setBands] = useState<BandInfo[]>([]);
+  useEffect(() => {
+    let gone = false;
+    store.listBands().then(l => { if (!gone) setBands(l); }, () => { /* the picker is a nicety */ });
+    return () => { gone = true; };
+  }, [store]);
+  const options = bands.filter(b => b.role === "admin" || b.perms.add_setlists || b.id === s.band?.id);
+  if (!options.length) return null;
+  const change = async (bandId: string) => {
+    try {
+      await store.setSetlistBand(s.id, bandId || null);
+      const b = options.find(x => x.id === bandId);
+      app.updateSetlist(s.id, x => ({ ...x, band: b ? { id: b.id, name: b.name } : null }));
+      toast(b ? "Shared with " + b.name + "." : "Taken out of the band.");
+    } catch (e) { toast(e instanceof Error ? e.message : "Couldn't change the band."); }
+  };
+  return (
+    <section className="panel" id="band-pick">
+      <h2>Band: {s.band ? <Link href={"/bands/" + s.band.id}>{s.band.name}</Link> : "none"}</h2>
+      <div className="inline-form">
+        <select aria-label="Share with a band" value={s.band?.id || ""} onChange={e => void change(e.target.value)}>
+          <option value="">Not shared with a band</option>
+          {options.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
+      <p className="hint">Everyone in the band can read this setlist and save their own copy. You stay the owner; if you leave the band or take it out, it leaves the band.</p>
+    </section>
+  );
+}
+
+// People this setlist is shared with directly (accounts only): the owner manages them, everyone else sees who's in and can leave.
 function Band({ s, owner }: { s: Setlist; owner: boolean }) {
   const app = useApp();
   const router = useRouter();
@@ -275,7 +310,7 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
 
   return (
     <section className="panel" id="band">
-      <h2>Band</h2>
+      <h2>Shared with</h2>
       {members === null ? <p className="hint">Loading…</p> : !members.length
         ? <p className="hint">{owner ? "Nobody else is on this setlist yet." : "Just the owner."}</p>
         : <div className="list">
@@ -305,7 +340,7 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
           {err && <p className="hint" role="alert">{err}</p>}
           <p className="hint">Viewers can read the setlist and add notes. Editors can also change tunes, order and keys.</p>
         </>
-      ) : (
+      ) : members?.some(m => m.userId === app.account?.id) && (
         <div className="danger-zone">
           <button className="btn small" id="leave-set" onClick={async () => {
             if (armed !== "leave") { setArmed("leave"); return; }

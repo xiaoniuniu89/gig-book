@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { Qr } from "@/components/Qr";
 import { CONTACT_FIELDS, SLUG_RE } from "@/lib/data/types";
+import { hrefFor } from "@/lib/contact";
 
 export const dynamic = "force-dynamic";
 
@@ -14,24 +15,23 @@ const EXPIRES = 600; // seconds
 
 interface PubFile { storage_path: string; kind: "pdf" | "image" | "audio"; name: string }
 
-/** A link for a contact value, or null when it isn't safe to link (only http(s), tel and mailto). */
-function hrefFor(key: string, v: string): string | null {
-  if (key === "phone") return "tel:" + v.replace(/[^\d+]/g, "");
-  if (key === "email") return "mailto:" + v;
-  if (key === "whatsapp") { const d = v.replace(/\D/g, ""); return d ? "https://wa.me/" + d : null; }
-  const u = /^https?:\/\//i.test(v) ? v : "https://" + v;
-  try { return ["http:", "https:"].includes(new URL(u).protocol) ? u : null; } catch { return null; }
-}
+interface Kit { display_name: string | null; bio: string | null; instruments: string[] | null; contact: Record<string, string> | null }
 
+// A person's page, or a band's (R10): the address is unique across both.
 async function load(slug: string) {
   if (!URL_ || !ANON || !SLUG_RE.test(slug)) return null;
   const sb = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data } = await sb.rpc("public_profile", { p_slug: slug });
-  const p = (data as { display_name: string | null; bio: string | null; instruments: string[] | null; contact: Record<string, string> | null }[] | null)?.[0];
-  if (!p) return null;
+  let p = ((await sb.rpc("public_profile", { p_slug: slug })).data as Kit[] | null)?.[0];
+  let fn = "public_profile_files";
+  if (!p) {
+    const b = ((await sb.rpc("public_band", { p_slug: slug })).data as { name: string; bio: string | null; contact: Record<string, string> | null }[] | null)?.[0];
+    if (!b) return null;
+    p = { display_name: b.name, bio: b.bio, instruments: [], contact: b.contact };
+    fn = "public_band_files";
+  }
   const files: (PubFile & { url: string })[] = [];
   if (SERVICE) {
-    const list = await sb.rpc("public_profile_files", { p_slug: slug });
+    const list = await sb.rpc(fn, { p_slug: slug });
     const rows = (list.data || []) as PubFile[];
     const admin = createClient(URL_, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
     const signed = await admin.storage.from("attachments").createSignedUrls(rows.map(r => r.storage_path), EXPIRES);

@@ -1,0 +1,71 @@
+"use client";
+// /bands: the bands you're in, and New band (R10). Accounts only.
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Icon } from "../Icon";
+import { Modal } from "../Modal";
+import { PermSwitches } from "../BandPerms";
+import { useApp } from "../AppProvider";
+import { DEFAULT_BAND_PERMS, type Band } from "@/lib/data/types";
+
+export function BandsView() {
+  const { store, ready, setCrumb, setCurrent, toast } = useApp();
+  const router = useRouter();
+  const [bands, setBands] = useState<Band[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [perms, setPerms] = useState(DEFAULT_BAND_PERMS);
+  const [busy, setBusy] = useState(false);
+  const signedIn = store.kind === "supabase";
+
+  useEffect(() => { setCurrent(null); setCrumb(null); }, [setCrumb, setCurrent]);
+  useEffect(() => {
+    if (!ready || !signedIn) return;
+    let gone = false;
+    store.listBands().then(l => { if (!gone) setBands(l); }, e => { if (!gone) { setBands([]); toast(e instanceof Error ? e.message : "Couldn't load your bands."); } });
+    return () => { gone = true; };
+  }, [ready, signedIn, store, toast]);
+
+  const create = async () => {
+    const n = name.trim().slice(0, 200);
+    if (!n || busy) return;
+    setBusy(true);
+    try {
+      const b = await store.createBand(n, perms);
+      setAdding(false); setName(""); setPerms(DEFAULT_BAND_PERMS);
+      router.push("/bands/" + b.id);
+    } catch (e) { toast(e instanceof Error ? e.message : "Couldn't create the band."); }
+    setBusy(false);
+  };
+
+  if (!signedIn) return <><div className="page-head"><h1>Bands</h1></div><p className="hint">Sign in to set up a band.</p></>;
+  return (
+    <>
+      <div className="page-head">
+        <h1>Bands</h1>
+        <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" size={18} /> New band</button>
+      </div>
+      {bands === null ? <p className="hint" role="status">Loading…</p> : (
+        <div className="shelf">
+          {bands.map(b => (
+            <Link key={b.id} className="book" href={"/bands/" + b.id}>
+              <span className="m">{b.role === "admin" ? "Admin" : "Member"}{b.plays.length ? " · " + b.plays.join(", ") : ""}</span>
+              <span className="t">{b.name}</span>
+            </Link>
+          ))}
+          {!bands.length && <p className="hint">No bands yet. Make one with New band, or open an invite link from a bandmate.</p>}
+        </div>
+      )}
+      <Modal open={adding} title="New band" onClose={() => setAdding(false)}>
+        <form className="new-band" onSubmit={e => { e.preventDefault(); void create(); }}>
+          <input aria-label="Band name" autoFocus maxLength={200} placeholder="Band name" value={name} onChange={e => setName(e.target.value)} />
+          <h3 className="modal-sub">What new members can do</h3>
+          <PermSwitches value={perms} onChange={setPerms} />
+          <p className="hint">You&apos;re the admin and can do everything. You can change these later, or set them for one person.</p>
+          <button className="btn primary" type="submit" disabled={!name.trim() || busy}>Create band</button>
+        </form>
+      </Modal>
+    </>
+  );
+}
