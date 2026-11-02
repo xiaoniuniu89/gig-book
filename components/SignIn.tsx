@@ -1,7 +1,11 @@
 "use client";
 // Closed-beta sign-in screen: shown instead of the app until there is a session.
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { getSupabase } from "@/lib/supabase/client";
+
+// localhost only: the fake musicians from npm run seed:dev (dropped from production builds)
+const DevSignIn = process.env.NODE_ENV === "development" ? dynamic(() => import("./DevSignIn"), { ssr: false }) : null;
 
 const NOT_INVITED = "This email isn't on the guest list yet. Ask Dan to add you.";
 
@@ -42,6 +46,7 @@ export function SignIn() {
           <div className="row-btns"><button className="btn primary" type="submit" disabled={busy}>{busy ? "Sending…" : "Email me a link"}</button></div>
         </form>
       )}
+      {DevSignIn && !sent && <DevSignIn />}
     </section>
   );
 }
