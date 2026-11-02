@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useApp } from "./AppProvider";
-import { AttachMenu, AttachmentList, UploadRows, dropProps, useUploads } from "./Attachments";
-import { linkify } from "./Notes";
+import { AttachMenu, dropProps, useUploads } from "./Attachments";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { STARTER_LICKS } from "@/lib/starterLicks";
@@ -100,33 +99,16 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
   );
 }
 
-/** One lick: title, tags, text, files. The owner can edit it and add files; `actions` adds the rest. */
-export function LickCard({ lick, files, onSave, actions }: {
-  lick: Lick; files: LickFiles; onSave: (l: Lick, f: LickFields) => Promise<void>; actions?: ReactNode;
-}) {
-  const { store } = useApp();
-  const [editing, setEditing] = useState(false);
-  if (editing) return (
-    <LickForm initial={lick} cta="Save" onCancel={() => setEditing(false)}
-      onSubmit={async f => { await onSave(lick, f); setEditing(false); }} />
-  );
+/** One lick in a list: a compact row that opens the lick page. `actions` adds buttons on the right. */
+export function LickCard({ lick, actions }: { lick: Lick; actions?: ReactNode }) {
+  const meta = [lick.progression, ...lick.tags].filter(Boolean).join(" · ");
   return (
-    <div className="lick" {...(lick.mine ? dropProps(f => files.uploads.add(lick.id, f)) : {})}>
-      <h3><Link href={"/licks/" + encodeURIComponent(lick.id)}>{lick.title}</Link></h3>
-      <div className="note-meta">
-        {!lick.mine && lick.ownerName && <b>{lick.ownerName}</b>}
-        {lick.tags.map(t => <span className="chip" key={t}>{t}</span>)}
-      </div>
-      {lick.notation ? <Notation abc={lick.notation} compact /> : lick.progression && <p className="prog" aria-label="Chord progression">{lick.progression}</p>}
-      {lick.body && <p className="note-body">{linkify(lick.body)}</p>}
-      <AttachmentList store={store} items={files.atts.filter(a => a.lickId === lick.id)} canDelete={() => lick.mine} onDelete={files.remove} />
-      <UploadRows ups={files.uploads.ups} noteId={lick.id} retry={files.uploads.retry} dismiss={files.uploads.dismiss} />
-      <div className="note-actions">
-        <Link className="btn small primary" href={"/licks/" + encodeURIComponent(lick.id)}>Open</Link>
-        {lick.mine && <button className="btn small" onClick={() => setEditing(true)}>Edit</button>}
-        {lick.mine && <AttachMenu onFiles={f => files.uploads.add(lick.id, f)} />}
-        {actions}
-      </div>
+    <div className="lick lick-row">
+      <Link className="lick-open" href={"/licks/" + encodeURIComponent(lick.id)}>
+        <b>{lick.title}</b>
+        {(meta || (!lick.mine && lick.ownerName)) && <span className="hint">{!lick.mine && lick.ownerName ? lick.ownerName + (meta ? " · " : "") : ""}{meta}</span>}
+      </Link>
+      {actions && <div className="row-btns">{actions}</div>}
     </div>
   );
 }
@@ -176,14 +158,6 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
     await attach(lick.id);
     if (fs.length) files.uploads.add(lick.id, fs);
   };
-  const save = async (l: Lick, f: LickFields) => {
-    try {
-      await store.updateLick(l.id, f);
-      const patch = (x: Lick): Lick => x.id === l.id ? { ...x, ...f, updatedAt: new Date().toISOString() } : x;
-      setLinks(p => (p || []).map(k => ({ ...k, lick: patch(k.lick) })));
-      setMine(p => p && p.map(patch));
-    } catch (e) { err(e, "Couldn't save that lick."); throw e; }
-  };
   const unlink = async (k: LickLink) => {
     if (armed !== k.id) { setArmed(k.id); return; }
     setArmed(null);
@@ -228,7 +202,7 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
       {links === null ? <p className="hint">Loading…</p> : !links.length ? <p className="hint">No licks here yet.</p> : (
         <div className="thread-list">
           {links.map(k => (
-            <LickCard key={k.id} lick={k.lick} files={files} onSave={save} actions={<>
+            <LickCard key={k.id} lick={k.lick} actions={<>
               {(k.createdBy === app.account?.id || isOwner) && <button className="btn small" onClick={() => void unlink(k)}>{armed === k.id ? "Remove?" : "Remove from here"}</button>}
               {!k.lick.mine && <button className="btn small" onClick={() => void copy(k.lick)}>Save to my licks</button>}
             </>} />

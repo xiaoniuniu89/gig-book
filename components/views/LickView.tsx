@@ -1,19 +1,21 @@
 "use client";
-// /licks/[id]: one lick as sheet music. Play it, move it to any key, practise over its chords, attach it to a tune.
+// /licks/[id]: one lick. Its notation (or the photo/PDF you uploaded), your recordings, and its chords to loop with the band.
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useApp } from "../AppProvider";
+import { useApp, type Current } from "../AppProvider";
+import { ChartHost } from "./SongView";
 import { Icon } from "../Icon";
 import { Modal } from "../Modal";
 import { Notation } from "../Notation";
 import { LickForm, useLickFiles } from "../Licks";
 import { linkify } from "../Notes";
-import { AttachMenu, AttachmentList, UploadRows } from "../Attachments";
+import { AttachMenu, AttachmentList, FileChart, UploadRows } from "../Attachments";
 import { libraryTunes } from "../TunePicker";
 import { STARTER_LICKS } from "@/lib/starterLicks";
-import { LICK_KEYS } from "@/lib/irealExport";
-import { norm, songKey } from "@/lib/songs";
+import { LICK_KEYS, lickSongs } from "@/lib/irealExport";
+import { chartHTML } from "@/lib/chart";
+import { norm, song, songKey } from "@/lib/songs";
 import type { Lick, LickFields } from "@/lib/data/types";
 
 const keyIdx = (k: string) => Math.max(0, LICK_KEYS.indexOf(k || "C"));
@@ -32,10 +34,24 @@ export function LickView() {
   const [attaching, setAttaching] = useState(false);
   const [armed, setArmed] = useState(false);
   const signedIn = store.kind === "supabase";
-  const files = useLickFiles(store, lick && lick.mine ? [lick.id] : []);
+  const files = useLickFiles(store, lick && signedIn && !starter ? [lick.id] : []);
   const err = (e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback);
 
-  useEffect(() => { setCurrent(null); }, [setCurrent]);
+  const base = lick?.key || "C";
+  const shown = key || base;
+  // the chords as a one-chart tune in the key you're looking at, so Play along loops them
+  const cur = useMemo<Current | null>(() => {
+    if (!lick?.progression) return null;
+    try { return { kind: "lick", song: song(lickSongs(lick.title, lick.progression, base, true)[(keyIdx(shown) - keyIdx(base) + 12) % 12]) }; }
+    catch { return null; }
+  }, [lick?.title, lick?.progression, base, shown]);
+  useEffect(() => { setCurrent(cur); }, [cur, setCurrent]);
+  useEffect(() => () => setCurrent(null), [setCurrent]);
+  const { prefs } = app;
+  const html = useMemo(() => cur ? chartHTML(cur.song, { shift: app.shiftOf(cur), mode: prefs.mode, sc: false, tn: false, fn: false }) : "",
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shiftOf reads prefs
+    [cur, prefs]);
+  const looping = !!cur && app.bandPlaying && app.bandFor === cur.song;
   useEffect(() => {
     setCrumb(<><Link href="/licks">Licks</Link>{lick ? " / " + lick.title : ""}</>);
   }, [setCrumb, lick]);
@@ -54,9 +70,8 @@ export function LickView() {
     <section className="panel"><h1>Lick not found</h1><p className="hint">It may have been deleted, or it isn&apos;t shared with you. <Link href="/licks">Back to licks</Link></p></section>
   );
 
-  const base = lick.key || "C";
-  const shown = key || base;
   const shift = steps(base, shown);
+  const sheet = files.atts.find(a => a.kind === "image" || a.kind === "pdf");
 
   const save = async (f: LickFields) => {
     try { await store.updateLick(lick.id, f); setLick({ ...lick, ...f, updatedAt: new Date().toISOString() }); setEditing(false); }
@@ -79,8 +94,6 @@ export function LickView() {
     catch (e) { err(e, "Couldn't save that lick."); }
   };
 
-  const practise = lick.progression ? "/practise?" + new URLSearchParams({ t: lick.title, p: lick.progression, k: lick.key }) : null;
-
   return (
     <>
       <div className="page-head">
@@ -96,27 +109,34 @@ export function LickView() {
         <section className="panel"><LickForm initial={lick} cta="Save" onSubmit={save} onCancel={() => setEditing(false)} /></section>
       ) : <>
         <section className="panel lick-sheet">
-          {lick.notation ? <>
-            <div className="sheet-tools">
-              <label>Key <select value={shown} onChange={e => setKey(e.target.value)}>
-                {LICK_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-              </select></label>
-            </div>
-            <Notation abc={lick.notation} transpose={shift} play />
-          </> : <p className="hint">No notation yet.{lick.mine ? " Edit the lick to write it out in ABC." : ""}</p>}
-          {lick.progression && <p className="prog" aria-label="Chord progression">{lick.progression}{lick.key && lick.key !== "C" ? ` (key of ${lick.key})` : ""}</p>}
+          <div className="sheet-tools">
+            {(lick.notation || cur) && <label>Key <select value={shown} onChange={e => setKey(e.target.value)}>
+              {LICK_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+            </select></label>}
+          </div>
+          {lick.notation ? <Notation abc={lick.notation} transpose={shift} play />
+            : sheet ? <div className="lick-file"><FileChart store={store} a={sheet} /></div>
+            : <p className="hint">No notation yet.{lick.mine ? " Edit the lick to write it out, or upload a photo or PDF of it." : ""}</p>}
         </section>
+
+        {cur && <section className="panel lick-chords" aria-label="Chords">
+          <div className="panel-head">
+            <h2>Chords</h2>
+            <button className="btn" onClick={() => (looping ? app.stopBand() : void app.startBand(cur))}>{looping ? "Stop" : "Loop with the band"}</button>
+          </div>
+          <ChartHost html={html} live={looping} />
+        </section>}
 
         {lick.body && <section className="panel"><p className="note-body">{linkify(lick.body)}</p></section>}
 
-        {lick.mine && <section className="panel">
-          <AttachmentList store={store} items={files.atts} canDelete={() => true} onDelete={files.remove} />
+        {!starter && signedIn && (lick.mine || files.atts.length > 0) && <section className="panel" aria-label="Files and recordings">
+          <div className="panel-head"><h2>Files and recordings</h2>{lick.mine && <AttachMenu onFiles={f => files.uploads.add(lick.id, f)} />}</div>
+          {!files.atts.length && !files.uploads.ups.length && <p className="hint">Add a recording of you playing it, a photo of the page, or a PDF.</p>}
+          <AttachmentList store={store} items={files.atts} canDelete={() => lick.mine} onDelete={files.remove} />
           <UploadRows ups={files.uploads.ups} noteId={lick.id} retry={files.uploads.retry} dismiss={files.uploads.dismiss} />
-          <div className="note-actions"><AttachMenu onFiles={f => files.uploads.add(lick.id, f)} /></div>
         </section>}
 
         <div className="note-actions lick-actions">
-          {practise && <Link className="btn" href={practise}>Practise over the chords</Link>}
           {signedIn && <button className="btn" onClick={() => setAttaching(true)}><Icon name="plus" size={18} /> Attach to a tune</button>}
           {signedIn && !lick.mine && <button className="btn" onClick={() => void saveCopy()}>Save to my licks</button>}
           {lick.mine && <button className="btn" onClick={() => void remove()}><Icon name="trash" size={18} /> {armed ? "Delete?" : "Delete"}</button>}

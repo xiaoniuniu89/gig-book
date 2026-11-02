@@ -47,12 +47,6 @@ export function LicksView() {
       if (fs.length) files.uploads.add(l.id, fs);
     } catch (e) { err(e, "Couldn't save that lick."); throw e; }
   };
-  const save = async (l: Lick, f: LickFields) => {
-    try {
-      await store.updateLick(l.id, f);
-      setLicks(p => (p || []).map(x => x.id === l.id ? { ...x, ...f, updatedAt: new Date().toISOString() } : x));
-    } catch (e) { err(e, "Couldn't save that lick."); throw e; }
-  };
   const remove = async (l: Lick) => {
     if (armed !== l.id) { setArmed(l.id); return; }
     setArmed(null);
@@ -78,7 +72,7 @@ export function LicksView() {
           : !shown.length ? <p className="hint">{q ? "No match." : "No licks yet. Add one with New lick, or start from the starter licks."}</p> : (
           <div className="thread-list">
             {shown.map(l => (
-              <LickCard key={l.id} lick={l} files={files} onSave={save}
+              <LickCard key={l.id} lick={l}
                 actions={l.mine ? <button className="btn small" onClick={() => void remove(l)}>{armed === l.id ? "Delete?" : "Delete"}</button> : undefined} />
             ))}
           </div>
