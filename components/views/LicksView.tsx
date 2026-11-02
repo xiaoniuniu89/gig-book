@@ -1,7 +1,7 @@
 "use client";
 // /licks: your lick library (R8.1). Search by title or tag; create, edit, delete.
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "../Icon";
 import { useApp } from "../AppProvider";
 import { LickCard, LickForm, useLickFiles } from "../Licks";
 import { norm } from "@/lib/songs";
@@ -18,7 +18,7 @@ export function LicksView() {
 
   useEffect(() => {
     setCurrent(null);
-    setCrumb(<><Link href="/">Gig Book</Link> / Licks</>);
+    setCrumb(null);
   }, [setCrumb, setCurrent]);
   useEffect(() => {
     if (!ready || store.kind !== "supabase") return;
@@ -60,9 +60,9 @@ export function LicksView() {
 
   return (
     <>
-      <div className="set-head">
-        <div><span className="eyebrow">Library</span><h1>Licks</h1></div>
-        <button className="btn primary" aria-expanded={adding} onClick={() => setAdding(a => !a)}>New lick</button>
+      <div className="page-head">
+        <h1>Licks</h1>
+        <button className="btn primary" aria-expanded={adding} onClick={() => setAdding(a => !a)}><Icon name="plus" size={18} /> New lick</button>
       </div>
       <p className="hint">Keep an idea once, then attach it to any tune from the tune page. Anyone in a setlist where you attach it can see it there.</p>
       {adding && <section className="panel"><LickForm newFiles cta="Save lick" onSubmit={create} onCancel={() => setAdding(false)} /></section>}

@@ -1,61 +1,35 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
-import { AiDraft } from "../AiDraft";
-import { Icon } from "../Icon";
-import { ImportPanel } from "../ImportPanel";
-import { Modal } from "../Modal";
-import { irealShift, keyLabel } from "@/lib/theory";
-import { song } from "@/lib/songs";
 
 export function Home() {
   const app = useApp();
-  const router = useRouter();
   const { setlists, library, setCrumb, setCurrent, ready } = app;
   const [copying, setCopying] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
-
-  const books = useMemo(() => setlists.map(s => ({
-    s,
-    keys: [...new Set(s.items.slice(0, 8).map(it => keyLabel(song(it.raw), it.shift ?? irealShift(song(it.raw)))))].join("  "),
-  })), [setlists]);
-
-  const create = async () => {
-    const name = newName.trim().slice(0, 200);
-    if (!name) { app.toast("A setlist needs a name."); return; }
-    const id = app.store.newId(name, id => !!app.setlistById(id));
-    await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
-    setAdding(false); setNewName("");
-    router.push("/set/" + encodeURIComponent(id));
-  };
-
   const total = library.reduce((n, p) => n + p.songs.length, 0);
+  const names = (xs: { name: string }[]) => xs.slice(0, 3).map(x => x.name).join(", ") + (xs.length > 3 ? "…" : "");
 
   return (
     <>
-      <div className="page-head">
-        <h1>Your gigs</h1>
-        <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" size={18} /> New setlist</button>
-      </div>
+      <h1>Your gigs</h1>
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelf">
-          {books.map(({ s, keys }) => (
-            <Link key={s.id} className="book" href={"/set/" + encodeURIComponent(s.id)}>
-              <span className="m">{s.items.length} tunes{s.role && s.role !== "owner" ? " · shared with you" : ""}</span>
-              <span className="t">{s.name}</span>
-              <span className="keys">{keys}</span>
-            </Link>
-          ))}
-          <Link className="book lib" href="/library">
-            <span className="m">Library</span>
-            <span className="t">{total} charts</span>
-            <span className="m">{library.map(p => p.name).join(", ")}</span>
+          <Link className="book" href="/setlists">
+            <span className="t">Setlists</span>
+            <span className="m">{setlists.length ? `${setlists.length} · ${names(setlists)}` : "Make your first setlist"}</span>
           </Link>
+          <Link className="book lib" href="/library">
+            <span className="t">Library</span>
+            <span className="m">{total} charts · {names(library)}</span>
+          </Link>
+          {app.store.kind === "supabase" && (
+            <Link className="book licks" href="/licks">
+              <span className="t">Licks</span>
+              <span className="m">Phrases and ideas to keep with any tune</span>
+            </Link>
+          )}
         </div>
       )}
       {app.localCounts && (
@@ -69,15 +43,6 @@ export function Home() {
           }}>{copying ? "Copying…" : "Copy them to my account"}</button>
         </section>
       )}
-      <Modal open={adding} title="New setlist" onClose={() => setAdding(false)}>
-        <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
-          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Name it, e.g. Friday at Dolan's" value={newName} onChange={e => setNewName(e.target.value)} />
-          <button className="btn primary" type="submit" disabled={!newName.trim()}>Create</button>
-        </form>
-        <AiDraft />
-        <h3 className="modal-sub">From iReal Pro</h3>
-        <ImportPanel onDone={() => setAdding(false)} />
-      </Modal>
     </>
   );
 }

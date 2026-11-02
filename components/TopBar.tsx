@@ -7,15 +7,13 @@ import { useEffect, useState } from "react";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
 export function TopBar() {
-  const { crumb, store } = useApp();
+  const { crumb } = useApp();
   return (
     <header className="bar-top">
       <div className="bar-top-inner">
         <Link className="brand" href="/">Gig<span>Book</span></Link>
         <div className="crumb" id="crumb">{crumb}</div>
         <span className="acct">
-          <Link className="btn small" href="/library">Library</Link>
-          {store.kind === "supabase" && <Link className="btn small" href="/licks">Licks</Link>}
           <ThemeToggle />
           {supabaseConfigured && <Bell />}
           {supabaseConfigured && <Account />}

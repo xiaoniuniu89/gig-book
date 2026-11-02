@@ -75,8 +75,8 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
 
   useEffect(() => {
     setCrumb(s
-      ? <><Link href="/">Gig Book</Link> / <Link href={"/set/" + encodeURIComponent(s.id)}>{s.name}</Link> / {sg.title}</>
-      : <><Link href="/">Gig Book</Link> / <Link href="/library">Library</Link> / {sg.title}</>);
+      ? <><Link href="/setlists">Setlists</Link> / <Link href={"/set/" + encodeURIComponent(s.id)}>{s.name}</Link> / {sg.title}</>
+      : <><Link href="/library">Library</Link> / {sg.title}</>);
   }, [s, sg, setCrumb]);
 
   let prevHref = "", nextHref = "";

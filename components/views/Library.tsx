@@ -25,7 +25,7 @@ export function Library() {
 
   useEffect(() => {
     setCurrent(null);
-    setCrumb(<><Link href="/">Gig Book</Link> / Library</>);
+    setCrumb(null);
   }, [setCrumb, setCurrent]);
   useEffect(() => { if (!matchMedia("(pointer: coarse)").matches) input.current?.focus(); }, []);
 

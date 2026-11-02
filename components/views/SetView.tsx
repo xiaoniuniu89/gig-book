@@ -28,11 +28,11 @@ export function SetView() {
     return () => { gone = true; };
   }, [ready, s, id, ensureSetlist]);
   useEffect(() => {
-    setCrumb(s ? <><Link href="/">Gig Book</Link> / {s.name}</> : <Link href="/">Gig Book</Link>);
+    setCrumb(s ? <><Link href="/setlists">Setlists</Link> / {s.name}</> : <Link href="/setlists">Setlists</Link>);
   }, [s, s?.name, setCrumb]);
 
   if (!s) return missing
-    ? <section className="panel"><h2>Setlist not found</h2><p className="hint">It may have been deleted, or it isn&apos;t shared with you.</p><Link className="btn" href="/">Back to your gigs</Link></section>
+    ? <section className="panel"><h2>Setlist not found</h2><p className="hint">It may have been deleted, or it isn&apos;t shared with you.</p><Link className="btn" href="/setlists">Back to setlists</Link></section>
     : <p className="hint">Loading…</p>;
   return <SetBody key={s.id} s={s} />;
 }
@@ -209,7 +209,7 @@ function SetBody({ s }: { s: Setlist }) {
         <section className="danger-zone">
           <button className="btn small" id="del-set" onClick={async () => {
             if (!delArmed) { setDelArmed(true); return; }
-            await app.removeSetlist(s); router.push("/");
+            await app.removeSetlist(s); router.push("/setlists");
           }}>{delArmed ? "Tap again to delete " + s.name : "Delete this setlist"}</button>
         </section>
       )}
@@ -296,7 +296,7 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
         <div className="danger-zone">
           <button className="btn small" id="leave-set" onClick={async () => {
             if (armed !== "leave") { setArmed("leave"); return; }
-            if (await app.leaveSetlist(s)) router.push("/");
+            if (await app.leaveSetlist(s)) router.push("/setlists");
           }}>{armed === "leave" ? "Tap again to leave " + s.name : "Leave this setlist"}</button>
         </div>
       )}

@@ -219,6 +219,7 @@ article.note:last-child { border-bottom: 0; padding-bottom: 0; }
 h2 { font-size: 24px; }
 .intro { display: grid; gap: 6px; }
 .book.lib { border-left-color: var(--iiv); }
+.book.licks { border-left-color: var(--ok); }
 .panel h2 { font-size: 22px; }
 .row-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
