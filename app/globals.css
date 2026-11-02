@@ -633,4 +633,4 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .feedback-form { display: grid; gap: 10px; }
 
 /* localhost only: sign in as a fake musician */
-.dev-signin { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line, #ccc); display: grid; gap: 8px; }
+.dev-signin { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--rule); display: grid; gap: 8px; }
