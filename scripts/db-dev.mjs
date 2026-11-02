@@ -1,7 +1,18 @@
-// npm run db:dev: apply every pending migration to the dev project (DEV_DB_URL in .env.development.local). Never the live one.
+// npm run db:dev: apply every pending migration to the dev project (DEV_SUPABASE_REF in .env.development.local). Never the live one.
+// Links the dev project in a scratch folder, so supabase/.temp (the live link) is never touched. Uses your `supabase login`, no DB password.
 import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
-const url = process.env.DEV_DB_URL;
-if (!url) throw new Error("Set DEV_DB_URL in .env.development.local (dev project → Connect → Session pooler).");
-if (url.includes("lctxtseylqyxiideluth")) throw new Error("DEV_DB_URL points at the live project.");
-execFileSync("npx", ["supabase", "db", "push", "--db-url", url, "--yes"], { stdio: "inherit" });
+const ref = process.env.DEV_SUPABASE_REF;
+if (!ref) throw new Error("Set DEV_SUPABASE_REF in .env.development.local.");
+if (ref === "lctxtseylqyxiideluth") throw new Error("DEV_SUPABASE_REF is the live project.");
+const work = mkdtempSync(join(tmpdir(), "nrb-dev-"));
+try {
+  mkdirSync(join(work, "supabase"));
+  for (const f of ["config.toml", "migrations"]) symlinkSync(resolve("supabase", f), join(work, "supabase", f));
+  const sb = (...a) => execFileSync("npx", ["supabase", ...a, "--workdir", work], { stdio: "inherit" });
+  sb("link", "--project-ref", ref);
+  sb("db", "push", "--linked", "--yes");
+} finally { rmSync(work, { recursive: true, force: true }); }
