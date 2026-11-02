@@ -96,6 +96,7 @@ p { margin: 0; }
 .tune a.name:hover { color: var(--brass); }
 .tune .sub { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
 .tune .sub.note-count { color: var(--brass); }
+.tune.lib-pl { grid-template-columns: minmax(0, 1fr) auto; }
 
 /* Notes and replies (R5) */
 .notes h2 { font-size: 24px; }

@@ -16,7 +16,7 @@ import { createSaveQueue } from "@/lib/data/saveQueue";
 import type { DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
-import { SEEDS, cloneSeed } from "@/lib/seeds";
+import { SEEDS, STARTER_LIBRARY, cloneSeed } from "@/lib/seeds";
 
 /* ---------------- types ---------------- */
 export type Current =
@@ -272,7 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReady(false);
       try {
         let sls = await store.listSetlists();
-        const lib = await store.listLibrary();
+        let lib = await store.listLibrary();
         const seedFlag = store.kind === "local" ? "gigbook-seeded" : "gigbook-seeded:" + (account?.id || "");
         let seeded = false;
         try { seeded = !!localStorage.getItem(seedFlag); } catch { /* ignore */ }
@@ -291,6 +291,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
           } catch (e) {
             try { localStorage.removeItem(seedFlag); } catch { /* ignore */ }
+            throw e;
+          }
+        }
+        // a starter library, so a new account can build setlists without importing first
+        const libFlag = seedFlag.replace("seeded", "lib-seeded");
+        let libSeeded = false;
+        try { libSeeded = !!localStorage.getItem(libFlag); } catch { /* ignore */ }
+        if (!libSeeded && lib.length === 0) {
+          try { localStorage.setItem(libFlag, "1"); } catch { /* ignore */ }
+          const p = { ...STARTER_LIBRARY, songs: STARTER_LIBRARY.songs.slice() };
+          if (store.kind === "supabase") p.id = store.newId(p.name, () => false);
+          try { await store.saveLibraryPlaylist(p); lib = [p]; } catch (e) {
+            try { localStorage.removeItem(libFlag); } catch { /* ignore */ }
             throw e;
           }
         }

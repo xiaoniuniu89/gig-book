@@ -5,12 +5,15 @@ import { useApp } from "../AppProvider";
 import { meta, norm, prettyKey } from "@/lib/songs";
 
 let lastQuery = ""; // remembered while the app is open, like the static app
+const PAGE = 100; // rows rendered per scroll step
 
 export function Library() {
   const { library, setCrumb, setCurrent, ready, removeLibraryPlaylist } = useApp();
   const [q, setQ] = useState(lastQuery);
   const [delArmed, setDelArmed] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const [shown, setShown] = useState(PAGE);
+  const more = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCurrent(null);
@@ -24,7 +27,17 @@ export function Library() {
     return out;
   }, [library]);
   const nq = norm(q);
-  const hits = (nq ? all.filter(x => x.hay.includes(nq)) : all).slice(0, 200);
+  const matches = useMemo(() => nq ? all.filter(x => x.hay.includes(nq)) : all, [all, nq]);
+  const hits = matches.slice(0, shown);
+  useEffect(() => setShown(PAGE), [nq]);
+  // infinite scroll: render the next page as the end of the list comes into view
+  useEffect(() => {
+    const el = more.current;
+    if (!el) return;
+    const io = new IntersectionObserver(es => { if (es[0].isIntersecting) setShown(n => n + PAGE); }, { rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hits.length, matches.length]);
 
   return (
     <>
@@ -34,12 +47,12 @@ export function Library() {
       {ready && library.length > 0 && (
         <div className="panel list" id="lib-playlists">
           {library.map(p => (
-            <div key={p.id} className="tune">
+            <div key={p.id} className="tune lib-pl">
               <span className="name">{p.name}<span className="sub">{p.songs.length} charts</span></span>
               <button className="btn small" onClick={() => {
                 if (delArmed !== p.id) { setDelArmed(p.id); return; }
                 setDelArmed(null); removeLibraryPlaylist(p.id);
-              }}>{delArmed === p.id ? "Tap again to remove" : "Remove"}</button>
+              }} onBlur={() => setDelArmed(null)}>{delArmed === p.id ? "Tap again to remove" : "Remove"}</button>
             </div>
           ))}
         </div>
@@ -55,7 +68,7 @@ export function Library() {
                 <span className="k">{prettyKey(x.m.key)}</span>
               </Link>
             ))}
-            {hits.length === 200 && <p className="hint pad">Showing the first 200. Narrow the search to see more.</p>}
+            {hits.length < matches.length && <div ref={more} className="hint pad">Loading more…</div>}
           </>
         ) : <p className="hint pad">{all.length ? "Nothing matches that search." : "The library is empty. Import an iReal Pro playlist from the home page."}</p>}
       </div>

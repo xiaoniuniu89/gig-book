@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import { useApp, songHref, type Current, type TuneCurrent } from "../AppProvider";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
-import { songLink } from "@/lib/ireal";
 import { song, norm, songKey } from "@/lib/songs";
 import { newItem } from "../TunePicker";
 import { Notes } from "../Notes";
@@ -156,23 +155,19 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} item={item} canEdit={canEdit} />
-        <section className="panel">
-          <h2>iReal Pro</h2>
-          <a className="btn" href={songLink(sg.raw)}>Open this chart in iReal Pro</a>
-          {cur.kind === "lib" && <AddToSetlist cur={cur} />}
-        </section>
+        {cur.kind === "lib" && <section className="panel"><h2>Add to a setlist</h2><AddToSetlist cur={cur} /></section>}
       </>, app.drawerSlot)}
     </>
   );
 }
 
+const MIN_FIT = 0.45;
 /**
  * The chord chart. Its HTML is written only when it changes, never on ordinary re-renders, so the band's
  * bar highlight (a class toggled straight on the DOM) survives the many re-renders during playback.
  * chartHTML escapes every piece of text it outputs.
  */
-/** `fit` scales the chart down (never up) so it fills the parent's height without scrolling; it stops at MIN_FIT and scrolls past that. */
-const MIN_FIT = 0.45;
+// `fit` scales the chart down (never up) to fill the parent's height without scrolling, stopping at MIN_FIT.
 export function ChartHost({ html, live, fit }: { html: string; live: boolean; fit?: boolean }) {
   const app = useApp();
   const ref = useRef<HTMLDivElement>(null);
@@ -222,9 +217,20 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
     const query = q.trim() || cur.song.title;
     setStatus({ msg: "Searching…" }); setResults(null);
     try {
-      const res = await searchTracks(`track:"${query.replace(/"/g, "")}"`, 25);
+      // Composer as artist first (Coltrane, Monk…), then jazz recordings, then anything with the title
+      const t = `track:"${query.replace(/"/g, "")}"`;
+      const who = cur.song.composer.split(" ").reverse().join(" ").replace(/"/g, "").trim();
+      const runs = await Promise.allSettled([
+        who ? searchTracks(`${t} artist:"${who}"`, 10) : Promise.resolve([]),
+        searchTracks(`${t} genre:jazz`, 25),
+        searchTracks(t, 25),
+      ]);
+      if (runs.every(r => r.status === "rejected")) throw (runs[2] as PromiseRejectedResult).reason;
+      const seen = new Set<string>();
+      const res = runs.flatMap(r => r.status === "fulfilled" ? r.value : []).filter(r => !seen.has(r.uri) && !!seen.add(r.uri));
+      // the title must match as whole words: "26-2" shouldn't find "26/27", but "Body And Soul - Remastered" is fine
       const want = norm(query);
-      const rows = res.filter(r => norm(r.name).includes(want) || want.includes(norm(r.name)));
+      const rows = res.filter(r => { const n = norm(r.name); return n === want || n.startsWith(want + " "); });
       const shown = rows.length ? rows : res;
       setResults(shown);
       setStatus(shown.length ? null : { msg: "No versions found." });

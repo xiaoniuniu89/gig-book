@@ -23,8 +23,8 @@ export function Dock() {
   };
   const recLoad = () => {
     const cur = current;
-    const s = cur && cur.kind === "set" ? app.setlistById(cur.setId) : app.setlists.find(x => x.spotify);
-    if (s && s.spotify) app.playSpotify(s.spotify, false); else app.toast("Link a Spotify playlist on the setlist page first.");
+    const s = cur && cur.kind === "set" ? app.setlistById(cur.setId) : undefined;
+    if (s && s.spotify) app.playSpotify(s.spotify, false);
   };
 
   const open = (t: "band" | "record") => { app.setDockTab(t); app.setDockSize("full"); };
@@ -86,7 +86,9 @@ export function Dock() {
           <div className="pane-record">
             <div className="rec-head">
               <b id="rec-title">{app.recTitle}</b>
-              <button className="btn small" id="rec-load" onClick={recLoad}>Load this setlist&apos;s playlist</button>
+              {/* only on a setlist tune whose setlist has a playlist; elsewhere there's no "this setlist" */}
+              {current?.kind === "set" && app.setlistById(current.setId)?.spotify &&
+                <button className="btn small" id="rec-load" onClick={recLoad}>Load this setlist&apos;s playlist</button>}
               <label className="toggle" htmlFor="rec-follow"><input id="rec-follow" type="checkbox" checked={app.follow} onChange={e => app.setFollow(e.target.checked)} /> Charts follow the music</label>
               <span className="hint" id="rec-status">{app.recStatus}</span>
             </div>
