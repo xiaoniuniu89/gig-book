@@ -13,7 +13,7 @@ export function Home() {
 
   return (
     <>
-      <h1>Your gigs</h1>
+      <h1>{app.account?.name ? `Welcome back, ${app.account.name}` : "Welcome back"}</h1>
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelf">
           <Link className="book" href="/setlists">

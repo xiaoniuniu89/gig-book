@@ -116,6 +116,8 @@ export interface Lick {
   progression: string;
   /** The key the progression is written in ("F"); "" means C. */
   key: string;
+  /** The line itself in ABC notation ("K:F\n\"Gm7\"z B d f …"), "" for none. */
+  notation: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,7 +127,7 @@ export type LickHome = Extract<NoteHome, { kind: "item" | "song" }>;
 
 export interface LickLink { id: string; lick: Lick; createdBy: string }
 
-export interface LickFields { title: string; body: string; tags: string[]; progression: string; key: string }
+export interface LickFields { title: string; body: string; tags: string[]; progression: string; key: string; notation: string }
 
 /** Comma-separated tags to a clean list: trimmed, lowercase, no repeats, at most 20. */
 export const parseTags = (s: string): string[] =>
@@ -181,6 +183,8 @@ export interface DataStore {
   setChartChoice(setlistId: string, itemId: string, attachmentId: string | null): Promise<void>;
   /** Your own licks, newest first (accounts only; local mode has none). */
   listLicks(): Promise<Lick[]>;
+  /** One lick you can read (yours, or linked into a setlist you're in). Null when not found. */
+  getLick(id: string): Promise<Lick | null>;
   createLick(f: LickFields): Promise<Lick>;
   /** Owner only. */
   updateLick(id: string, f: LickFields): Promise<void>;

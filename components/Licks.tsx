@@ -8,7 +8,8 @@ import { linkify } from "./Notes";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { STARTER_LICKS } from "@/lib/starterLicks";
-import { LICK_KEYS, lickLink, parseProgression } from "@/lib/irealExport";
+import { Notation } from "./Notation";
+import { LICK_KEYS, parseProgression } from "@/lib/irealExport";
 import { parseTags, type Attachment, type DataStore, type Lick, type LickFields, type LickHome, type LickLink, type Setlist } from "@/lib/data/types";
 
 /** Files of the given licks, plus the upload queue and delete. One query for the whole list. */
@@ -41,6 +42,7 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
   const [tags, setTags] = useState((initial?.tags ?? []).join(", "));
   const [prog, setProg] = useState(initial?.progression ?? "");
   const [key, setKey] = useState(initial?.key ?? "");
+  const [abc, setAbc] = useState(initial?.notation ?? "");
   const [bad, setBad] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -55,8 +57,8 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
     setBad("");
     setBusy(true);
     try {
-      await onSubmit({ title: t, body: body.trim(), tags: parseTags(tags), progression: pr, key: pr ? key : "" }, files);
-      if (!initial) { setTitle(""); setBody(""); setTags(""); setProg(""); setKey(""); setFiles([]); }
+      await onSubmit({ title: t, body: body.trim(), tags: parseTags(tags), progression: pr, key: pr ? key : "", notation: abc.trim() }, files);
+      if (!initial) { setTitle(""); setBody(""); setTags(""); setProg(""); setKey(""); setAbc(""); setFiles([]); }
     } catch { /* the caller toasts */ }
     setBusy(false);
   };
@@ -77,6 +79,9 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
         </select>
       </div>
       {bad && <p className="hint" role="alert">{bad}</p>}
+      <textarea className="abc-in" aria-label="Notation in ABC" rows={4} maxLength={20000} spellCheck={false} value={abc} onChange={e => setAbc(e.target.value)}
+        placeholder={'Notation in ABC (optional), e.g.\nK:F\n"Gm7"z B d f a g f d | "C7"c =B _B A G E F ^G | "Fmaj7"A6 z2 |]'} />
+      {abc.trim() && <Notation abc={abc} compact />}
       {files.length > 0 && (
         <div className="pending-files">
           {files.map((f, i) => (
@@ -107,37 +112,22 @@ export function LickCard({ lick, files, onSave, actions }: {
   );
   return (
     <div className="lick" {...(lick.mine ? dropProps(f => files.uploads.add(lick.id, f)) : {})}>
-      <h3>{lick.title}</h3>
+      <h3><Link href={"/licks/" + encodeURIComponent(lick.id)}>{lick.title}</Link></h3>
       <div className="note-meta">
         {!lick.mine && lick.ownerName && <b>{lick.ownerName}</b>}
         {lick.tags.map(t => <span className="chip" key={t}>{t}</span>)}
       </div>
+      {lick.notation ? <Notation abc={lick.notation} compact /> : lick.progression && <p className="prog" aria-label="Chord progression">{lick.progression}</p>}
       {lick.body && <p className="note-body">{linkify(lick.body)}</p>}
-      {lick.progression && <p className="prog" aria-label="Chord progression">{lick.progression}</p>}
       <AttachmentList store={store} items={files.atts.filter(a => a.lickId === lick.id)} canDelete={() => lick.mine} onDelete={files.remove} />
       <UploadRows ups={files.uploads.ups} noteId={lick.id} retry={files.uploads.retry} dismiss={files.uploads.dismiss} />
       <div className="note-actions">
+        <Link className="btn small primary" href={"/licks/" + encodeURIComponent(lick.id)}>Open</Link>
         {lick.mine && <button className="btn small" onClick={() => setEditing(true)}>Edit</button>}
         {lick.mine && <AttachMenu onFiles={f => files.uploads.add(lick.id, f)} />}
-        {lick.progression && <ProgressionActions lick={lick} />}
         {actions}
       </div>
     </div>
-  );
-}
-
-/** R8.4: open the progression in the chart view with the band, or hand it to iReal Pro (this key, or all 12). */
-function ProgressionActions({ lick }: { lick: Lick }) {
-  let one: string, all: string;
-  try { one = lickLink(lick.title, lick.progression, lick.key, false); all = lickLink(lick.title, lick.progression, lick.key, true); }
-  catch { return null; } // a progression that doesn't parse
-  const q = new URLSearchParams({ t: lick.title, p: lick.progression, k: lick.key });
-  return (
-    <>
-      <Link className="btn small" href={"/practise?" + q}>Practise here</Link>
-      <a className="btn small" href={one}>Export to iReal Pro</a>
-      <a className="btn small" href={all}>iReal Pro, all 12 keys</a>
-    </>
   );
 }
 
@@ -208,9 +198,9 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
   const free = (mine || []).filter(l => !(links || []).some(k => k.lick.id === l.id));
   // a starter lick becomes yours first (only your own licks can be attached), unless you already copied it
   const addStarter = async (l: Lick) => {
-    const have = (mine || []).find(m => m.title === l.title && m.progression === l.progression);
+    const have = (mine || []).find(m => m.title === l.title && m.notation === l.notation);
     if (have) { await attach(have.id).catch(() => {}); return; }
-    await create({ title: l.title, body: l.body, tags: l.tags, progression: l.progression, key: l.key }, []).catch(() => {});
+    await create({ title: l.title, body: l.body, tags: l.tags, progression: l.progression, key: l.key, notation: l.notation }, []).catch(() => {});
   };
   const pickRow = (l: Lick, onPick: () => void) => (
     <button key={l.id} className="pick-row" onClick={onPick}>

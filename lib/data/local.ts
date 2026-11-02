@@ -117,6 +117,7 @@ export const localStore: DataStore = {
   setChartChoice: async () => {},
   // licks need an account (the UI hides them in local mode)
   listLicks: async () => [],
+    getLick: async () => null,
   createLick: () => Promise.reject(new Error("Licks need an account.")),
   updateLick: () => Promise.reject(new Error("Licks need an account.")),
   deleteLick: () => Promise.reject(new Error("Licks need an account.")),

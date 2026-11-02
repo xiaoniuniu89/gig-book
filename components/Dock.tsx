@@ -38,8 +38,8 @@ export function Dock() {
         <button className="rail-btn" aria-label={bandPlaying ? "Stop the band" : "Play with the band"} disabled={!sg} onClick={onPlay}>
           <span aria-hidden="true">{bandPlaying ? "■" : "▶"}</span>
         </button>
-        <button className="rail-btn" data-dock="band" aria-pressed={tab === "band"} onClick={() => open("band")}>Band</button>
-        <button className="rail-btn" data-dock="record" aria-pressed={tab === "record"} onClick={() => open("record")}>Rec</button>
+        <button className="rail-btn" data-dock="band" aria-pressed={tab === "band"} onClick={() => open("band")}>Play along</button>
+        <button className="rail-btn" data-dock="record" aria-pressed={tab === "record"} onClick={() => open("record")}>Listen</button>
       </div>
       <button className="dock-scrim" aria-label="Close the player" tabIndex={-1} hidden={size === "hidden"} onClick={() => app.setDockSize("hidden")} />
       <div className="dock-inner" inert={size === "hidden"}>
@@ -47,7 +47,7 @@ export function Dock() {
           <span className="seg" role="group" aria-label="Sound source">
             {(["band", "record"] as const).map(t => (
               <button key={t} data-dock={t} aria-pressed={tab === t} onClick={() => app.setDockTab(t)}>
-                {t === "band" ? "Band" : "Record"}
+                {t === "band" ? "Play along" : "Listen"}
               </button>
             ))}
           </span>

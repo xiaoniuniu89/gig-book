@@ -63,7 +63,7 @@ function saveCopied(accountId: string, c: { s: string[]; l: string[] }) {
 }
 
 export interface Gig { setId: string; order: number[]; pos: number }
-export interface Account { email: string | null; id: string }
+export interface Account { email: string | null; id: string; /** display name from the profile, else the email before the @ */ name: string }
 
 export const tempoKey = (sg: Song) => "tempo|" + sg.title + "|" + sg.composer;
 const libKey = (sg: Song) => sg.title + "|" + sg.composer;
@@ -248,7 +248,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (id === userId) return; // token refreshes etc.
       userId = id;
       if (session?.user) {
-        setAccount({ id: session.user.id, email: session.user.email ?? null });
+        const u = session.user;
+        setAccount({ id: u.id, email: u.email ?? null, name: (u.email || "").split("@")[0] });
+        sb.from("profiles").select("display_name").eq("id", u.id).maybeSingle().then(({ data }) => {
+          const n = (data as { display_name: string | null } | null)?.display_name;
+          if (n && userId === u.id) setAccount(a => a && a.id === u.id ? { ...a, name: n } : a);
+        });
         setStore(supabaseStore(sb, session.user.id));
       } else {
         setAccount(null);

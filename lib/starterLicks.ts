@@ -1,32 +1,44 @@
-// Licks that ship with the app: common bebop vocabulary, written in C. Read-only and never stored.
+// Licks that ship with the app: bebop and hard-bop vocabulary, written out in ABC notation. Read-only, never stored.
 import type { Lick } from "./data/types";
 
-const L = (id: string, title: string, tags: string[], progression: string, body: string): Lick =>
-  ({ id: "starter-" + id, ownerId: "", ownerName: "", mine: false, title, body, tags, progression, key: "C", createdAt: "", updatedAt: "" });
+const L = (id: string, title: string, tags: string[], key: string, progression: string, notation: string, body: string): Lick =>
+  ({ id: "starter-" + id, ownerId: "", ownerName: "", mine: false, title, body, tags, progression, key, notation, createdAt: "", updatedAt: "" });
 
 export const STARTER_LICKS: Lick[] = [
-  L("arp-scale", "Up the ii, down the V", ["ii–V–I", "arpeggio"], "Dm7 G7 | Cmaj7",
-    "Dm7: D F A C (up the arpeggio). G7: B A G F (step down from the 3rd). Cmaj7: land on E, the 3rd."),
-  L("guide-tones", "Guide-tone line", ["ii–V–I", "guide tones"], "Dm7 G7 | Cmaj7",
-    "Hold F over Dm7 (its 3rd); it becomes the 7th of G7, then falls a half step to E, the 3rd of Cmaj7. Second voice: C → B → B (7th → 3rd → 7th)."),
-  L("1235", "1-2-3-5 cells", ["ii–V–I", "patterns", "Coltrane"], "Dm7 G7 | Cmaj7",
-    "Dm7: D E F A. G7: G A B D. Cmaj7: C D E G. Same shape from each root; try it descending too (5-3-2-1)."),
-  L("enclosure", "Enclose the 3rd", ["ii–V–I", "enclosure", "bebop"], "Dm7 G7 | Cmaj7",
-    "Dm7: A F E D. G7: G A B D F. Then F and D♯ around the target: F D♯ | E on beat 1 of Cmaj7."),
-  L("bebop-dom", "Bebop dominant run", ["ii–V–I", "bebop scale"], "Dm7 G7 | Cmaj7",
-    "Over G7, eighth notes straight down from the root: G F♯ F E D C B A. The added F♯ keeps chord tones on the beats. Land on G over Cmaj7."),
-  L("dim-b9", "Diminished from the 3rd (♭9)", ["ii–V–I", "altered", "diminished"], "Dm7 G7b9 | Cmaj7",
-    "Dm7: D F A C. G7♭9: B D F A♭ (a diminished 7th arpeggio from the 3rd). A♭ falls to G over Cmaj7."),
-  L("altered", "Altered resolution", ["ii–V–I", "altered"], "Dm7 G7alt | Cmaj7",
-    "G7alt: F E♭ C♯ B, then A♭ (the ♭9) resolving down to G, the 5th of Cmaj7."),
-  L("minor", "Minor ii–V–i", ["minor", "ii–V–i"], "Dm7b5 G7b9 | Cm6",
-    "Dm7♭5: D F A♭ C. G7♭9: B A♭ F D. Cm6: E♭, the minor 3rd. The A♭ and the B carry the sound."),
-  L("tritone", "Tritone-sub line", ["ii–V–I", "tritone sub"], "Dm7 Db7 | Cmaj7",
-    "Dm7: D F A C. D♭7: B A♭ F E♭ (B is the 7th, spelt C♭). Cmaj7: D then E. The bass falls D → D♭ → C under it."),
-  L("turnaround", "I–VI–ii–V turnaround", ["turnaround", "ii–V–I"], "Cmaj7 A7b9 | Dm7 G7",
-    "Cmaj7: E G B C. A7♭9: C♯ E G B♭. Dm7: A F D C. G7: B D F A♭, back to G at the top."),
-  L("blues", "Blues: minor to major 3rd", ["blues"], "C7 | F7",
-    "C7: E♭ E G A C (bend the ♭3 up to the 3rd). F7: A G E♭ C, the E♭ now the 7th of F7."),
-  L("cadence-c", "Bird-style cadence", ["ii–V–I", "bebop"], "Dm7 G7 | Cmaj7",
-    "Dm7: F E D C. G7: B D F A, then A♭ G as a chromatic step down. Cmaj7: E, with D on the way (D–E)."),
+  L("bird-251-f", "Bird ii–V–I in F", ["ii–V–I", "bebop", "Parker"], "F", "Gm7 | C7 | Fmaj7",
+    `K:F
+"Gm7"z B d f a g f d | "C7"c =B _B A G E F ^G | "Fmaj7"A6 z2 |]`,
+    "Up the ii from the 3rd to the 9th, down the C bebop scale, then E–F–G♯ climbs into A, the 3rd of F. Parker played this shape constantly."),
+  L("enclose-251-bb", "Enclosures, ii–V–I in B♭", ["ii–V–I", "enclosure", "bebop"], "Bb", "Cm7 | F7 | Bbmaj7",
+    `K:Bb
+"Cm7"z d =B c e d _B G | "F7"B ^G A c e c A ^c | "Bbmaj7"d6 z2 |]`,
+    "Every target is surrounded before it lands: D and B around C, B♭ and G♯ around A, then C♯ slides up into D."),
+  L("dim-minor-cm", "Diminished line, minor ii–V–i", ["minor", "ii–V–i", "diminished"], "C", "Dm7b5 | G7b9 | Cm6",
+    `K:Cm
+"Dm7b5"z d f a g f d c | "G7b9"=B d f a g f d =B | "Cm6"c6 z2 |]`,
+    "Over G7♭9 play a diminished arpeggio from the 3rd (B D F A♭). The B turns back on itself and resolves up to C."),
+  L("tritone-c", "Tritone sub, ii–V–I in C", ["ii–V–I", "tritone sub"], "C", "Dm7 | Db7 | Cmaj7",
+    `K:C
+"Dm7"z A c e d c A G | "Db7"F _A B _d c _B _A F | "Cmaj7"E6 z2 |]`,
+    "D♭7 for G7. Arpeggiate it from the 3rd (F A♭ C♭ D♭), fall back down through B♭ and A♭, and F drops a half step into E."),
+  L("altered-c", "Altered dominant into C", ["ii–V–I", "altered"], "C", "Dm7 | G7alt | Cmaj7",
+    `K:C
+"Dm7"z d f a c' b a g | "G7alt"z _a f _e _d B _A F | "Cmaj7"E6 z2 |]`,
+    "Leave a breath on beat one of the V, then come down the altered scale: ♭9, 7, ♯9, ♭5, 3, ♭9. F to E finishes it."),
+  L("sonny-251-eb", "Triplet pickup, ii–V–I in E♭", ["ii–V–I", "triplets", "hard bop"], "Eb", "Fm7 | Bb7 | Ebmaj7",
+    `K:Eb
+"Fm7"z (3fga f c A F G | "Bb7"B =A _A G F E D F | "Ebmaj7"G6 z2 |]`,
+    "A quick triplet up to the A♭ kicks the line off, then the B♭ bebop scale runs down with the chromatic A natural on the way."),
+  L("turnaround-c", "I–VI–ii–V turnaround in C", ["turnaround", "ii–V–I"], "C", "Cmaj7 A7b9 | Dm7 G7 | C6",
+    `K:C
+"Cmaj7"z G E C "A7b9"^C E G _B | "Dm7"A F D F "G7"B d f _a | "C6"g6 z2 |]`,
+    "Two chords to the bar. Each one is an arpeggio from the 3rd, and B♭ and A♭ (the ♭9s) lead you into the next chord."),
+  L("rhythm-bb", "Rhythm changes turnaround in B♭", ["rhythm changes", "turnaround"], "Bb", "Bb6 G7b9 | Cm7 F7 | Bb6",
+    `K:Bb
+"Bb6"d c B G "G7b9"_A =B d f | "Cm7"e d c B "F7"A c e c | "Bb6"d6 z2 |]`,
+    "The bars that close every A section of I Got Rhythm. The G7♭9 arpeggio from A♭ is a diminished chord, which sets up C minor."),
+  L("blues-f", "Blues call and answer in F", ["blues", "hard bop"], "F", "F7 | Bb7",
+    `K:F
+"F7"z2 {^G}A F _A =A c F | "Bb7"_A2 F D F2 z2 |]`,
+    "Grace note into the major 3rd, then rub it against the minor 3rd. Over B♭7 the A♭ is now the 7th and the answer settles on F."),
 ];

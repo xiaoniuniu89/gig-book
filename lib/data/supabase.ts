@@ -59,6 +59,7 @@ interface LickRow {
   tags: string[] | null;
   progression: string | null;
   prog_key: string | null;
+  notation: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,9 +67,9 @@ interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
 interface LinkRow { id: string; created_by: string; licks: LickRow | null }
 
-const LICK_COLS = "id, owner, title, body, tags, progression, prog_key, created_at, updated_at";
+const LICK_COLS = "id, owner, title, body, tags, progression, prog_key, notation, created_at, updated_at";
 const lickCols = (f: LickFields) =>
-  ({ title: f.title, body: f.body, tags: f.tags, progression: f.progression || null, prog_key: f.progression && f.key ? f.key : null });
+  ({ title: f.title, body: f.body, tags: f.tags, progression: f.progression || null, prog_key: f.progression && f.key ? f.key : null, notation: f.notation || null });
 const LINK_COLS = "id, created_by, licks(" + LICK_COLS + ")";
 const ATT_COLS = "id, note_id, lick_id, storage_path, kind, name, mime, size, created_by, created_at";
 const BUCKET = "attachments";
@@ -147,7 +148,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   const toLick = (r: LickRow, nm: Map<string, string>): Lick => ({
     id: r.id, ownerId: r.owner, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member", mine: r.owner === userId,
     title: r.title, body: r.body, tags: r.tags || [],
-    progression: r.progression || "", key: r.prog_key || "", createdAt: r.created_at, updatedAt: r.updated_at,
+    progression: r.progression || "", key: r.prog_key || "", notation: r.notation || "", createdAt: r.created_at, updatedAt: r.updated_at,
   });
 
   /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
@@ -366,6 +367,15 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       return ((data || []) as LickRow[]).map(r => toLick(r, names));
     },
 
+    async getLick(id) {
+      const { data, error } = await sb.from("licks").select(LICK_COLS).eq("id", id).maybeSingle();
+      if (error) fail("load that lick", error);
+      if (!data) return null;
+      const r = data as LickRow;
+      await namesOf([r.owner]);
+      return toLick(r, names);
+    },
+
     async createLick(f) {
       const { data, error } = await sb.from("licks").insert(lickCols(f)).select(LICK_COLS).single();
       if (error) fail("save that lick", error);
@@ -418,7 +428,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const src = await sb.from("licks").select(LICK_COLS).eq("id", lickId).single();
       if (src.error) fail("copy that lick", src.error);
       const s = src.data as LickRow;
-      const ins = await sb.from("licks").insert({ title: s.title, body: s.body, tags: s.tags || [], progression: s.progression, prog_key: s.prog_key }).select(LICK_COLS).single();
+      const ins = await sb.from("licks").insert({ title: s.title, body: s.body, tags: s.tags || [], progression: s.progression, prog_key: s.prog_key, notation: s.notation }).select(LICK_COLS).single();
       if (ins.error) fail("copy that lick", ins.error);
       const copy = ins.data as LickRow;
       const files = await sb.from("attachments").select("storage_path, kind, name, mime, size").eq("lick_id", lickId);
