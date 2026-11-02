@@ -5,6 +5,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useApp } from "./AppProvider";
 import { AttachMenu, AttachmentList, UploadRows, dropProps, useUploads } from "./Attachments";
 import { linkify } from "./Notes";
+import { Icon } from "./Icon";
+import { Modal } from "./Modal";
+import { STARTER_LICKS } from "@/lib/starterLicks";
 import { LICK_KEYS, lickLink, parseProgression } from "@/lib/irealExport";
 import { parseTags, type Attachment, type DataStore, type Lick, type LickFields, type LickHome, type LickLink, type Setlist } from "@/lib/data/types";
 
@@ -138,7 +141,7 @@ function ProgressionActions({ lick }: { lick: Lick }) {
   );
 }
 
-/** "Licks" on a tune: licks attached here, an "Add lick" picker (yours) and "New lick here". */
+/** "Licks" on a tune: licks attached here, and one "Attach a lick" dialog to pick yours or a starter, or write a new one. */
 export function Licks(props: { title: string; hint?: string; home: LickHome; setlist?: Setlist }) {
   const { store } = useApp();
   return store.kind === "supabase" ? <LicksHere {...props} /> : null; // local mode has no licks
@@ -150,7 +153,6 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
   const [links, setLinks] = useState<LickLink[] | null>(null);
   const [mode, setMode] = useState<"pick" | "new" | null>(null);
   const [mine, setMine] = useState<Lick[] | null>(null);
-  const [pick, setPick] = useState("");
   const [armed, setArmed] = useState<string | null>(null);
   const files = useLickFiles(store, (links || []).map(l => l.lick.id));
   const homeKey = JSON.stringify(home);
@@ -165,16 +167,16 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when the home changes
   }, [homeKey, store]);
 
-  const open = (m: "pick" | "new") => {
-    setMode(mode === m ? null : m);
-    if (m === "pick" && !mine) store.listLicks().then(setMine, e => err(e, "Couldn't load your licks."));
+  const open = () => {
+    setMode("pick");
+    if (!mine) store.listLicks().then(setMine, e => err(e, "Couldn't load your licks."));
   };
   const attach = async (lickId: string) => {
     try {
       if (home.kind === "item") await app.flushSetlist(home.setlistId);
       const l = await store.linkLick(lickId, home);
       setLinks(p => (p || []).concat(l));
-      setMode(null); setPick("");
+      setMode(null);
     } catch (e) { err(e, "Couldn't add that lick."); throw e; }
   };
   const create = async (f: LickFields, fs: File[]) => {
@@ -204,26 +206,35 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
   };
 
   const free = (mine || []).filter(l => !(links || []).some(k => k.lick.id === l.id));
+  // a starter lick becomes yours first (only your own licks can be attached), unless you already copied it
+  const addStarter = async (l: Lick) => {
+    const have = (mine || []).find(m => m.title === l.title && m.progression === l.progression);
+    if (have) { await attach(have.id).catch(() => {}); return; }
+    await create({ title: l.title, body: l.body, tags: l.tags, progression: l.progression, key: l.key }, []).catch(() => {});
+  };
+  const pickRow = (l: Lick, onPick: () => void) => (
+    <button key={l.id} className="pick-row" onClick={onPick}>
+      <b>{l.title}</b><span className="hint">{[l.progression, ...l.tags].filter(Boolean).join(" · ")}</span>
+    </button>
+  );
   return (
     <section className="panel notes licks" aria-label={title}>
       <div className="panel-head">
         <h2>{title}</h2>
-        <div className="note-actions">
-          <button className="btn small" aria-expanded={mode === "pick"} onClick={() => open("pick")}>Add lick</button>
-          <button className="btn small" aria-expanded={mode === "new"} onClick={() => open("new")}>New lick here</button>
-        </div>
+        <button className="btn small" onClick={open}><Icon name="plus" size={16} /> Attach a lick</button>
       </div>
       {hint && <p className="hint">{hint}</p>}
-      {mode === "pick" && (mine === null ? <p className="hint">Loading…</p> : free.length ? (
-        <div className="inline-form">
-          <select aria-label="Your licks" value={pick} onChange={e => setPick(e.target.value)}>
-            <option value="">Pick one of your licks…</option>
-            {free.map(l => <option key={l.id} value={l.id}>{l.title}{l.tags.length ? " · " + l.tags.join(", ") : ""}</option>)}
-          </select>
-          <button className="btn primary" disabled={!pick} onClick={() => void attach(pick).catch(() => {})}>Add</button>
-        </div>
-      ) : <p className="hint">No other licks to add. Make one with “New lick here”.</p>)}
-      {mode === "new" && <LickForm newFiles cta="Save lick" onSubmit={create} onCancel={() => setMode(null)} />}
+      <Modal open={mode !== null} title={mode === "new" ? "New lick" : "Attach a lick"} onClose={() => setMode(null)}>
+        {mode === "new" ? <LickForm newFiles cta="Save and add" onSubmit={create} onCancel={() => setMode("pick")} /> : <>
+          <button className="btn primary" onClick={() => setMode("new")}><Icon name="plus" size={18} /> Write a new lick</button>
+          <h3 className="modal-sub">Your licks</h3>
+          {mine === null ? <p className="hint">Loading…</p> : free.length
+            ? <div className="pick-list">{free.map(l => pickRow(l, () => void attach(l.id).catch(() => {})))}</div>
+            : <p className="hint">{mine.length ? "All your licks are already here." : "You haven't saved any licks yet."}</p>}
+          <h3 className="modal-sub">Starter licks</h3>
+          <div className="pick-list">{STARTER_LICKS.map(l => pickRow(l, () => void addStarter(l)))}</div>
+        </>}
+      </Modal>
       {links === null ? <p className="hint">Loading…</p> : !links.length ? <p className="hint">No licks here yet.</p> : (
         <div className="thread-list">
           {links.map(k => (

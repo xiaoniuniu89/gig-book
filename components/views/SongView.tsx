@@ -9,6 +9,9 @@ import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey } from "@/lib/songs";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
+import { Icon } from "../Icon";
+import { Modal } from "../Modal";
+import { newItem } from "../TunePicker";
 import { useChartChoice } from "../Attachments";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
@@ -119,6 +122,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
           </div>
         </div>
         <div className="nav-pair">
+          {cur.kind === "lib" && <AddToSetlist cur={cur} />}
           <Link className="btn" href={(cur.kind === "set" ? songHref(cur.setId, cur.itemIdx) : "/library/" + encodeURIComponent(cur.plId) + "/" + cur.songIdx) + "/chart"}>Chart view</Link>
           {prevHref ? <Link className="btn icon-btn" href={prevHref} aria-label="Previous tune">‹</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Previous tune">‹</a>}
           {nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>}
@@ -312,4 +316,40 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
       </div>
     </section>
   );
+}
+
+/** A library tune into one of your setlists, or a new one (R9.1). */
+function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const own = app.setlists.filter(s => s.role !== "viewer");
+  const sg = cur.song;
+  const item = () => newItem(sg.raw, 1, app.prefs.libShift[sg.title + "|" + sg.composer] ?? null);
+  const into = (s: Setlist) => {
+    app.updateSetlist(s.id, x => ({ ...x, items: [...x.items, item()] }));
+    app.toast(`Added to ${s.name}.`); setOpen(false);
+  };
+  const fresh = async () => {
+    const n = name.trim().slice(0, 200);
+    if (!n) return;
+    const s: Setlist = { id: app.store.newId(n, id => !!app.setlistById(id)), name: n, spotify: null, items: [item()], visibility: "private", role: "owner" };
+    await app.addSetlist(s);
+    app.toast(`Added to ${n}.`); setOpen(false); setName("");
+  };
+  return <>
+    <button className="btn" onClick={() => setOpen(true)}><Icon name="plus" size={18} /> Add to setlist</button>
+    <Modal open={open} title={"Add " + sg.title + " to a setlist"} onClose={() => setOpen(false)}>
+      {own.length > 0 && <div className="pick-list">{own.map(s => (
+        <button key={s.id} className="pick-row" onClick={() => into(s)}>
+          <b>{s.name}</b><span className="hint">{s.items.length} tunes{s.items.some(it => it.raw === sg.raw) ? " · already has this tune" : ""}</span>
+        </button>
+      ))}</div>}
+      <h3 className="modal-sub">New setlist</h3>
+      <form className="new-set" onSubmit={e => { e.preventDefault(); void fresh(); }}>
+        <input aria-label="New setlist name" maxLength={200} placeholder="Name it" value={name} onChange={e => setName(e.target.value)} />
+        <button className="btn primary" type="submit" disabled={!name.trim()}>Create and add</button>
+      </form>
+    </Modal>
+  </>;
 }
