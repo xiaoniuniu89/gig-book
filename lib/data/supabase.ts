@@ -126,18 +126,18 @@ export function itemUuid(setlistId: string, id: string): string {
   return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-8" + hex.slice(17, 20) + "-" + hex.slice(20, 32);
 }
 
-interface BandRow { id: string; name: string; default_perms: BandPerms; bio: string | null; contact: Record<string, string> | null; epk_slug: string | null }
+interface BandRow { id: string; name: string; default_perms: BandPerms; bio: string | null; contact: Record<string, string> | null; epk_slug: string | null; chat_url: string | null }
 interface MemberRow { band_id: string; role: BandRole; plays: string[] | null; perms: Partial<BandPerms> | null }
 interface MemberListRow {
   user_id: string; display_name: string | null; role: BandRole; plays: string[] | null; perms: Partial<BandPerms> | null;
   bio: string | null; instruments: string[] | null; contact: Record<string, string> | null;
 }
-const BAND_COLS = "id, name, default_perms, bio, contact, epk_slug";
+const BAND_COLS = "id, name, default_perms, bio, contact, epk_slug, chat_url";
 function toBand(b: BandRow, m: MemberRow): Band {
   const defaultPerms = { ...DEFAULT_BAND_PERMS, ...(b.default_perms || {}) };
   return {
     id: b.id, name: b.name, role: m.role, defaultPerms, perms: effectivePerms(m.role, m.perms, defaultPerms), plays: m.plays || [],
-    bio: b.bio || "", contact: b.contact || {}, epkSlug: b.epk_slug,
+    bio: b.bio || "", contact: b.contact || {}, epkSlug: b.epk_slug, chatUrl: b.chat_url,
   };
 }
 
@@ -627,6 +627,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async updateBand(id, f) {
       const { data, error } = await sb.from("bands").update({
         name: f.name, default_perms: f.defaultPerms, bio: f.bio.trim() || null, contact: f.contact, epk_slug: f.epkSlug,
+        ...(f.chatUrl !== undefined ? { chat_url: f.chatUrl } : {}),
       }).eq("id", id).select("id");
       if (error?.code === "23505") throw new Error("That page address is taken. Try another.");
       if (error) fail("save the band", error);

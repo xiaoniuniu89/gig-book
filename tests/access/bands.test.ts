@@ -36,6 +36,15 @@ describe("seeded bands through the adapter", () => {
 });
 
 describe("settings and permissions", () => {
+  it("only admins set the group chat link, and members can read it", async () => {
+    const band = await scratchBand(["ava"], ["ben"]);
+    const f = { name: "Scratch Band", defaultPerms: { notes: true, edit_setlists: false, add_setlists: false, invite: false }, bio: "", contact: {}, epkSlug: null };
+    await expect(M.ben.store.updateBand(band, { ...f, chatUrl: "https://chat.whatsapp.com/ben" })).rejects.toThrow();
+    await M.ava.store.updateBand(band, { ...f, chatUrl: "https://chat.whatsapp.com/abc" });
+    expect((await M.ben.store.getBand(band))?.chatUrl).toBe("https://chat.whatsapp.com/abc");
+    expect(await M.eli.store.getBand(band)).toBeNull();
+    await expect(M.ava.store.updateBand(band, { ...f, chatUrl: "javascript:alert(1)" })).rejects.toThrow();
+  });
   it("only admins change the band's settings and default permissions", async () => {
     const band = await scratchBand(["ava"], ["ben"]);
     const f = { name: "Renamed", defaultPerms: { notes: true, edit_setlists: true, add_setlists: true, invite: true }, bio: "", contact: {}, epkSlug: null };

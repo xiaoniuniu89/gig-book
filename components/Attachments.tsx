@@ -1,7 +1,7 @@
 "use client";
 // Attachments on notes (R6): attach menu (photo / record / file), upload queue, list with viewers, "use as chart" (R3.4).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { attachmentKind, type Attachment, type DataStore, type NoteHome } from "@/lib/data/types";
+import { MAX_FILE_MB, attachmentKind, type Attachment, type DataStore, type NoteHome } from "@/lib/data/types";
 
 export const ACCEPT = "application/pdf,image/*,audio/*";
 
@@ -126,6 +126,7 @@ export function useUploads(store: DataStore, home: NoteHome | "lick" | "profile"
   const homeRef = useRef(home); homeRef.current = home;
   const run = useCallback(async (u: Upload) => {
     const patch = (p: Partial<Upload>) => setUps(l => l.map(x => x.key === u.key ? { ...x, ...p } : x));
+    if (u.file.size > MAX_FILE_MB * 1024 * 1024) { patch({ error: `Too big: files can be up to ${MAX_FILE_MB} MB.` }); return; }
     patch({ pct: 0, error: undefined });
     try {
       const h = homeRef.current;

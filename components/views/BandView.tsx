@@ -10,6 +10,7 @@ import { InstrumentPicker } from "../Instruments";
 import { Modal } from "../Modal";
 import { Notes } from "../Notes";
 import { PermSwitches } from "../BandPerms";
+import { Icon } from "../Icon";
 import { hrefFor } from "@/lib/contact";
 import {
   BAND_PERMS, CONTACT_FIELDS, SLUG_RE, newItemId, slug,
@@ -57,6 +58,7 @@ export function BandView() {
           <span className="eyebrow">Band · {band.role === "admin" ? "admin" : "member"}</span>
           <h1>{band.name}</h1>
         </div>
+        {band.chatUrl && <a className="btn" href={band.chatUrl} target="_blank" rel="noopener noreferrer"><Icon name="chat" size={18} /> Band chat</a>}
       </div>
       <div className="pl-tabs" role="tablist" aria-label="Band sections">
         {TABS.map(([k, label]) => <button key={k} role="tab" className="pl-tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}
@@ -333,12 +335,15 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
   const router = useRouter();
   const [name, setName] = useState(band.name);
   const [perms, setPerms] = useState(band.defaultPerms);
+  const [chat, setChat] = useState(band.chatUrl || "");
   const [armed, setArmed] = useState(false);
-  const dirty = name.trim() !== band.name || JSON.stringify(perms) !== JSON.stringify(band.defaultPerms);
+  const chatUrl = chat.trim() ? (/^https?:\/\//i.test(chat.trim()) ? chat.trim() : "https://" + chat.trim()).replace(/^http:/i, "https:") : null;
+  const dirty = name.trim() !== band.name || JSON.stringify(perms) !== JSON.stringify(band.defaultPerms) || chatUrl !== band.chatUrl;
   const save = async () => {
     if (!name.trim()) { toast("A band needs a name."); return; }
+    if (chatUrl && (chatUrl.length > 500 || !URL.canParse(chatUrl))) { toast("That chat link doesn't look right. Paste the whole invite link."); return; }
     try {
-      await store.updateBand(band.id, { name: name.trim().slice(0, 200), defaultPerms: perms, bio: band.bio, contact: band.contact, epkSlug: band.epkSlug });
+      await store.updateBand(band.id, { name: name.trim().slice(0, 200), defaultPerms: perms, bio: band.bio, contact: band.contact, epkSlug: band.epkSlug, chatUrl });
       await reloadBand(); toast("Saved.");
     } catch (e) { toast(errText(e, "Couldn't save.")); }
   };
@@ -350,6 +355,8 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
     <section className="panel">
       <h2>Band settings</h2>
       <label className="acct-field"><span>Name</span><input type="text" value={name} maxLength={200} onChange={e => setName(e.target.value)} /></label>
+      <label className="acct-field"><span>Group chat link</span><input type="url" value={chat} maxLength={500} placeholder="https://chat.whatsapp.com/…" onChange={e => setChat(e.target.value)} /></label>
+      <p className="hint">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</p>
       <h3 className="modal-sub">What members can do by default</h3>
       <PermSwitches value={perms} onChange={setPerms} />
       <p className="hint">Admins can do everything. You can override these for one person in the list above.</p>

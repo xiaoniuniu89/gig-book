@@ -179,9 +179,14 @@ export interface Band {
   contact: Record<string, string>;
   /** The public page is /epk/<slug>; null = no public page. */
   epkSlug: string | null;
+  /** The band's group chat (a WhatsApp invite link, say). Members only. */
+  chatUrl: string | null;
 }
 
-export interface BandFields { name: string; defaultPerms: BandPerms; bio: string; contact: Record<string, string>; epkSlug: string | null }
+export interface BandFields { name: string; defaultPerms: BandPerms; bio: string; contact: Record<string, string>; epkSlug: string | null; chatUrl?: string | null }
+
+/** Largest file you can upload (the storage bucket enforces it too). */
+export const MAX_FILE_MB = 20;
 
 export interface BandMember {
   userId: string;
