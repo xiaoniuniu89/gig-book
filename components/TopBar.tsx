@@ -25,10 +25,11 @@ export function TopBar() {
 
 // Sign out; the sign-in screen itself is in Gate. Only rendered when Supabase is configured.
 function Account() {
-  const { account, toast, stopBand } = useApp();
+  const { account, toast, stopBand, store } = useApp();
   if (!account) return null;
   return (
     <span className="acct-wrap">
+      {store.kind === "supabase" && <Link className="btn small icon-btn" href="/account" aria-label="Account" title="Account and press kit"><Icon name="user" size={18} /></Link>}
       <button className="btn small icon-btn" aria-label="Sign out" title={"Sign out" + (account.email ? " " + account.email : "")} onClick={async () => {
         stopBand();
         await getSupabase()?.auth.signOut();

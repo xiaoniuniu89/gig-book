@@ -115,6 +115,11 @@ export const localStore: DataStore = {
   attachmentUrl: () => Promise.reject(new Error("Attachments need an account.")),
   getChartChoice: async () => null,
   setChartChoice: async () => {},
+  // the profile needs an account (the UI hides it in local mode)
+  getMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
+  updateMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
+  listProfileFiles: async () => [],
+  uploadProfileFile: () => Promise.reject(new Error("The profile needs an account.")),
   // licks need an account (the UI hides them in local mode)
   listLicks: async () => [],
     getLick: async () => null,

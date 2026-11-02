@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, type AppNotification, type Attachment, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -43,6 +43,7 @@ interface AttachmentRow {
   id: string;
   note_id: string | null;
   lick_id: string | null;
+  profile_id?: string | null;
   resource_id: string | null;
   storage_path: string;
   kind: Attachment["kind"];
@@ -72,14 +73,14 @@ const LICK_COLS = "id, owner, title, body, tags, progression, prog_key, notation
 const lickCols = (f: LickFields) =>
   ({ title: f.title, body: f.body, tags: f.tags, progression: f.progression || null, prog_key: f.progression && f.key ? f.key : null, notation: f.notation || null });
 const LINK_COLS = "id, created_by, licks(" + LICK_COLS + ")";
-const ATT_COLS = "id, note_id, lick_id, resource_id, storage_path, kind, name, mime, size, created_by, created_at";
+const ATT_COLS = "id, note_id, lick_id, profile_id, resource_id, storage_path, kind, name, mime, size, created_by, created_at";
 interface ResourceRow { id: string; kind: Resource["kind"]; title: string; url: string | null; tags: string[] | null; note: string; created_at: string; updated_at: string }
 const RES_COLS = "id, kind, title, url, tags, note, created_at, updated_at";
 const toResource = (r: ResourceRow): Resource => ({
   id: r.id, kind: r.kind, title: r.title, url: r.url || "", tags: r.tags || [], note: r.note, createdAt: r.created_at, updatedAt: r.updated_at,
 });
 const resCols = (f: ResourceFields) => ({ kind: f.kind, title: f.title, url: f.kind === "link" ? f.url : null, tags: f.tags, note: f.note });
-const BUCKET ="attachments";
+const BUCKET = "attachments";
 const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, setlist_items(id, position, set_no, song, shift, versions)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
@@ -96,7 +97,7 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
 }
 
 const toAttachment = (r: AttachmentRow): Attachment => ({
-  id: r.id, noteId: r.note_id, lickId: r.lick_id, resourceId: r.resource_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
+  id: r.id, noteId: r.note_id, lickId: r.lick_id, profileId: r.profile_id ?? null, resourceId: r.resource_id, path: r.storage_path, kind: r.kind, name: r.name, mime: r.mime, size: Number(r.size),
   createdBy: r.created_by, createdAt: r.created_at,
 });
 
@@ -159,7 +160,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   });
 
   /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
-  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { resource_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
+  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
     const kind = attachmentKind(file.type, file.name);
     if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
     const mime = (file.type || "application/octet-stream").split(";")[0].trim();
@@ -366,6 +367,31 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
 
     async uploadLickAttachment(lickId, file, onProgress) {
       return upload(`user/${userId}/licks/${lickId}`, { lick_id: lickId }, file, onProgress);
+    },
+
+    async getMyProfile() {
+      const { data, error } = await sb.rpc("my_profile");
+      if (error) fail("load your profile", error);
+      const r = ((data || []) as { display_name: string | null; bio: string | null; instruments: string[] | null; contact: Profile["contact"] | null; share: Profile["share"] | null; epk_slug: string | null }[])[0];
+      return { displayName: r?.display_name || "", bio: r?.bio || "", instruments: r?.instruments || [], contact: r?.contact || {}, share: r?.share || {}, epkSlug: r?.epk_slug ?? null };
+    },
+
+    async updateMyProfile(p) {
+      const { error } = await sb.from("profiles").update({
+        display_name: p.displayName.trim() || null, bio: p.bio.trim() || null, instruments: p.instruments, contact: p.contact, share: p.share, epk_slug: p.epkSlug,
+      }).eq("id", userId);
+      if (error?.code === "23505") throw new Error("That page address is taken. Try another.");
+      if (error) fail("save your profile", error);
+    },
+
+    async listProfileFiles() {
+      const { data, error } = await sb.from("attachments").select(ATT_COLS).eq("profile_id", userId).order("created_at");
+      if (error) fail("load your files", error);
+      return ((data || []) as AttachmentRow[]).map(toAttachment);
+    },
+
+    async uploadProfileFile(file, onProgress) {
+      return upload(`user/${userId}/profile`, { profile_id: userId }, file, onProgress);
     },
 
     async listLicks() {

@@ -86,6 +86,8 @@ interface Ctx {
   authChecked: boolean;
   store: DataStore;
   account: Account | null;
+  /** Show a new display name (after saving the profile). */
+  setAccountName(name: string): void;
   setlists: Setlist[];
   library: LibraryPlaylist[];
   setlistById(id: string): Setlist | undefined;
@@ -632,8 +634,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [band]);
 
+  const setAccountName = useCallback((name: string) => {
+    setAccount(a => a && { ...a, name: name.trim() || (a.email || "").split("@")[0] });
+  }, []);
+
   const value: Ctx = {
-    ready, authChecked, store, account, setlists, library: allLibrary, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
+    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,

@@ -10,7 +10,8 @@ import { supabaseConfigured } from "@/lib/supabase/client";
 export function Gate({ children }: { children: React.ReactNode }) {
   const { account, authChecked } = useApp();
   const path = usePathname();
-  const open = !supabaseConfigured || !!account || path.startsWith("/auth/callback");
+  if (path.startsWith("/epk/")) return <>{children}</>; // public press kit pages: no sign-in, no app chrome
+  const open =!supabaseConfigured || !!account || path.startsWith("/auth/callback");
   if (!open) {
     return <main><div className="wrap" id="view">{authChecked ? <SignIn /> : <p className="hint" role="status">Loading…</p>}</div></main>;
   }

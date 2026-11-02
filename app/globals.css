@@ -566,6 +566,35 @@ object.file-chart { height: 100%; min-height: 80vh; }
   background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / .35); pointer-events: none; }
 .now-key { color: var(--brass); font-weight: 600; margin: 0 0 6px; }
 
+/* account page and public press kit (R11) */
+.acct-sec { display: grid; gap: 12px; margin-top: 24px; max-width: 640px; }
+.acct-sec h2 { margin: 0; }
+.acct-field { display: grid; gap: 4px; }
+.acct-field > span, .acct-field > label { font-size: 13px; color: var(--muted); }
+.acct-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.acct-row input[type="text"], .acct-row input[type="tel"], .acct-row input[type="email"], .acct-row input[type="url"] { flex: 1 1 200px; min-width: 0; }
+.acct-field input[type="tel"], .acct-field input[type="email"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; }
+.acct-field textarea { width: 100%; }
+.share-select { flex: none; }
+.acct-file { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; border-top: 1px solid var(--rule); padding-top: 8px; }
+.qr-box { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.qr { width: 160px; height: 160px; border: 1px solid var(--rule); border-radius: 8px; }
+.epk-url { overflow-wrap: anywhere; font-size: 13px; }
+.epk { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; color: var(--ink); background: var(--paper); min-height: 100vh; }
+.epk h1 { margin: 0 0 8px; }
+.epk section { margin-top: 28px; }
+.epk-bio { white-space: pre-wrap; line-height: 1.6; }
+.epk-contact { display: grid; gap: 6px; margin: 0; }
+.epk-contact div { display: flex; gap: 12px; }
+.epk-contact dt { width: 110px; flex: none; color: var(--muted); }
+.epk-contact dd { margin: 0; overflow-wrap: anywhere; }
+.epk-files { display: grid; gap: 12px; justify-items: start; }
+.epk-files img { max-width: 100%; border-radius: 8px; }
+.epk-files audio { width: 100%; max-width: 420px; }
+@media print { .epk { padding: 0; } .epk-files audio { display: none; } }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 13px; padding: 2px 10px; border-radius: 999px; background: var(--brass-soft); }
+
 /* Resources (R12) */
 .res-kind { display: grid; gap: 10px; }
 .res-form { display: grid; gap: 10px; }

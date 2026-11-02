@@ -78,9 +78,11 @@ export type AttachmentKind = "pdf" | "image" | "audio";
 /** A file on a note (R6). Accounts only; local mode has no attachments. */
 export interface Attachment {
   id: string;
-  /** The note it's on, or null for a lick's file. */
+  /** The note it's on, or null for a lick's or profile file. */
   noteId: string | null;
   lickId: string | null;
+  /** Set on promo files (R11). */
+  profileId?: string | null;
   resourceId: string | null;
   path: string;
   kind: AttachmentKind;
@@ -103,6 +105,37 @@ export function attachmentKind(mime: string, name: string): AttachmentKind | nul
   if (["mp3", "m4a", "wav", "webm", "aac", "ogg", "oga", "caf"].includes(ext)) return "audio";
   return null;
 }
+
+/** Who can see a profile field: only you, the bands you're in, or anyone with your public page (R11). */
+export type Share = "private" | "bands" | "public";
+export const SHARES: { value: Share; label: string }[] = [
+  { value: "private", label: "Only me" }, { value: "bands", label: "My bands" }, { value: "public", label: "Public" },
+];
+
+/** Contact fields, in display order. `kind` picks the input type and how the public page links them. */
+export const CONTACT_FIELDS = [
+  { key: "phone", label: "Phone", kind: "tel" }, { key: "email", label: "Email", kind: "email" }, { key: "whatsapp", label: "WhatsApp", kind: "tel" },
+  { key: "website", label: "Website", kind: "url" }, { key: "instagram", label: "Instagram", kind: "url" }, { key: "tiktok", label: "TikTok", kind: "url" },
+  { key: "youtube", label: "YouTube", kind: "url" }, { key: "facebook", label: "Facebook", kind: "url" }, { key: "spotify", label: "Spotify", kind: "url" },
+  { key: "bandcamp", label: "Bandcamp", kind: "url" }, { key: "soundcloud", label: "SoundCloud", kind: "url" },
+  { key: "payment", label: "Payment link (Revolut, PayPal.me…)", kind: "url" },
+] as const;
+
+/** The share key of a promo file; other keys are the contact keys plus "bio" and "instruments". */
+export const fileShareKey = (id: string): string => "file:" + id;
+
+/** Your own profile and press kit (R11). Accounts only. */
+export interface Profile {
+  displayName: string;
+  bio: string;
+  instruments: string[];
+  contact: Record<string, string>;
+  share: Record<string, Share>;
+  /** The public page is /epk/<slug>; null = no public page. */
+  epkSlug: string | null;
+}
+
+export const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 
 /** A snippet in the owner's library (R8). Visible to its owner and to members of setlists it's linked into. */
 export interface Lick {
@@ -199,6 +232,12 @@ export interface DataStore {
   /** The PDF/image you picked as the chart for a tune, if any (R3.4). */
   getChartChoice(setlistId: string, itemId: string): Promise<Attachment | null>;
   setChartChoice(setlistId: string, itemId: string, attachmentId: string | null): Promise<void>;
+  /** Your profile and press kit (accounts only). */
+  getMyProfile(): Promise<Profile>;
+  updateMyProfile(p: Profile): Promise<void>;
+  /** Promo files, oldest first. */
+  listProfileFiles(): Promise<Attachment[]>;
+  uploadProfileFile(file: File, onProgress?: (p: number) => void): Promise<Attachment>;
   /** Your own licks, newest first (accounts only; local mode has none). */
   listLicks(): Promise<Lick[]>;
   /** One lick you can read (yours, or linked into a setlist you're in). Null when not found. */

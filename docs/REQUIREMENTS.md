@@ -79,6 +79,15 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R9.1 Create an empty setlist and add tunes from the library (no import needed).
 - R9.2 AI-assisted: describe what you want ("bebop heads, medium-up") and get a draft setlist from tunes in your library, plus a suggested Spotify search. Needs an LLM API key; built last.
 
+### R11 Account and press kit
+- R11.1 `/account` (signed in only; local mode shows "Sign in to set up your profile"): display name, instruments (tags), bio with a live word count (hints for 50 / 100 / 250 words).
+- R11.2 Contact fields: phone, email, WhatsApp, website, Instagram, TikTok, YouTube, Facebook, Spotify, Bandcamp, SoundCloud, and a payment link (Revolut / PayPal.me / any URL) shown as a QR code (`lib/qr.ts`, no dependency).
+- R11.3 Promo files (press photos, one-sheet/EPK PDF, demo audio) reuse the attachment components. Stored at `user/<uid>/profile/…`.
+- R11.4 Every field and file has its own share setting: Only me / My bands / Public (default Only me). Joining a band (#40) prompts to confirm what that band sees; `band_member_profile` returns only the caller's own profile until #40 tightens it to bandmates.
+- R11.5 Contact details and bio are never exposed by broad selects: only `id` and `display_name` are readable by other users. The rest is read through `my_profile()`, `public_profile(slug)`, `public_profile_files(slug)` and `band_member_profile(user)`.
+- R11.6 Optional public page `/epk/<slug>` (`[a-z0-9-]{3,40}`): server-rendered, no sign-in, shows the name plus whatever is shared Public. Public files get short-lived (10 min) signed URLs created on the server with `SUPABASE_SERVICE_ROLE_KEY`; without that key the page omits files.
+- R11.7 A band can have its own press kit (built in #40, reusing these components). Messaging is out of scope.
+
 ### R12 Resources
 - R12.1 A personal **Resources** section (`/resources`) for bookmarks (links) and books/PDFs/images: title, tags, note. Private to the owner; accounts only, hidden in local mode.
 - R12.2 Search by title or tag; tabs All / Links / Books & PDFs.
