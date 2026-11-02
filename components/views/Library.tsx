@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../AppProvider";
 import { meta, norm, prettyKey } from "@/lib/songs";
+import { BUILTIN_LIBRARY } from "@/lib/seeds";
 
 let lastQuery = ""; // remembered while the app is open, like the static app
 const PAGE = 100; // rows rendered per scroll step
@@ -49,10 +50,10 @@ export function Library() {
           {library.map(p => (
             <div key={p.id} className="tune lib-pl">
               <span className="name">{p.name}<span className="sub">{p.songs.length} charts</span></span>
-              <button className="btn small" onClick={() => {
+              {p.id === BUILTIN_LIBRARY.id ? <span className="hint">Built in</span> : <button className="btn small" onClick={() => {
                 if (delArmed !== p.id) { setDelArmed(p.id); return; }
                 setDelArmed(null); removeLibraryPlaylist(p.id);
-              }} onBlur={() => setDelArmed(null)}>{delArmed === p.id ? "Tap again to remove" : "Remove"}</button>
+              }} onBlur={() => setDelArmed(null)}>{delArmed === p.id ? "Tap again to remove" : "Remove"}</button>}
             </div>
           ))}
         </div>

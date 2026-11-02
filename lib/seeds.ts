@@ -11,5 +11,5 @@ export const SEEDS: Setlist[] = (seedIds as string[]).map(id => ALL[id] as Setli
 /** A deep copy, so editing a seeded setlist never touches the imported module object. */
 export const cloneSeed = (s: Setlist): Setlist => JSON.parse(JSON.stringify(s));
 
-/** Library playlist added on first run: core jazz standards, charts from the iReal Pro forum's Jazz 1460 playlist. */
-export const STARTER_LIBRARY: LibraryPlaylist = { id: "essential-standards", name: "Essential Standards", songs: standards as string[] };
+/** Built into every library and never stored: core jazz standards, charts from the iReal Pro forum's Jazz 1460 playlist. */
+export const BUILTIN_LIBRARY: LibraryPlaylist = { id: "jazz-essentials", name: "Jazz Essentials", songs: standards as string[] };

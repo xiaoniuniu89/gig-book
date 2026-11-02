@@ -1,7 +1,7 @@
 "use client";
 // App-wide client state: storage, preferences, the backing band, the Spotify embed and practice-gig mode.
 // Lives in the root layout so audio and the embed keep going while you move between pages.
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import type { Song } from "@/lib/ireal";
@@ -16,7 +16,7 @@ import { createSaveQueue } from "@/lib/data/saveQueue";
 import type { DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
-import { SEEDS, STARTER_LIBRARY, cloneSeed } from "@/lib/seeds";
+import { SEEDS, BUILTIN_LIBRARY, cloneSeed } from "@/lib/seeds";
 
 /* ---------------- types ---------------- */
 export type Current =
@@ -272,7 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReady(false);
       try {
         let sls = await store.listSetlists();
-        let lib = await store.listLibrary();
+        const lib = await store.listLibrary();
         const seedFlag = store.kind === "local" ? "gigbook-seeded" : "gigbook-seeded:" + (account?.id || "");
         let seeded = false;
         try { seeded = !!localStorage.getItem(seedFlag); } catch { /* ignore */ }
@@ -294,19 +294,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             throw e;
           }
         }
-        // a starter library, so a new account can build setlists without importing first
-        const libFlag = seedFlag.replace("seeded", "lib-seeded");
-        let libSeeded = false;
-        try { libSeeded = !!localStorage.getItem(libFlag); } catch { /* ignore */ }
-        if (!libSeeded && lib.length === 0) {
-          try { localStorage.setItem(libFlag, "1"); } catch { /* ignore */ }
-          const p = { ...STARTER_LIBRARY, songs: STARTER_LIBRARY.songs.slice() };
-          if (store.kind === "supabase") p.id = store.newId(p.name, () => false);
-          try { await store.saveLibraryPlaylist(p); lib = [p]; } catch (e) {
-            try { localStorage.removeItem(libFlag); } catch { /* ignore */ }
-            throw e;
-          }
-        }
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
           const done = loadCopied(account?.id || "");
@@ -324,6 +311,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
     return () => { cancelled = true; };
   }, [store, account?.id, toast, applySetlists]);
+
+  // the built-in playlist comes first and is never stored; a stored playlist of the same name is an old seeded copy
+  const allLibrary = useMemo(() => [BUILTIN_LIBRARY, ...library.filter(p => p.id !== BUILTIN_LIBRARY.id && p.name !== BUILTIN_LIBRARY.name)], [library]);
 
   const setlistById = useCallback((id: string) => setlistsRef.current.find(s => s.id === id), []);
 
@@ -380,6 +370,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const removeLibraryPlaylist = useCallback(async (id: string) => {
+    if (id === BUILTIN_LIBRARY.id) return; // ships with the app, not stored
     try { await storeRef.current.deleteLibraryPlaylist(id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
     setLibrary(prev => prev.filter(x => x.id !== id));
   }, [toast]);
@@ -620,7 +611,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [band]);
 
   const value: Ctx = {
-    ready, authChecked, store, account, setlists, library, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
+    ready, authChecked, store, account, setlists, library: allLibrary, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
