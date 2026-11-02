@@ -4,6 +4,7 @@
 -- Contact details and bio are NOT readable through plain selects: column grants keep `id` and
 -- `display_name` readable (as before) and everything else goes through security-definer functions.
 -- Promo files are attachments with profile_id set, stored at user/<uid>/profile/<uuid>-<name>.
+-- Run after 0011: the attachment rules below cover every kind of file (note, lick, resource, profile).
 
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists instruments text[] not null default '{}';
@@ -109,7 +110,7 @@ alter table public.attachments add column if not exists profile_id uuid referenc
 create index if not exists attachments_profile_idx on public.attachments (profile_id);
 alter table public.attachments drop constraint if exists attachments_one_parent;
 alter table public.attachments add constraint attachments_one_parent
-  check ((note_id is not null)::int + (lick_id is not null)::int + (profile_id is not null)::int = 1);
+  check ((note_id is not null)::int + (lick_id is not null)::int + (resource_id is not null)::int + (profile_id is not null)::int = 1);
 
 -- user/<uid>/profile/<file>: only the owner reads, writes and deletes (public files go through signed URLs made on the server).
 create or replace function public.is_profile_path(p_path text)
@@ -131,9 +132,11 @@ as $$
 declare
   n public.notes := public.attachment_path_note(p_path);
   l public.licks := public.attachment_path_lick(p_path);
+  r public.resources := public.attachment_path_resource(p_path);
 begin
   if auth.uid() is null then return false; end if;
   if public.is_profile_path(p_path) then return true; end if;
+  if r.id is not null then return r.owner = auth.uid(); end if;
   if l.id is not null then return public.lick_visible(l.id); end if;
   if n.id is null then return false; end if;
   if n.setlist_id is not null then return public.setlist_readable(n.setlist_id); end if;
@@ -151,9 +154,11 @@ as $$
 declare
   n public.notes := public.attachment_path_note(p_path);
   l public.licks := public.attachment_path_lick(p_path);
+  r public.resources := public.attachment_path_resource(p_path);
 begin
   if auth.uid() is null then return false; end if;
   if public.is_profile_path(p_path) then return true; end if;
+  if r.id is not null then return r.owner = auth.uid(); end if;
   if l.id is not null then return l.owner = auth.uid(); end if;
   if n.id is null then return false; end if;
   if n.setlist_id is not null then return public.setlist_role(n.setlist_id) is not null; end if;
@@ -168,6 +173,7 @@ create policy attachments_select on public.attachments for select to authenticat
   using (
     (note_id is not null and exists (select 1 from public.notes n where n.id = note_id))
     or (lick_id is not null and public.lick_visible(lick_id))
+    or (resource_id is not null and exists (select 1 from public.resources r where r.id = resource_id and r.owner = auth.uid()))
     or profile_id = auth.uid()
   );
 
@@ -177,10 +183,12 @@ create policy attachments_insert on public.attachments for insert to authenticat
     created_by = auth.uid()
     and public.can_write_attachment_path(storage_path)
     and (
-      (note_id is not null and lick_id is null and profile_id is null and split_part(storage_path, '/', 3) = note_id::text)
-      or (lick_id is not null and note_id is null and profile_id is null and split_part(storage_path, '/', 4) = lick_id::text
+      (note_id is not null and lick_id is null and resource_id is null and profile_id is null and split_part(storage_path, '/', 3) = note_id::text)
+      or (lick_id is not null and note_id is null and resource_id is null and profile_id is null and split_part(storage_path, '/', 4) = lick_id::text
           and public.lick_owner(lick_id) = auth.uid())
-      or (profile_id is not null and note_id is null and lick_id is null and profile_id = auth.uid()
+      or (resource_id is not null and note_id is null and lick_id is null and profile_id is null and split_part(storage_path, '/', 4) = resource_id::text
+          and exists (select 1 from public.resources r where r.id = resource_id and r.owner = auth.uid()))
+      or (profile_id is not null and note_id is null and lick_id is null and resource_id is null and profile_id = auth.uid()
           and public.is_profile_path(storage_path))
     )
   );
