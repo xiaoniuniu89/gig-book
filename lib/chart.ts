@@ -83,7 +83,7 @@ export function chartHTML(song: Song, opts: ChartOpts): string {
       if (b.final || bi === lastIdx) cls.push("end");
       else if (i === r.bars.length - 1 && !b.repeatEnd) cls.push("last-in-row");
       const n = b.chords.length;
-      if (n >= 3) cls.push("n" + Math.min(n, 4));
+      if (n >= 2) cls.push("n" + Math.min(n, 4));
       let inner: string;
       if (b.sim) inner = `<div class="cell"><div class="brk scb"></div><span class="ch sim">%</span></div>`;
       else if (n === 1 && b.chords[0].cont) inner = `<div class="cell"><div class="brk scb"></div><span class="ch sim">·</span></div>`;

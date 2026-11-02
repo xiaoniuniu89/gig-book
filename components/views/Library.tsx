@@ -29,7 +29,7 @@ export function Library() {
   return (
     <>
       <div className="set-head">
-        <div><span className="eyebrow">Library</span><h1>{all.length} charts</h1></div>
+        <div><span className="eyebrow">Library</span><h1>{all.length === 1 ? "1 chart" : all.length ? all.length + " charts" : "No charts yet"}</h1></div>
       </div>
       {ready && library.length > 0 && (
         <div className="panel list" id="lib-playlists">

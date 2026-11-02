@@ -36,7 +36,8 @@ export function SignIn() {
         <form onSubmit={send} style={{ display: "grid", gap: 10 }}>
           <h2>Sign in</h2>
           <p className="hint">Gig Book is a closed beta for invited musicians. Enter the email Dan added and we&apos;ll send you a sign-in link. No password.</p>
-          <input type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          <label htmlFor="signin-email">Email</label>
+          <input id="signin-email" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
           {err && <p className="flag" role="alert">{err}</p>}
           <div className="row-btns"><button className="btn primary" type="submit" disabled={busy}>{busy ? "Sending…" : "Email me a link"}</button></div>
         </form>

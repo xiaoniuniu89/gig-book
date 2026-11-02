@@ -108,7 +108,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
     <>
       <div className="song-head">
         <div className="song-title">
-          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} ·${cur.itemIdx + 1} of ${list.length}` : "Library"} {gigLine}</span>
+          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} · ${cur.itemIdx + 1} of ${list.length}` : "Library"} {gigLine}</span>
           <h1>{sg.title}</h1>
           <div className="meta">
             <span>{sg.composer}</span><span>·</span><span>{sg.style}</span><span>·</span>

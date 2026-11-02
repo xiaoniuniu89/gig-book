@@ -63,8 +63,7 @@ export function Home() {
   return (
     <>
       <section className="intro">
-        <span className="eyebrow">Your gigs</span>
-        <h1>Gig Book</h1>
+        <h1>Your gigs</h1>
       </section>
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelf">
