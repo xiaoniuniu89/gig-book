@@ -276,16 +276,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const seedFlag = store.kind === "local" ? "gigbook-seeded" : "gigbook-seeded:" + (account?.id || "");
         let seeded = false;
         try { seeded = !!localStorage.getItem(seedFlag); } catch { /* ignore */ }
+        if (cancelled) return; // a superseded run (Strict Mode, quick sign-in changes) must not seed too
         if (!seeded && (store.kind === "local" || sls.length === 0)) {
-          for (const seed of SEEDS) {
-            if (sls.some(s => s.id === seed.id || s.name === seed.name)) continue;
-            const s = cloneSeed(seed);
-            if (store.kind === "supabase") { s.id = store.newId(s.name, () => false); s.visibility = "private"; }
-            s.role = "owner";
-            await store.saveSetlist(s);
-            sls = sls.concat(s);
-          }
+          // claim the flag before writing, so a second run or tab doesn't add its own copy
           try { localStorage.setItem(seedFlag, "1"); } catch { /* ignore */ }
+          try {
+            for (const seed of SEEDS) {
+              if (sls.some(s => s.id === seed.id || s.name === seed.name)) continue;
+              const s = cloneSeed(seed);
+              if (store.kind === "supabase") { s.id = store.newId(s.name, () => false); s.visibility = "private"; }
+              s.role = "owner";
+              await store.saveSetlist(s);
+              sls = sls.concat(s);
+            }
+          } catch (e) {
+            try { localStorage.removeItem(seedFlag); } catch { /* ignore */ }
+            throw e;
+          }
         }
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
