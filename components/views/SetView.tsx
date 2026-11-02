@@ -10,7 +10,8 @@ import { song } from "@/lib/songs";
 import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { toUri, webUrl } from "@/lib/spotify/uri";
-import { MEMBER_NOT_FOUND, type Member, type Setlist } from "@/lib/data/types";
+import { isBuiltin } from "@/lib/seeds";
+import { MEMBER_NOT_FOUND, newItemId, type Member, type Setlist } from "@/lib/data/types";
 
 export function SetView() {
   const params = useParams<{ id: string }>();
@@ -44,6 +45,7 @@ function SetBody({ s }: { s: Setlist }) {
   const edit = (fn: (s: Setlist) => Setlist) => updateSetlist(s.id, fn);
   const canEdit = s.role !== "viewer";
   const isOwner = !s.role || s.role === "owner";
+  const builtin = isBuiltin(s.id); // an example that ships with the app: read-only, copy it to change it
   const [plLink, setPlLink] = useState(s.spotify ? webUrl(s.spotify) : "");
   const [armed, setArmed] = useState<number | null>(null);
   const [delArmed, setDelArmed] = useState(false);
@@ -54,6 +56,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const itemIds = s.items.map(it => it.id).join(",");
   useEffect(() => {
+    if (builtin) return;
     let gone = false;
     app.flushSetlist(s.id)
       .then(() => app.store.countNotes(s.id, itemIds ? itemIds.split(",") : []))
@@ -135,6 +138,15 @@ function SetBody({ s }: { s: Setlist }) {
     edit(x => ({ ...x, name: v }));
   };
 
+  const makeCopy = async () => {
+    const name = s.name + " (copy)";
+    const copy: Setlist = { ...s, id: app.store.newId(name, id => !!app.setlistById(id)), name, role: "owner", visibility: "private",
+      items: s.items.map(it => ({ ...it, id: newItemId() })) };
+    await app.addSetlist(copy);
+    toast("Copied. This one is yours to change.");
+    router.push("/set/" + encodeURIComponent(copy.id));
+  };
+
   const addTunes = (raws: string[], n: 1 | 2) => {
     edit(x => ({ ...x, items: [...x.items, ...raws.map(r => newItem(r, n))] }));
     toast(`Added ${raws.length} tune${raws.length === 1 ? "" : "s"} to set ${n}.`);
@@ -144,7 +156,7 @@ function SetBody({ s }: { s: Setlist }) {
     <>
       <div className="set-head">
         <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-          <span className="eyebrow">Setlist{s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}</span>
+          <span className="eyebrow">Setlist{!builtin && s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}</span>
           {renaming ? (
             <input className="rename" aria-label="Setlist name" autoFocus maxLength={200} value={draft}
               onChange={e => setDraft(e.target.value)} onBlur={commitRename}
@@ -158,6 +170,7 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
         <div className="row-btns">
           {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}>Add tunes</button>}
+          {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           <button className="btn primary" data-gig="all" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
           <button className="btn" data-gig="1" onClick={() => app.startGig(s, "1")}>Set 1</button>
           <button className="btn" data-gig="2" onClick={() => app.startGig(s, "2")}>Set 2</button>
@@ -202,8 +215,8 @@ function SetBody({ s }: { s: Setlist }) {
           {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener">Open in Spotify</a>}
         </div>
       </section>
-      <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />
-      {app.store.kind === "supabase" && <Band s={s} owner={isOwner} />}
+      {!builtin && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
+      {!builtin && app.store.kind === "supabase" && <Band s={s} owner={isOwner} />}
       {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
         <section className="danger-zone">

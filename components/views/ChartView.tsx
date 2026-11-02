@@ -8,6 +8,7 @@ import { ChartHost } from "./SongView";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
+import { isBuiltin } from "@/lib/seeds";
 import { FileChart, useChartChoice } from "../Attachments";
 import type { Attachment } from "@/lib/data/types";
 
@@ -33,7 +34,7 @@ export function SetChartView() {
   const prev = s && idx > 0 ? songHref(id, idx - 1) + "/chart" : "";
   const next = s && idx < s.items.length - 1 ? songHref(id, idx + 1) + "/chart" : "";
   const itemId = s && Number.isInteger(idx) ? s.items[idx]?.id : undefined;
-  return <Focus cur={cur} back={songHref(id, idx)} prev={prev} next={next} missing={missing || !!(s && !raw)} tune={setId && itemId ? { setlistId: setId, itemId } : undefined} />;
+  return <Focus cur={cur} back={songHref(id, idx)} prev={prev} next={next} missing={missing || !!(s && !raw)} tune={setId && itemId && !isBuiltin(setId) ? { setlistId: setId, itemId } : undefined} />;
 }
 
 /** /library/[playlistId]/[index]/chart */

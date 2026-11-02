@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { isBuiltin } from "@/lib/seeds";
 import { useApp } from "../AppProvider";
 import { AiDraft } from "../AiDraft";
 import { Icon } from "../Icon";
@@ -43,7 +44,7 @@ export function Setlists() {
         <div className="shelf">
           {books.map(({ s, keys }) => (
             <Link key={s.id} className="book" href={"/set/" + encodeURIComponent(s.id)}>
-              <span className="m">{s.items.length} tunes{s.role && s.role !== "owner" ? " · shared with you" : ""}</span>
+              <span className="m">{s.items.length} tunes{!isBuiltin(s.id) && s.role && s.role !== "owner" ? " · shared with you" : ""}</span>
               <span className="t">{s.name}</span>
               <span className="keys">{keys}</span>
             </Link>

@@ -1,0 +1,91 @@
+{
+ "id": "builtin-medium-swing",
+ "name": "Medium Swing Standards",
+ "spotify": null,
+ "items": [
+  {
+   "id": "s1",
+   "raw": "All Of Me=Marks Gerald==Medium Swing=C==1r34LbKcu7 lcKQ4C^7XZL lcKQyX7AZL clKQyX7EZL lcKQyD-7Xy4T[A*yX7G|E7XyQDZL lcKQyX7DZLl cKQyX7-AZL lcK-7XyQ[B*]   lcKC^7XyDZL lcKQyX7AZLl cKQyX7EZL lcKQ-7XyQ[A*]QQyX7-^7XyQ7A|QyX)G/7^C(7E-|QyX)7o#F(6-F|XyQ|DF[C*]|G7XyQ|C6 Ebo7LZD-7 G7 Z==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s2",
+   "raw": "Autumn Leaves=Kosma Joseph==Medium Swing=G-==1r34LbKcu7QyX314C-7XyX7hA|QyX7^bE|yQX7^bB|QyX7F|QyQ|D7b4T{A*QyX7-yQKclcKQyX6-G|QyX317bD|QyX7hA[B*}  l LZCX6-G|L7bG Q|Bb^yX31b7D|QyX7hAC[*]QyX7^bE|QyX7Q|G-7yX7F|ZF-7 E7LZAh7XyQ|D7b13XyQ|G-6XyQKcl  Z==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s3",
+   "raw": "Bye Bye Blackbird=Henderson Ray==Medium Swing=F==1r34LbKcu7hA|Qy4F^7X(7^FZL7C 7-G|QXy7^FZL7C 7-G|QyAh7)X4TA*[X7C|Q9) D7|QyX7D|QyX7-G|yQX7C|QyX7-GZL9bG-7Xyb7D(7X7bE|7XyQ|F(7E|QyX7FB*[]  lcKQyX6F|QyX7C7)XyQ-G|Qy7C 7-b9XyQ7^F[]QyX7C|QyXb7DZL lcKQyX7-G|XyQ|G7D|QyG|QyX(Ah7)X7C|QyX7-GZL9bD7 )9b7D(7hA|QyXyQ|F67^FZL-7 C7 Z ==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s4",
+   "raw": "Fly Me To The Moon=Howard Bart==Medium Swing=C==1r34LbKcu7b7E|Q4A-7X|QyX7^F|QyX7^CQ|yX7G|QyX7-D|QyBh7Xy4TA*[G|QyXA-7 A7A 7-EZL7F 7^CQ|yX7G|QyX7-DZL7LZD-7|QyX9yX7^CC^7XyG|QyX7-D|QyX7-BA*[] 9b7E 7hB|Q7XyQ||QyX7yX7-EXyQ|BG|QyX7-DZL7A 7A-|QyX9b7E|QyX7h7XyQ|7^F|QQ|A7XyQ|D-7XyQ|G7XyQ|UC6XyQ|Bh7 E7b9 Z ==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s5",
+   "raw": "Have You Met Miss Jones?=Rodgers Richard==Medium Swing=F==1r34LbKcu7-G1N|4F^7XD|QyX7-A|QyX7CQ|yX7-G|QyX7D|Qy-7XyQ4TA*{7-bA|C7XyQbBB*[]QyX7F|Qy7X-C2NZL QyXQyX}^7XyQ|QyX77-G|QZGb^7GZL7bD 7-bA|Qy7X^DZL7A 7-E|QyXb^7XyL7bD  7-GZ[*AF^-A|QyX7C|QyX7-ZGL7D 7-AZL7bB 77 D7L] 7C C7LZF6XyQ|G-7 C7 Z ==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s6",
+   "raw": "How High The Moon=Lewis Morgan==Medium Swing=G==1r34LbKcu7|QyX74G^7XlcKQyX7^F|QyX7|CQyX7-GZL lcKQy LZF-4TA*[yX7^GQ][*BD 7hA|QyX7-GZLb97D 7hA|QyX7^bE7b9LZyX7bB7C|Qy D7LZL lcKQyX7^GA*[ ]7D 7-AZL7E 7-BZG-7X7-A|QL9b7D^7XyQQyX7^bEC*[]QyXb7B|QyX7-FZL lcK|Ah7 F|QyXZG^7XyQ|A-7 D7LZB-7 E7LZA-7 D7LZG6XyQ|A-7 D7 Z ==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s7",
+   "raw": "It Could Happen To You=Van-Heusen Jimmy==Medium Swing=Eb==1r34LbKcu7  )7h4Eb^7F|QyX7-FZL)9b7(C  )7hG(7oE|QyX#o7(A4T[A*B|QyX)LZEb*]QyX9b7C|QyX7Gh|QyX7^bA|QyX7^B[F-79b7D(7-#F(7)XyQyX7F|QyX7-CZL97bG 7hD|QyX7^bE|Q|F-7bD(7bC(  )7)LZBoE||QyX7^bE[A* ])7bB(  )7-F(7b7(Gh7B(  )hG|QyZF-7X|QyX7^bEZL)9b7(D  )7hA(7o#F|QyAb^7XL)9b7C 7hGC7b9X 7^bE|QyX)7bD(b7B|QyX7-F[C*]QyAb7LZ|QyX77b9LZF-7XyQ|Bb7XyQ|Eb^7 C-7LZF-7 Bb7 Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s8",
+   "raw": "Like Someone In Love=Van-Heusen Jimmy==Medium Swing=Eb==1r34LbKcu7X7-FZ4Eb^7-GZL7bA 7hAZLb/B7-C 7-CZLD/7G 7 C7L4TA*{7-D|Q7(Bb7A1NB*[] 7bE 7-Bb|QyX7^bEZL7D )b^7Xy-A|QyNC*[}C^7Xy7bB|QyX7-F|QyXF7|QyX7-CZL lcKQ#5XyQZL7G EZL7bXyQ|DZL7C 7-G|QyX7oF#|QyX7^CZL7G 7-F-7 B7^bA2b6XyQ|F-7 Bb7 Z ==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s9",
+   "raw": "My Romance=Rodgers Richard==Medium Swing=C==1r34LbKcu7AZL7E4C^7 L7E 7^CZL7G 7-ZDL7obE 7-EZL7^FZA-7 4T[A*7bB 7LZD-7C 7^CZL7bB 7^FB[*] 7C 7^CZL7G 7LZF^7A 7-^C[A*XyQ|F7-DZL7D 7-AZL7Bb 7-EZL9b7B 7h# G7 ]7^CZLDZL7ALZE-7L7E 7-AZL7E 7^ZCL7G 7-DZL7obE ZA-7 7^F 77-AZLLZC^77hBZLC/7-D 7-DLZ7A 7^F[C*] 7C  E7b97G 7- Ab7LZC^7/G A-7LZD-7 G7LZC6 A-7LZD-7 G7 Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s10",
+   "raw": "Satin Doll=Strayhorn-Ellington==Medium Swing=C==1r34LbKcu77-bAZ4D-7 -AZL7A 7-EZL7A7 -EZL7G 7-DZL7G7 D7L4T{A*[B*] ZN1C^yX7^C2NZL QyXQXy} 7A 7-EZL7F 7QKcl L7bD KQyX77LZG- 7-AZL7D 7-AZLl cKQyX7^FZL7C 7D7LZGC 7-GbAZL7*A[D-ZL7A 7-EZL7A 7E-ZL7G 7-DZL7G 7A-7 D]  lc-7 Db7LZUC^7 F7LZE-7 A7 Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s11",
+   "raw": "Days Of Wine And Roses=Mancini Henry==Medium Swing=F==1r34LbKcu7KQyX74F^7XX31b7D|QyX)7D(-7A|QyX11#7bE|QyyQ|G-4TA*[XF/7-Eb7#17-G|QyX7-D|QyX-7AB*[]  lcKQyX1XyQ|GZL lc11#7b7 A7b7^FA*[]QyX7C|QXy7-GZL7G 7-DZL9XyQ|EhE|Qy*[]  -7(D7X9bEZL lcKQyX7G-|QyX31b7D|QyX)yQKclA|QyXL7C 7yQ|D--D 7-A|QyX9b7EQ|yX7hBZLC/7-D 77LZG-X7-ACZF6XyQ|G-7 C7 Z ==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s12",
+   "raw": "Stella By Starlight=Young Victor==Medium Swing=Bb==1r34LbKcu7bE|Qy4Eh7XQyX7-F|QyX7F|QXy7-C|QyX9b7A|Qy|Bb7X4T[A*^FZL7|Ab7XbB|QyX7-DZL9b7 A7hE|QyX7^bB|Qy-7 EbQyX7^7G[B*Eh7(Gb7D|QyX)7hA(117#^bEZL)7C(  )7-9XyQ]|QyX7 lcKQQKcl BZL lcKQyX11#7AbZL lcKQyX7-CZLb^7XyyX31b|QyX9Eh7XyyX7hC|QyX9b7G|yQX7hD|QyX9b7A|QQ|F7b[C*] Bb^7XyQKcl  Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  }
+ ]
+}

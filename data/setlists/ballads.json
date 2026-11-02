@@ -1,0 +1,77 @@
+{
+ "id": "builtin-ballads",
+ "name": "Ballads",
+ "spotify": null,
+ "items": [
+  {
+   "id": "s1",
+   "raw": "Body And Soul=Green Johnny==Ballad=Db==1r34LbKcu7bEZL74Eb-7FZL7bG 7^bDZL7Ab 7-bEZL31b7bB -7 Eo4T{A*F,7bG-7/Db1N|,7bA,7-bEs -7bBZL9b7F 7hCZLsDb6,bE 7-7^DZL}XyQX^Dl[B*]7A,7-Es6 bDl2N|QyXQyXQy7 E-77bB,hE 7-EG-7,C7-D|QyX7^Dl|,7,A7-E,7-B,7-#F|7 G7LZs #F/7bA 7D-7 G31b7bB 7-bEl[A]* 7bB,7B,7CsZL7LZEb-ZL7ob 7-bB7 Gb7F 7hCZLbD/7-bE7 -bEZL7oE 7-FZL7b9LZ^bDZLsEb-7,Ab7,|UDb6,Gb7,Fh,Bb7,Z==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s2",
+   "raw": "Autumn In New York=Duke Vernon==Ballad=F==1r34LbKcu7L7-A 4G-7 9b7D 7-AZL7-G ^7FZL7C 6bBZL7-ALZG-74TA*[E 7^bC7LZAE 7-bB|QyX7-GB[*]QyX9b7D|QyX7hb7LZA 6bBZ] 7D b^7, yX7^CZL9b7G 7hZDL7hA 7-CZL9b7GQ|A-7AZL7b7-D 77 A-77bD,7Ds 7-AZL7G- 7^FZL7C 6bBZL,|lC--GC*[ 7-FZ6 F7b 7-FD*[] 7C 7hZGL7-bA 6-bBZL31C7b9L-bEZL9b7C ,Ab7,L7-A 7-GZL7bD ^7bDZL7bA 7^bDl|ZBb-67-bEsLZUF-XyQ|ppD7b9 Z ==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s3",
+   "raw": "My Funny Valentine=Rodgers Richard==Ballad=Eb==1r34LbKcu7C(7F|4C-6XB/7-C(7-CZL9b7 G)B/7^-C(7hD|Qyb)XyQ4T[A*D|QyXXyQ|A*]QyX9b7G|QyX7Dh|QyX7-F|QyX7^bA[C-6)A/6-X7^bA^7/B)A/6-C(7F|QyX)b/B7-C(7-CZL9b7G )XyQ|-C(7hZL7-F7XyQ|L7-F 7^bE[B*]QXy7bB|QyX)7B(7hFZG-7 -F|QybA|l,F-7LZbB,7B,7-CsZL9bG7 7^bEZL7-F 7-G-7,A7 7^bE-C(7-|Dh7 7G )B/7^-C(7hDQ|yX6-C[C*] 9b7Gb9LZCQyX7^bBZL7XyQ|FZL9b7G 7hD|QyX^7bA|QyX)A/6-C(7C-7 B)bB/7-7 Eb7LZAb^7XyQ|F-7 Bb7LZUEb6XyQ|Dh7 G7b9 Z==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s4",
+   "raw": "Misty=Garner Erroll==Ballad=Eb==1r34LbKcu77-C 74Eb^77bD 7-bA|QyX7^AbZL7bE 7-bB|QyXLZEb^4TA*{lcKQy Bb7LNZL QyXQyX} 7b B7-FZL7C 7-G1NZ2Eb6X7-FZLZL7F BBb-7X7-AZL lcKQyX7b^A|QyX9b7bE|QyXyQ|D7*[]  7-bA|7LZF-bAZL7bE 7-bB|QXy7^bEA*[] 7bB 7^7XyQC 7-G Db7LZEb^7 C-7LZF-7 Bb7LZEb6XyQ|F-7 Bb7 Z ==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s5",
+   "raw": "Lover Man=Davis-Ramirez-Sherman==Ballad=F==1r34LbKcu7QyX7b4D-7 7FZL7C 7-GZL7C7 -GZL7G 7-DZL7GXyQ|B4T[A*2N|Qy7,Db7yXQyX}l,7A,hEs7 ^F1N|l,7C,7-G,QXyQX-bAs|7D,7-7b9 ]BZL7-A 7^GZL7D7 -AZL7^-A -A[B*-7 sAE 7^F-DZL7 G-^7[A*] 9b7A 7hE|yQX7^FZL7C 7-GZLD-7 G-G|l,C,7-GZG-7 7-bAs|QyX7bB|QXy7FZL7C 7-GZL7C,Db7,L7G 77,l|F^7  (Eh7) (A7)Z==0=0",
+   "set": 1,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s6",
+   "raw": "Skylark=Carmichael Hoagy==Ballad=Eb==1r34LbKcu77-Gs 4Eb^7L11#7A 7^bEZL7b^A G/7^bEZL7-F ZAb^74TA*{ZL QylF7Xy 7bB 7-FZL7-C b6E1NZL7bB 7-F|Q}XyQX|,7C,L7bE  Bb7#L)7F(7B )7^bA(-7CB*[]QyX6bEZL9ZBb-76bE2N-E 7^XyQ|GbAl,7bE,7-bBsZ7LbD -FZL9b7C 7h^7LZG7^bAZ 7^bE7,D7,A G/7^bEZL7-F ^7bElA*[],7bB,6Gb^7LZAsZL7bEZL9LZAb^6bEZL7bB 7-F|QXy7Fl|,7C,7-Gs 7 Bb7#11#7A6 Bb7 Z ==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s7",
+   "raw": "Tenderly=Gross Walter==Ballad=Eb==1r34LbKcu7X11#74Eb^7X7-F|QyX7bA|Qy7X-bE|QyX7bA|QyXyQ|Db4T[A*B 7bB^7XyQhF|QyX7bB|QyX7Fh[B*] 9b7C 7hG|7XyQ|bE|QyE|QyX-7XyQyX7^bE[A*]QyX7Bb|QyX7-F|QyX7F|Q|Ab7CZL7o*] 9bQ|Ab7G|QyX7^bE|QyX1#17bD|QyX7-F|QyXh7 C7yX7-bL7bB XyQ|B7C 7-GZL7o#F 7|FQyX7-CZL7oB 7bLZF-77hF[CZEb6XyQ|F-7 Bb7 Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s8",
+   "raw": "Polkadots And Moonbeams=Van-Heusen Jimmy==Ballad=F==1r34LbKcu7D 7-D4F^7 ,hEs 7-GZL7-D ^7FZL7C 7-GZL7-DA7,l|4T{A*yX}l,/C sAG,7-D,7-As1NZLC7 7-G|l,7-bA,7--7,C7FZL7b 7^AZyQXyQ-BZL7o#A 7^A[B]*l,7E,hBs 6F2N|7 E7LXQyXQ[A*] ZB-7 GZL7D 7AZL7E 7B-ZL7o#A 7^AZL7E-7 C7L7-#F/FZL7-7LZGD|l,7A,hEs 7-GLZ7-D 7^FZL7C 7--7 DbD 7^FC sA-7,Ab-7,l|G-7 C7LZF6 sG-7,C7,Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s9",
+   "raw": "Here's That Rainy Day=Van-Heusen Jimmy==Ballad=G==1r34LbKcu7X7^bA4G-(G^bEZL7bB )7bB(-6FZL#F/7^-G )7^7XyQ|4TA*[B|QyX7XyQ|X7-C,B*,[] 7G -7D|QyX7^G|QyX7DyQ|F7-A|Qy,A*,[Q|Eb^7-AZL7-E 7^G|QXy7D|QyX7-A|QyX7 D7 ]yX7^b7-A|Q7) G-A|QyX7^bEZL7bB) 7bB(6-FZL#F/7^b^7Xy^G(-GE 7-B7XyQ|7-A|QyX7^C,C*,][ 7G 7-D|QyX7^G D7LZD|QyX-7LZA7XyQ|A-7XyQ|D7XyQ|G6 E-7LZA-7 D7 Z ==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  },
+  {
+   "id": "s10",
+   "raw": "Angel Eyes=Dennis Matt==Ballad=C-==1r34LbKcu7CZL9b4C- sDZL7hA -CZL7bA- Cl|,)7G(7bD,7Dh7 G74T{A*})7G(,Db7(  -CZL9b7G 7bALZtla7A -Cl|,)7G(Dh) 7Ds -^GZL7-7 Eb|QyX7^bAZL7bE -7bBZL7F 7^bAZL7A-7 DbB[B*L7bA C#-7 )7G(7bD,7Ds -CA[*] 7G 7-DZL7#F,|lC-|QyX7 7bAZh7LZDA -Cl|,)7G(7bD7,Ds -CZL9b7G 7h7altLA -CZG7b9LZC-  (Dh) (G7)Z==0=0",
+   "set": 2,
+   "shift": null,
+   "versions": []
+  }
+ ]
+}

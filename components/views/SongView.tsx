@@ -13,6 +13,7 @@ import { MyResources } from "../Resources";
 import { Icon } from "../Icon";
 import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
+import { isBuiltin } from "@/lib/seeds";
 import { useChartChoice } from "../Attachments";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
@@ -143,12 +144,12 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
         </div>
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
       </section>
-      {cur.kind === "set" && s && item && (
+      {cur.kind === "set" && s && item && !isBuiltin(s.id) && (
         <Notes key={"band:" + item.id} title="Band notes" hint="For this tune in this setlist. Everyone in the band can read and reply."
           home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw} chart={chart}
           legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
       )}
-      {cur.kind === "set" && s && item && (
+      {cur.kind === "set" && s && item && !isBuiltin(s.id) && (
         <Licks key={"band-licks:" + item.id} title="Licks" hint="Attached to this tune in this setlist. Everyone in the band can see them here."
           home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} />
       )}

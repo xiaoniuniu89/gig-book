@@ -16,7 +16,7 @@ import { createSaveQueue } from "@/lib/data/saveQueue";
 import type { DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
-import { SEEDS, BUILTIN_LIBRARY, cloneSeed } from "@/lib/seeds";
+import { BUILTIN_LIBRARY, LEGACY_SEED_IDS, isBuiltin, withBuiltins } from "@/lib/seeds";
 
 /* ---------------- types ---------------- */
 export type Current =
@@ -287,38 +287,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (async () => {
       setReady(false);
       try {
-        let sls = await store.listSetlists();
+        const sls = await store.listSetlists();
         const lib = await store.listLibrary();
-        const seedFlag = store.kind === "local" ? "gigbook-seeded" : "gigbook-seeded:" + (account?.id || "");
-        let seeded = false;
-        try { seeded = !!localStorage.getItem(seedFlag); } catch { /* ignore */ }
-        if (cancelled) return; // a superseded run (Strict Mode, quick sign-in changes) must not seed too
-        if (!seeded && (store.kind === "local" || sls.length === 0)) {
-          // claim the flag before writing, so a second run or tab doesn't add its own copy
-          try { localStorage.setItem(seedFlag, "1"); } catch { /* ignore */ }
-          try {
-            for (const seed of SEEDS) {
-              if (sls.some(s => s.id === seed.id || s.name === seed.name)) continue;
-              const s = cloneSeed(seed);
-              if (store.kind === "supabase") { s.id = store.newId(s.name, () => false); s.visibility = "private"; }
-              s.role = "owner";
-              await store.saveSetlist(s);
-              sls = sls.concat(s);
-            }
-          } catch (e) {
-            try { localStorage.removeItem(seedFlag); } catch { /* ignore */ }
-            throw e;
-          }
-        }
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
           const done = loadCopied(account?.id || "");
-          const unseededLocal = ls.filter(s => !SEEDS.some(x => x.id === s.id) && !done.s.includes(s.id));
+          const unseededLocal = ls.filter(s => !LEGACY_SEED_IDS.includes(s.id) && !done.s.includes(s.id));
           const pendingLib = ll.filter(p => !done.l.includes(p.id));
           if (!cancelled) setLocalCounts(unseededLocal.length || pendingLib.length ? { setlists: unseededLocal.length, library: pendingLib.length } : null);
         } else if (!cancelled) setLocalCounts(null);
         if (cancelled) return;
-        applySetlists(() => sls); setLibrary(lib);
+        applySetlists(() => withBuiltins(sls)); setLibrary(lib);
       } catch (e) {
         console.error(e);
         if (!cancelled) toast(e instanceof Error ? e.message : "Couldn't load your data.");
@@ -350,7 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const next = fn(cur);
     if (next === cur) return;
     applySetlists(prev => prev.map(x => x.id === id ? next : x));
-    if (next.role === "viewer") return; // read-only: changes stay on this screen
+    if (next.role === "viewer" || isBuiltin(id)) return; // read-only: changes stay on this screen
     saves.schedule(storeRef.current, next);
   }, [saves, applySetlists]);
 
@@ -368,12 +347,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [saves, applySetlists]);
 
   const removeSetlist = useCallback(async (s: Setlist) => {
+    if (isBuiltin(s.id)) return; // ships with the app
     await saves.cancel(s.id); // don't let a pending save resurrect it
     try { await storeRef.current.deleteSetlist(s.id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
     applySetlists(prev => prev.filter(x => x.id !== s.id));
   }, [saves, toast, applySetlists]);
 
   const leaveSetlist = useCallback(async (s: Setlist) => {
+    if (isBuiltin(s.id)) return false;
     await saves.cancel(s.id);
     try { await storeRef.current.leaveSetlist(s.id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't leave."); return false; }
     applySetlists(prev => prev.filter(x => x.id !== s.id));
@@ -402,7 +383,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let n = 0;
       // record each item as it lands so a retry after a failure skips it
       for (const s of ls) {
-        if (SEEDS.some(x => x.id === s.id) || done.s.includes(s.id)) continue;
+        if (LEGACY_SEED_IDS.includes(s.id) || isBuiltin(s.id) || done.s.includes(s.id)) continue;
         const copy: Setlist = { ...s, id: st.newId(s.name, () => false), role: "owner", visibility: "private" };
         await st.saveSetlist(copy); applySetlists(prev => prev.concat(copy)); n++;
         done.s.push(s.id); saveCopied(account.id, done);
