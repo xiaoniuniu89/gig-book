@@ -75,7 +75,7 @@ export const progressionMusic = (bars: string[][]): string => "*A[T44" + bars.ma
 /** One song in iReal's field order: title=composer=?=style=key=transpose=music=comp=tempo=repeats. */
 export function encodeSong(o: { title: string; key: string; music: string; style?: string; tempo?: number }): string {
   const t = o.title.replace(/[=\r\n]+/g, " ").trim();
-  return [t, "Gig Book", "", o.style || "Medium Swing", o.key, "n", scramble(o.music), "0", String(o.tempo || 0), "3"].join("=");
+  return [t, "Niu Real Book", "", o.style || "Medium Swing", o.key, "n", scramble(o.music), "0", String(o.tempo || 0), "3"].join("=");
 }
 
 /** A link for one song, or (name given) a playlist of them: songs joined by "===", then the name. */

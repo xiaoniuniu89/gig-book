@@ -1,4 +1,4 @@
-"""Smoke test for Gig Book. Run against `npm run start` with no Spotify secret set.
+"""Smoke test for Niu Real Book. Run against `npm run start` with no Spotify secret set.
 
 Usage: python3 scripts/smoke.py path/to/iReal-library.html [base-url] [screenshot-dir]
 Needs Python Playwright with Chromium installed.

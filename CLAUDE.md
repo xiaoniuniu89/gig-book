@@ -1,4 +1,6 @@
-# Gig Book
+# Niu Real Book
+
+The product is called **Niu Real Book** (repo and package: `gig-book`; storage keys keep the `gigbook-` prefix so nobody loses their settings).
 
 Next.js (App Router) + TypeScript + React + plain CSS. See README.md for the layout.
 

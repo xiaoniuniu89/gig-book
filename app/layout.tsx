@@ -5,11 +5,9 @@ import { Toast } from "@/components/Toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Gig Book",
-  description: "Setlists from iReal Pro with analysed chord charts, a built-in backing band and Spotify recordings.",
-  icons: {
-    icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238C5F0E'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-weight='700' text-anchor='middle' fill='%23fff'%3EG%3C/text%3E%3C/svg%3E",
-  },
+  title: { default: "Niu Real Book", template: "%s · Niu Real Book" },
+  description: "A real book for working jazz musicians: setlists from iReal Pro, analysed charts, a built-in backing band, licks and your band in one place.",
+  applicationName: "Niu Real Book",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };

@@ -1,4 +1,4 @@
-# Gig Book v1 — requirements
+# Niu Real Book v1 — requirements
 
 Status: agreed scope, 1 Nov 2026. Owner: Dan. Built issue by issue with the Claude GitHub action; each issue links back here.
 

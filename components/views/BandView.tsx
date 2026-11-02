@@ -302,7 +302,7 @@ function Invite({ band, onAdded }: { band: Band; onAdded: () => Promise<void> })
         <input type="search" aria-label="Find people" placeholder="Search by email or name" autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
         <button className="btn" type="submit" disabled={busy || q.trim().length < 2}>Search</button>
       </form>
-      {found && (!found.length ? <p className="hint">No one found. They need a Gig Book account first; try their exact email, or send an invite link.</p> : (
+      {found && (!found.length ? <p className="hint">No one found. They need a Niu Real Book account first; try their exact email, or send an invite link.</p> : (
         <div className="list">
           {found.map(c => (
             <div className="member" key={c.userId}>
@@ -322,7 +322,7 @@ function Invite({ band, onAdded }: { band: Band; onAdded: () => Promise<void> })
         {band.role === "admin" && <button className="btn" onClick={revoke}>Switch off all links</button>}
       </div>
       {link && <div className="acct-row"><code className="epk-url">{link}</code><button className="btn small" onClick={copy}>Copy</button></div>}
-      <p className="hint">Only people with a Gig Book account can join. A link works for 14 days.</p>
+      <p className="hint">Only people with a Niu Real Book account can join. A link works for 14 days.</p>
     </section>
   );
 }

@@ -12,7 +12,7 @@ export function TopBar() {
   return (
     <header className="bar-top">
       <div className="bar-top-inner">
-        <Link className="brand" href="/">Gig<span>Book</span></Link>
+        <Link className="brand" href="/">Niu<span> Real Book</span></Link>
         <div className="crumb" id="crumb">{crumb}</div>
         <span className="acct">
           {supabaseConfigured && <Feedback />}

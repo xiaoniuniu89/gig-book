@@ -1,4 +1,6 @@
-# Gig Book
+# Niu Real Book
+
+Niu (牛, cow) was Dan's Chinese name; the rest is a nod to The New Real Book.
 
 Setlists from iReal Pro with analysed chord charts, a built-in backing band, and Spotify recordings.
 

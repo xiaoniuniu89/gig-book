@@ -292,7 +292,7 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
       await reload();
     } catch (x) {
       setErr(x instanceof Error && x.message === MEMBER_NOT_FOUND
-        ? "They're not on Gig Book yet. Ask Dan to add them, then try again."
+        ? "They're not on Niu Real Book yet. Ask Dan to add them, then try again."
         : x instanceof Error ? x.message : "Couldn't add them.");
     }
     setBusy(false);

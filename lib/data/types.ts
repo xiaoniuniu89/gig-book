@@ -38,7 +38,7 @@ export interface Member {
   role: "viewer" | "editor";
 }
 
-export const MEMBER_NOT_FOUND = "No Gig Book account for that email";
+export const MEMBER_NOT_FOUND = "No Niu Real Book account for that email";
 
 export const NOTE_TAGS = ["intro", "ending", "arrangement", "solo", "form", "practice", "general"] as const;
 export type NoteTag = typeof NOTE_TAGS[number];

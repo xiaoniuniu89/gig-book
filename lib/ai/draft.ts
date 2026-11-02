@@ -57,7 +57,7 @@ export async function draftSetlist(prompt: string, tunes: LibTuneInfo[]): Promis
   try {
     res = await fetch(ENDPOINT, {
       method: "POST",
-      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", "X-Title": "Gig Book" },
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", "X-Title": "Niu Real Book" },
       body: JSON.stringify({
         model: process.env.AI_MODEL || "anthropic/claude-haiku-5.5",
         response_format: { type: "json_object" },

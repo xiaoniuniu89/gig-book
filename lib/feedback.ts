@@ -14,7 +14,7 @@ export async function triage(text: string, page: string): Promise<Triage> {
   const fallback: Triage = { action: "untriaged", title: clip(text.split("\n")[0], 80) || "Feedback", body: "", kind: "question" };
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) return fallback;
-  const system = "You triage feedback from testers of Gig Book, a web app for jazz musicians (setlists, iReal Pro charts, a backing band, licks, bands, resources). "
+  const system = "You triage feedback from testers of Niu Real Book, a web app for jazz musicians (setlists, iReal Pro charts, a backing band, licks, bands, resources). "
     + "Decide one action: \"issue\" when it describes a clear bug or a concrete, reasonable feature request a developer could act on; "
     + "\"needs_dan\" when it is vague, a product decision, a complaint about direction, or needs the owner's judgement; "
     + "\"ignore\" only for spam, abuse or empty/meaningless text. "
@@ -25,7 +25,7 @@ export async function triage(text: string, page: string): Promise<Triage> {
   try {
     const res = await fetch(ENDPOINT, {
       method: "POST",
-      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", "X-Title": "Gig Book feedback" },
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", "X-Title": "Niu Real Book feedback" },
       body: JSON.stringify({
         model: process.env.AI_MODEL || "anthropic/claude-haiku-5.5",
         response_format: { type: "json_object" }, max_tokens: 1200, temperature: 0.2,

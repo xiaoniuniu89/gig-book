@@ -1,3 +1,3 @@
 import { LicksView } from "@/components/views/LicksView";
-export const metadata = { title: "Licks · Gig Book" };
+export const metadata = { title: "Licks" };
 export default function Page() { return <LicksView />; }
