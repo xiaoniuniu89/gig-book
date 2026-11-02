@@ -553,3 +553,14 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .lick-file .file-chart { height: auto; max-height: 70vh; }
 .lick-file .file-chart img { max-height: 70vh; width: auto; max-width: 100%; }
 .lick-chords .panel-head { margin-bottom: 8px; }
+.band-more { margin-top: 10px; font-size: 13px; }
+.band-more summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.band-more[open] summary { margin-bottom: 10px; }
+.band-more .band-ctrls { margin-top: 10px; }
+.mixer { display: grid; gap: 6px; }
+.mixer label { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; color: var(--muted); }
+.mixer input { width: 100%; }
+.lick-row { position: relative; }
+.lick-peek { position: fixed; z-index: 30; transform: translateY(-100%); padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / .35); pointer-events: none; }
+.now-key { color: var(--brass); font-weight: 600; margin: 0 0 6px; }

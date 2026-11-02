@@ -99,16 +99,33 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
   );
 }
 
-/** One lick in a list: a compact row that opens the lick page. `actions` adds buttons on the right. */
+/** One lick in a list: a compact row that opens the lick page. With a mouse, resting on it pops up the notation. */
 export function LickCard({ lick, actions }: { lick: Lick; actions?: ReactNode }) {
   const meta = [lick.progression, ...lick.tags].filter(Boolean).join(" · ");
+  const [peek, setPeek] = useState<{ x: number; y: number } | null>(null);
+  const at = useRef({ x: 0, y: 0 });
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enter = () => {
+    if (!lick.notation || !window.matchMedia("(hover: hover)").matches) return;
+    timer.current = setTimeout(() => setPeek({ ...at.current }), 250);
+  };
+  const leave = () => { if (timer.current) clearTimeout(timer.current); setPeek(null); };
+  const move = (e: React.MouseEvent) => {
+    at.current = { x: e.clientX, y: e.clientY };
+    if (peek) setPeek({ ...at.current });
+  };
+  // centred over the cursor, kept inside the window
+  const W = typeof window === "undefined" ? 520 : Math.min(520, window.innerWidth - 32);
+  const left = peek ? Math.max(16, Math.min(peek.x - W / 2, window.innerWidth - W - 16)) : 0;
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   return (
-    <div className="lick lick-row">
-      <Link className="lick-open" href={"/licks/" + encodeURIComponent(lick.id)}>
+    <div className="lick lick-row" onMouseEnter={enter} onMouseLeave={leave} onMouseMove={move}>
+      <Link className="lick-open" href={"/licks/" + encodeURIComponent(lick.id)} onFocus={leave}>
         <b>{lick.title}</b>
         {(meta || (!lick.mine && lick.ownerName)) && <span className="hint">{!lick.mine && lick.ownerName ? lick.ownerName + (meta ? " · " : "") : ""}{meta}</span>}
       </Link>
       {actions && <div className="row-btns">{actions}</div>}
+      {peek && <div className="lick-peek" aria-hidden="true" style={{ left, top: Math.max(130, peek.y - 14), width: W }}><Notation abc={lick.notation} compact /></div>}
     </div>
   );
 }

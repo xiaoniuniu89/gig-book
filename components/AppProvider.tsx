@@ -37,9 +37,14 @@ export interface Prefs {
   dockSize: "full" | "hidden";
   libShift: Record<string, number>;
   mute: Partial<Record<Instrument, boolean>>;
+  /** Mixer, 0–1.5 times normal per instrument. */
+  levels: Partial<Record<Instrument, number>>;
+  /** Key change while the band plays: up `keyStep` semitones every `keyEvery` bars (0 = every time round). 0 step = off. */
+  keyStep: number;
+  keyEvery: number;
   tempos: Record<string, number>;
 }
-const DEFAULT_PREFS: Prefs = { mode: "trad", sc: true, tn: true, fn: true, choruses: 2, countIn: true, dock: "band", dockSize: "full", libShift: {}, mute: {}, tempos: {} };
+const DEFAULT_PREFS: Prefs = { mode: "trad", sc: true, tn: true, fn: true, choruses: 2, countIn: true, dock: "band", dockSize: "full", libShift: {}, mute: {}, levels: {}, keyStep: 0, keyEvery: 0, tempos: {} };
 const PREFS_KEY = "gigbook-prefs-v2";
 
 function loadPrefs(): Prefs {
@@ -121,7 +126,10 @@ interface Ctx {
   setTempo(v: number): void;
   loop: string;
   setLoop(v: string): void;
-  startBand(c: Current | null, opts?: { fromGig?: boolean }): Promise<void>;
+  startBand(c: Current | null, opts?: { fromGig?: boolean; loopAll?: boolean }): Promise<void>;
+  /** Semitones the key-change setting has moved the band so far (0 when off or stopped). */
+  bandKeyShift: number;
+  setLevel(inst: Instrument, v: number): void;
   stopBand(): void;
   setMute(inst: Instrument, on: boolean): void;
   markBar(idx: number | null | undefined): void;
@@ -171,6 +179,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [current, setCurrentState] = useState<Current | null>(null);
   const [bandPlaying, setBandPlaying] = useState(false);
   const [bandFor, setBandFor] = useState<Song | null>(null);
+  const [bandKeyShift, setBandKeyShift] = useState(0);
   const [bandStatus, setBandStatus] = useState("Ready");
   const [tempo, setTempoState] = useState(140);
   const [loop, setLoop] = useState("");
@@ -452,21 +461,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (sg) setPrefs(p => ({ ...p, tempos: { ...p.tempos, [tempoKey(sg)]: v } }));
   }, [band]);
 
-  const startBand = useCallback(async (cur: Current | null, { fromGig = false }: { fromGig?: boolean } = {}) => {
+  const startBand = useCallback(async (cur: Current | null, { fromGig = false, loopAll = false }: { fromGig?: boolean; loopAll?: boolean } = {}) => {
     if (!cur || !band) return;
     if (playerRef.current) playerRef.current.pause();
     setDockTab("band");
     bandForRef.current = cur.song; setBandFor(cur.song);
     const lp = fromGig ? "" : loop;
-    const range = lp ? (lp.split("-").map(Number) as [number, number]) : null;
+    const range = loopAll ? [0, cur.song.bars.length - 1] as [number, number] : lp ? (lp.split("-").map(Number) as [number, number]) : null;
     const p = prefsRef.current;
+    setBandKeyShift(0);
     try {
-      await band.play({ song: cur.song, shift: shiftOf(cur), tempo: fromGig ? tempoFor(cur.song) : tempo || tempoFor(cur.song), choruses: p.choruses || 2, countIn: p.countIn, loop: range });
+      await band.play({ song: cur.song, shift: shiftOf(cur), tempo: fromGig ? tempoFor(cur.song) : tempo || tempoFor(cur.song), choruses: p.choruses || 2, countIn: p.countIn, loop: range,
+        keyChange: !fromGig && p.keyStep ? { step: p.keyStep, every: p.keyEvery } : null });
       setBandPlaying(band.playing);
     } catch (e) { toast("The band couldn't start: " + (e instanceof Error ? e.message : String(e))); }
   }, [band, loop, tempo, shiftOf, tempoFor, toast, setDockTab]);
 
   const stopBand = useCallback(() => { setGig(null); band?.stop(); }, [band]);
+
+  const setLevel = useCallback((inst: Instrument, v: number) => {
+    band?.setGain(inst, v);
+    setPrefs(p => ({ ...p, levels: { ...p.levels, [inst]: v } }));
+  }, [band]);
 
   const setMute = useCallback((inst: Instrument, on: boolean) => {
     band?.setMute(inst, on);
@@ -476,7 +492,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // apply saved mutes once the band and prefs exist
   useEffect(() => {
     if (!band || !prefsLoaded) return;
-    (["piano", "bass", "drums"] as Instrument[]).forEach(i => band.setMute(i, !!prefsRef.current.mute[i]));
+    (["piano", "bass", "drums"] as Instrument[]).forEach(i => { band.setMute(i, !!prefsRef.current.mute[i]); band.setGain(i, prefsRef.current.levels?.[i] ?? 1); });
   }, [band, prefsLoaded]);
 
   /* practice gig */
@@ -519,6 +535,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!band) return;
     return band.on(ev => {
       if (ev.type === "bar") {
+        setBandKeyShift(ev.keyShift || 0);
         setBandStatus(ev.countIn ? "Count-in" : `Chorus ${ev.chorus || 1} · bar ${(ev.idx ?? 0) + 1}`);
         const cur = currentRef.current;
         if (cur && cur.song === bandForRef.current) markBar(ev.countIn ? null : ev.idx);
@@ -526,7 +543,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       else if (ev.type === "loaded") setBandStatus("Ready");
       else if (ev.type === "error") setBandStatus(ev.message);
       else if (ev.type === "end" || ev.type === "stop") {
-        markBar(null); bandForRef.current = null; setBandFor(null); setBandPlaying(false);
+        markBar(null); bandForRef.current = null; setBandFor(null); setBandPlaying(false); setBandKeyShift(0);
         setBandStatus(ev.type === "end" ? "Finished" : "Stopped");
         if (ev.type === "end" && gigRef.current) advanceRef.current();
       } else if (ev.type === "play") setBandPlaying(true);
@@ -620,7 +637,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
-    band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, markBar, lastBar,
+    band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, setLevel, bandKeyShift, markBar, lastBar,
     setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, recTitle, recStatus, follow, setFollow,
     gig, startGig,
   };

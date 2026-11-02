@@ -10,7 +10,7 @@ const TICK = 25;        // ms
 export type Instrument = "piano" | "bass" | "drums";
 
 export type BandMessage =
-  | { type: "bar"; idx?: number; chorus?: number; countIn: boolean }
+  | { type: "bar"; idx?: number; chorus?: number; countIn: boolean; keyShift?: number }
   | { type: "loading" }
   | { type: "loaded" }
   | { type: "error"; message: string }
@@ -25,10 +25,12 @@ export interface PlayOpts {
   choruses?: number;
   countIn?: boolean;
   loop?: [number, number] | null;
+  /** Move the band up `step` semitones every `every` bars, or every time round the tune/loop when `every` is 0. */
+  keyChange?: { step: number; every: number } | null;
 }
 
-interface Item { idx?: number; chorus?: number; k?: number; countIn?: boolean; ending?: boolean; beats?: number }
-interface Visual { time: number; idx?: number; chorus?: number; countIn?: boolean; end?: boolean }
+interface Item { idx?: number; chorus?: number; k?: number; countIn?: boolean; ending?: boolean; beats?: number; round?: number }
+interface Visual { time: number; idx?: number; chorus?: number; countIn?: boolean; end?: boolean; keyShift?: number }
 
 export class Band {
   ctx: AudioContext | null = null;
@@ -36,6 +38,8 @@ export class Band {
   playing = false;
   mute: Record<Instrument, boolean> = { piano: false, bass: false, drums: false };
   levels: Record<Instrument, number> = { piano: 0.21, bass: 1.3, drums: 0.9 };
+  /** The player's mixer: 0–1.5 times each instrument's normal level. */
+  gain: Record<Instrument, number> = { piano: 1, bass: 1, drums: 1 };
   private listeners = new Set<(ev: BandMessage) => void>();
   private master: DynamicsCompressorNode | null = null;
   private bus = {} as Record<Instrument, GainNode>;
@@ -52,6 +56,9 @@ export class Band {
   private pos = 0;
   private loopPos = 0;
   private loopRange: [number, number] | null = null;
+  private keyChange: { step: number; every: number } | null = null;
+  private barsPlayed = 0;
+  private lastExtra = 0;
   private twoFeelHead = false;
   private anchorTime = 0;
   private anchorBeat = 0;
@@ -75,7 +82,7 @@ export class Band {
     const trim = ctx.createGain(); trim.gain.value = 0.8;
     this.master.connect(trim).connect(ctx.destination);
     for (const k of ["piano", "bass", "drums"] as Instrument[]) {
-      const g = ctx.createGain(); g.gain.value = this.mute[k] ? 0 : this.levels[k]; g.connect(this.master); this.bus[k] = g;
+      const g = ctx.createGain(); g.gain.value = this.busLevel(k); g.connect(this.master); this.bus[k] = g;
     }
     this.emit({ type: "loading" });
     this.ready = Promise.all([loadSampler(ctx, "piano"), loadSampler(ctx, "bass"), loadDrums(ctx)])
@@ -84,10 +91,12 @@ export class Band {
     return this.ready;
   }
 
-  setMute(inst: Instrument, on: boolean) {
-    this.mute[inst] = on;
-    if (this.ctx && this.bus[inst]) this.bus[inst].gain.setTargetAtTime(on ? 0 : this.levels[inst], this.ctx.currentTime, 0.02);
+  private busLevel(i: Instrument) { return this.mute[i] ? 0 : this.levels[i] * this.gain[i]; }
+  private applyLevel(i: Instrument) {
+    if (this.ctx && this.bus[i]) this.bus[i].gain.setTargetAtTime(this.busLevel(i), this.ctx.currentTime, 0.02);
   }
+  setMute(inst: Instrument, on: boolean) { this.mute[inst] = on; this.applyLevel(inst); }
+  setGain(inst: Instrument, v: number) { this.gain[inst] = Math.max(0, Math.min(1.5, v)); this.applyLevel(inst); }
   setTempo(bpm: number) {
     if (!this.playing || !this.ctx) { this.tempo = bpm; return; }
     const now = this.ctx.currentTime;
@@ -138,6 +147,8 @@ export class Band {
     this.stop(true);
     const song = opts.song;
     this.song = song; this.shift = opts.shift || 0;
+    this.keyChange = opts.keyChange && opts.keyChange.step ? opts.keyChange : null;
+    this.barsPlayed = 0;
     this.feel = feelOf(song.style);
     if (song.bars.some(b => b.ts && b.ts.num === 3 && b.ts.den === 4) && this.feel === "swing") this.feel = "waltz";
     this.tempo = opts.tempo || song.tempo || defaultTempo(song.style);
@@ -155,7 +166,7 @@ export class Band {
       const n = Math.max(1, opts.choruses || 2);
       // medium swing plays the head in two and walks from the second chorus
       this.twoFeelHead = n > 1 && this.feel === "swing" && this.tempo <= 220;
-      for (let c = 1; c <= n; c++) unroll(song.bars, c === n).forEach((idx, k) => items.push({ idx, chorus: c, k }));
+      for (let c = 1; c <= n; c++) unroll(song.bars, c === n).forEach((idx, k) => items.push({ idx, chorus: c, k, round: c - 1 }));
       items.push({ ending: true, beats: 4 });
     }
     this.items = items; this.pos = 0; this.loopPos = 0;
@@ -171,7 +182,7 @@ export class Band {
       while (this.visual.length && this.visual[0].time <= now) {
         const v = this.visual.shift() as Visual;
         if (v.end) { this.finish(); return; }
-        this.emit({ type: "bar", idx: v.idx, chorus: v.chorus, countIn: !!v.countIn });
+        this.emit({ type: "bar", idx: v.idx, chorus: v.chorus, countIn: !!v.countIn, keyShift: v.keyShift });
       }
       this.raf = requestAnimationFrame(frame);
     };
@@ -183,8 +194,8 @@ export class Band {
     if (this.loopRange) {
       if (this.pos < this.items.length) return this.items[this.pos++];
       const [a, b] = this.loopRange;
-      const idx = a + (this.loopPos++ % (b - a + 1));
-      return { idx, chorus: 1, k: idx - a };
+      const len = b - a + 1, idx = a + (this.loopPos % len), round = Math.floor(this.loopPos++ / len);
+      return { idx, chorus: round + 1, k: idx - a, round };
     }
     return this.pos < this.items.length ? this.items[this.pos++] : null;
   }
@@ -198,6 +209,14 @@ export class Band {
     return (bar && bar.chords.find(hasRoot)) || null;
   }
 
+  /** Semitones the key-change setting adds for this bar. */
+  private extraShift(item: Item): number {
+    const kc = this.keyChange;
+    if (!kc || item.countIn) return 0;
+    const n = kc.every > 0 ? Math.floor(Math.max(0, this.barsPlayed - 1) / kc.every) : (item.round || 0);
+    return n * kc.step;
+  }
+
   private schedule() {
     if (!this.playing || !this.ctx) return;
     const horizon = this.ctx.currentTime + LOOKAHEAD;
@@ -205,22 +224,26 @@ export class Band {
       const item = this.nextItem();
       if (!item) { this.visual.push({ time: this.timeOf(this.nextBeat), end: true }); if (this.timer) clearInterval(this.timer); this.timer = null; return; }
       let events, beats: number;
+      if (!item.countIn && !item.ending) this.barsPlayed++;
+      const keyShift = item.ending ? this.lastExtra : this.extraShift(item);
+      this.lastExtra = keyShift;
+      const shift = this.shift + keyShift;
       if (item.countIn) { events = this.gen.countIn(item.beats as number); beats = item.beats as number; }
       else if (item.ending) {
         const t = detectTonic(this.song);
         const tonic = { root: ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"][t.pc], q: t.minor ? "-6" : "6" };
-        events = this.gen.ending(tonic, this.shift); beats = item.beats as number;
+        events = this.gen.ending(tonic, shift); beats = item.beats as number;
       } else {
         const bar = this.song.bars[item.idx as number];
         beats = bar.beats;
         this.gen.twoFeel = this.twoFeelHead && item.chorus === 1;
-        events = this.gen.bar(bar, this.peekChord(), this.shift, item.k as number);
+        events = this.gen.bar(bar, this.peekChord(), shift, item.k as number);
       }
       const start = this.nextBeat;
       // In swing the bass sits on top of the beat and the piano lays back a touch (less so at fast tempos).
       const lay = this.feel === "swing" || this.feel === "waltz" || this.feel === "ballad" ? Math.min(1, 160 / this.tempo) : 0;
       const feelOffset: Record<Instrument, number> = { bass: -0.008 * lay, piano: 0.012 * lay, drums: 0 };
-      this.visual.push({ time: this.timeOf(start), idx: item.idx, chorus: item.chorus, countIn: !!item.countIn });
+      this.visual.push({ time: this.timeOf(start), idx: item.idx, chorus: item.chorus, countIn: !!item.countIn, keyShift });
       for (const e of events) {
         const jitter = e.inst === "drums" ? (Math.random() - 0.5) * 0.006 : (Math.random() - 0.5) * 0.012;
         const t = this.timeOf(start + e.beat) + jitter + feelOffset[e.inst];

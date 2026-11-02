@@ -19,8 +19,9 @@ export function Dock() {
   const onPlay = () => {
     if (!band) return;
     if (band.playing) app.stopBand();
-    else app.startBand(current);
+    else app.startBand(current, { loopAll: current?.kind === "lick" }); // a lick's chords go round until you stop
   };
+  const isLick = current?.kind === "lick";
   const recLoad = () => {
     const cur = current;
     const s = cur && cur.kind === "set" ? app.setlistById(cur.setId) : undefined;
@@ -62,17 +63,17 @@ export function Dock() {
               <div className="band-ctrls">
                 <label htmlFor="band-tempo">Tempo <input id="band-tempo" type="range" min={40} max={320} step={2} value={app.tempo}
                   onChange={e => app.setTempo(+e.target.value)} /> <b id="tempo-val">{app.tempo}</b></label>
-                <label htmlFor="band-choruses">Choruses
+                {!isLick && <label htmlFor="band-choruses">Choruses
                   <select id="band-choruses" value={String(prefs.choruses)} onChange={e => app.updatePrefs({ choruses: +e.target.value })}>
                     {[1, 2, 3, 4, 6].map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
-                </label>
-                <label htmlFor="band-loop">
+                </label>}
+                {!isLick && <label htmlFor="band-loop">
                   <select id="band-loop" value={app.loop} disabled={bandPlaying} onChange={e => app.setLoop(e.target.value)}>
                     <option value="">Whole tune</option>
                     {sections.map(r => <option key={r.from} value={`${r.from}-${r.to}`}>Loop {r.label} (bars {r.from + 1}–{r.to + 1})</option>)}
                   </select>
-                </label>
+                </label>}
                 <label htmlFor="band-countin"><input id="band-countin" type="checkbox" checked={prefs.countIn} onChange={e => app.updatePrefs({ countIn: e.target.checked })} /> Count-in</label>
                 <span className="chips" role="group" aria-label="Instruments">
                   {INSTRUMENTS.map(i => (
@@ -81,6 +82,36 @@ export function Dock() {
                   ))}
                 </span>
               </div>
+              <details className="band-more">
+                <summary>More settings</summary>
+                <div className="mixer" role="group" aria-label="Levels">
+                  {INSTRUMENTS.map(i => (
+                    <label key={i.id} htmlFor={"lvl-" + i.id}>{i.label}
+                      <input id={"lvl-" + i.id} type="range" min={0} max={1.5} step={0.05} value={prefs.levels[i.id] ?? 1}
+                        onChange={e => app.setLevel(i.id, +e.target.value)} />
+                    </label>
+                  ))}
+                </div>
+                <div className="band-ctrls">
+                  <label htmlFor="key-step">Change key
+                    <select id="key-step" value={String(prefs.keyStep)} disabled={bandPlaying} onChange={e => app.updatePrefs({ keyStep: +e.target.value })}>
+                      <option value="0">Never</option>
+                      <option value="1">Up a half step</option>
+                      <option value="2">Up a whole step</option>
+                      <option value="5">Round the cycle of 4ths</option>
+                      <option value="7">Round the cycle of 5ths</option>
+                      <option value="-1">Down a half step</option>
+                    </select>
+                  </label>
+                  {prefs.keyStep !== 0 && <label htmlFor="key-every">every
+                    <select id="key-every" value={String(prefs.keyEvery)} disabled={bandPlaying} onChange={e => app.updatePrefs({ keyEvery: +e.target.value })}>
+                      <option value="0">time round</option>
+                      {[2, 4, 8, 16].map(n => <option key={n} value={n}>{n} bars</option>)}
+                    </select>
+                  </label>}
+                </div>
+                {bandPlaying && prefs.keyStep !== 0 && <p className="hint">Stop the band to change these.</p>}
+              </details>
             </div>
           </div>
           <div className="pane-record">

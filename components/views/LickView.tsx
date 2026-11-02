@@ -122,8 +122,9 @@ export function LickView() {
         {cur && <section className="panel lick-chords" aria-label="Chords">
           <div className="panel-head">
             <h2>Chords</h2>
-            <button className="btn" onClick={() => (looping ? app.stopBand() : void app.startBand(cur))}>{looping ? "Stop" : "Loop with the band"}</button>
+            <button className="btn" onClick={() => (looping ? app.stopBand() : void app.startBand(cur, { loopAll: true }))}>{looping ? "Stop" : "Loop with the band"}</button>
           </div>
+          {looping && app.bandKeyShift !== 0 && <p className="hint now-key">The band is in {LICK_KEYS[(keyIdx(shown) + app.bandKeyShift % 12 + 12) % 12]} now.</p>}
           <ChartHost html={html} live={looping} />
         </section>}
 
