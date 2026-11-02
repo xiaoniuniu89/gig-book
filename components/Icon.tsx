@@ -10,6 +10,7 @@ const PATHS = {
   moon: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
   bell: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 20a2 2 0 0 0 4 0",
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10",
+  chat: "M4 5h16v11H9l-5 4V5z",
 } as const;
 export type IconName = keyof typeof PATHS;
 

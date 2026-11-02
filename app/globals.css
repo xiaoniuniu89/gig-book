@@ -628,3 +628,6 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .perms { display: grid; gap: 4px; }
 .add-as { display: inline-flex; align-items: center; gap: 8px; }
 .new-band { display: grid; gap: 12px; }
+.feedback-btn { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 520px) { .feedback-btn span { display: none; } }
+.feedback-form { display: grid; gap: 10px; }

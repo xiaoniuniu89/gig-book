@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useApp } from "./AppProvider";
 import { Bell } from "./Bell";
 import { Icon } from "./Icon";
+import { Feedback } from "./Feedback";
 import { useEffect, useState } from "react";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
@@ -14,6 +15,7 @@ export function TopBar() {
         <Link className="brand" href="/">Gig<span>Book</span></Link>
         <div className="crumb" id="crumb">{crumb}</div>
         <span className="acct">
+          {supabaseConfigured && <Feedback />}
           <ThemeToggle />
           {supabaseConfigured && <Bell />}
           {supabaseConfigured && <Account />}
