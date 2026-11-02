@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // POST /api/feedback  { text, page }  ->  { ok: true }
-// Needs "Authorization: Bearer <supabase access token>". Triaged and filed as a GitHub issue.
+// Needs "Authorization: Bearer <supabase access token>". The AI triages it, then files a GitHub issue or drops it.
 export async function POST(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -28,9 +28,10 @@ export async function POST(req: NextRequest) {
 
   const t = await triage(text, page);
   const id = crypto.randomUUID();
-  const issue = await openIssue(t, text, page, id);
+  // the AI decides: file it, file it for Dan, or drop it (spam, empty, tests)
+  const issue = t.action === "ignore" ? null : await openIssue(t, text, page, id);
   // the row only counts toward the daily limit (the repo is public, so one person can't flood it)
   await sb.from("feedback").insert({ id, body: text, page, triage: t.action, issue_url: issue });
-  if (!issue) { console.warn("feedback " + id + " not filed on GitHub"); return NextResponse.json({ error: "Couldn't send your feedback. Try again in a bit." }, { status: 502 }); }
+  if (!issue && t.action !== "ignore") { console.warn("feedback " + id + " not filed on GitHub"); return NextResponse.json({ error: "Couldn't send your feedback. Try again in a bit." }, { status: 502 }); }
   return NextResponse.json({ ok: true });
 }
