@@ -15,7 +15,7 @@ import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, t
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 const HINTS = [50, 100, 250];
 
-// Who can see each item: a plain label until "Change who sees what" is on, then a picker.
+// Who can see each item: a plain label until "Edit permissions" is on, then a picker.
 function ShareSelect({ value, onChange, label, editing }: { value: Share | undefined; onChange: (v: Share) => void; label: string; editing: boolean }) {
   const v = value || "private";
   if (!editing) return <span className={"share-chip " + v} aria-label={"Who can see " + label}>{SHARES.find(s => s.value === v)?.label}</span>;
@@ -95,7 +95,7 @@ export function AccountView() {
       <p className="hint">Keep what agents and venues ask for in one place. Each item shows who can see it: only you, your bands, or anyone with your public page.</p>
       <div className="row-btns">
         <button className={"btn small" + (sharing ? " primary" : "")} type="button" aria-pressed={sharing} onClick={() => setSharing(x => !x)}>
-          <Icon name="edit" size={16} /> {sharing ? "Done changing who sees what" : "Change who sees what"}
+          <Icon name="edit" size={16} /> {sharing ? "Done editing permissions" : "Edit permissions"}
         </button>
       </div>
 
