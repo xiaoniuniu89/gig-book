@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { isBuiltin } from "@/lib/seeds";
 import { useApp } from "../AppProvider";
-import { AiDraft } from "../AiDraft";
 import { Icon } from "../Icon";
 import { ImportPanel } from "../ImportPanel";
 import { Modal } from "../Modal";
@@ -57,7 +56,7 @@ export function Setlists() {
           <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
           <button className="btn primary" type="submit">Create</button>
         </form>
-        <AiDraft />
+        {app.store.kind === "supabase" && <p className="hint">Or let <Link href="/ai">Niu AI</Link> draft one from your library.</p>}
         <h3 className="modal-sub">From iReal Pro</h3>
         <ImportPanel onDone={() => setAdding(false)} />
       </Modal>

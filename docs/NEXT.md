@@ -10,7 +10,8 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - New on develop (not released):
   - **Make Spotify playlist** on a setlist (#45): `lib/spotify/user.ts`, `components/SpotifyPlaylist.tsx`, migration 0019.
   - **Recent collaborators** in Share and band invites (#46): migration 0018.
-  - **Tools** card: metronome, drone, print (#51): `lib/tools/`, one shared audio context in `lib/audio.ts`.
+  - **Tools** card: metronome, drone, print (#51): `lib/tools/`, one shared audio context in `lib/audio.ts`. Drone has an optional click; print has blank manuscript paper.
+  - **Niu AI** card and page (`/ai`): the AI setlist draft moved out of the New setlist dialog.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 - Access tests for 0018 and 0019 haven't run yet (no Docker on Dan's Mac). They run in CI on the release.
 

@@ -7,7 +7,7 @@ import { useApp } from "../AppProvider";
 const TOOLS = [
   { href: "/tools/metronome", name: "Metronome", about: "Tempo 30–300, tap tempo, accents, swing and a count-in" },
   { href: "/tools/drone", name: "Drone", about: "A held root, and a fifth if you like, in any key" },
-  { href: "/tools/print", name: "Print sheet music", about: "A tune, a lick or a whole setlist, one tune per page" },
+  { href: "/tools/print", name: "Print sheet music", about: "A tune, a lick, a whole setlist, or blank manuscript paper" },
 ];
 
 export function ToolsView() {

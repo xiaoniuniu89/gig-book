@@ -20,6 +20,12 @@ export function Home() {
             <span className="t">Setlists</span>
             <span className="m">{setlists.length ? `${setlists.length} · ${names(setlists)}` : "Make your first setlist"}</span>
           </Link>
+          {app.store.kind === "supabase" && (
+            <Link className="book ai" href="/ai">
+              <span className="t">Niu AI</span>
+              <span className="m">Describe a gig and get a setlist drafted from your library</span>
+            </Link>
+          )}
           <Link className="book lib" href="/library">
             <span className="t">Library</span>
             <span className="m">{total} charts · {names(library)}</span>

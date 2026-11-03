@@ -13,7 +13,7 @@ interface Step { title: string; body: string; path: "home" | "set" | "song" | "a
 
 const STEPS: Step[] = [
   { title: "Start from the shelf", path: "home", targets: ["home"],
-    body: "Library holds your charts: import them from iReal Pro, or start from the standards. Licks and Resources sit beside it, and the Tools card has a metronome, a drone and sheet-music printing." },
+    body: "Library holds your charts: import them from iReal Pro, or start from the standards. Licks and Resources sit beside it, the Tools card has a metronome, a drone and sheet-music printing, and Niu AI drafts a setlist from your library when you describe the gig." },
   { title: "Build a setlist", path: "set", targets: ["tunes"],
     body: "Add tunes from your library, change the key of any tune, and reorder with the arrows or by dragging the grip. With an account you can also share a setlist and make a Spotify playlist from it." },
   { title: "Share and Spotify", path: "set", targets: ["share", "playlist"],
