@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
 import { Bell } from "./Bell";
 import { Icon } from "./Icon";
@@ -27,6 +28,7 @@ export function TopBar() {
 // Sign out; the sign-in screen itself is in Gate. Only rendered when Supabase is configured.
 function Account() {
   const { account, toast, stopBand, store } = useApp();
+  const router = useRouter();
   if (!account) return null;
   return (
     <span className="acct-wrap">
@@ -34,6 +36,7 @@ function Account() {
       <button className="btn small icon-btn" aria-label="Sign out" title={"Sign out" + (account.email ? " " + account.email : "")} onClick={async () => {
         stopBand();
         await getSupabase()?.auth.signOut();
+        router.replace("/"); // the landing page lives at /, not at whatever page you were on
         toast("Signed out.");
       }}><Icon name="logout" size={18} /></button>
     </span>
