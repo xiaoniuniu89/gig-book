@@ -6,7 +6,8 @@ export interface SetlistItem {
   id: string;
   /** The iReal Pro song string, exactly as imported. */
   raw: string;
-  set: 1 | 2;
+  /** Which set it is in, from 1 (MAX_SETS at most). */
+  set: number;
   /** Semitones from the chart's written key; null = use iReal's own transpose setting. */
   shift: number | null;
   versions: Version[];
@@ -285,6 +286,9 @@ export const CHART_NAMES = ["Lead sheet", "Intro", "Outro", "Arrangement", "Bass
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
 /** A fresh id for a setlist item (a UUID, so Supabase keeps it). */
+/** Most sets a setlist can have (the database allows up to 9). */
+export const MAX_SETS = 6;
+
 export const newItemId = (): string => crypto.randomUUID();
 
 export interface DataStore {

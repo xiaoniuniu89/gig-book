@@ -21,20 +21,22 @@ export function libraryTunes(library: LibraryPlaylist[]): LibTune[] {
   return out.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export const newItem = (raw: string, set: 1 | 2, shift: number | null = null): SetlistItem =>
+export const newItem = (raw: string, set: number, shift: number | null = null): SetlistItem =>
   ({ id: newItemId(), raw, set, shift, versions: [] });
 
-export function TunePicker({ library, have, onAdd, onClose }: {
+export function TunePicker({ library, have, sets = 1, onAdd, onClose }: {
   library: LibraryPlaylist[];
   /** raw strings already in the setlist, marked in the list */
   have: string[];
-  onAdd: (raws: string[], set: 1 | 2) => void;
+  /** how many sets to offer (at least 1) */
+  sets?: number;
+  onAdd: (raws: string[], set: number) => void;
   onClose: () => void;
 }) {
   const all = useMemo(() => libraryTunes(library), [library]);
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
-  const [set, setSet] = useState<1 | 2>(1);
+  const [set, setSet] = useState(1);
   const nq = norm(q);
   const shown = nq ? all.filter(t => t.hay.includes(nq)) : all;
   const inSet = useMemo(() => new Set(have.map(r => { const m = meta(r); return idOf(m.title, m.composer); })), [have]);
@@ -56,10 +58,11 @@ export function TunePicker({ library, have, onAdd, onClose }: {
       </div>
       <div className="sheet-tools">
         <input className="search" type="search" placeholder="Search title, composer or style" autoComplete="off" autoFocus value={q} onChange={e => setQ(e.target.value)} />
-        <span className="seg" role="group" aria-label="Add to">
-          <button aria-pressed={set === 1} onClick={() => setSet(1)}>Set 1</button>
-          <button aria-pressed={set === 2} onClick={() => setSet(2)}>Set 2</button>
-        </span>
+        {sets > 1 && (
+          <span className="seg" role="group" aria-label="Add to">
+            {Array.from({ length: sets }, (_, k) => k + 1).map(n => <button key={n} aria-pressed={set === n} onClick={() => setSet(n)}>Set {n}</button>)}
+          </span>
+        )}
       </div>
       <div className="sheet-list">
         {shown.map(t => {
@@ -77,7 +80,7 @@ export function TunePicker({ library, have, onAdd, onClose }: {
       <div className="sheet-foot">
         <span className="hint">{picked.length} selected</span>
         <button className="btn primary" disabled={!picked.length} onClick={() => { onAdd(picked, set); onClose(); }}>
-          Add {picked.length || ""} to set {set}
+          Add {picked.length || ""}{sets > 1 ? ` to set ${set}` : ""}
         </button>
       </div>
     </div>,

@@ -31,7 +31,7 @@ const reasonText = (v: unknown): string => clip(v, 200).replace(/https?:\/\/\S+|
 export function parseRequest(body: unknown): { prompt: string; tunes: LibTuneInfo[] } | null {
   if (!body || typeof body !== "object") return null;
   const b = body as { prompt?: unknown; tunes?: unknown };
-  const prompt = clip(b.prompt, 300);
+  const prompt = clip(b.prompt, 700);
   if (!prompt || !Array.isArray(b.tunes) || !b.tunes.length) return null;
   const tunes = b.tunes.slice(0, MAX_LIBRARY).map((t: Record<string, unknown>) =>
     ({ title: clip(t?.title, 120), composer: clip(t?.composer, 80), style: clip(t?.style, 40), key: clip(t?.key, 10) }));

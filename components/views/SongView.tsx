@@ -17,7 +17,7 @@ import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
-import type { Setlist, SetlistItem } from "@/lib/data/types";
+import { newItemId, type Setlist, type SetlistItem } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -326,12 +326,19 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const own = app.setlists.filter(s => s.role !== "viewer");
+  const own = app.setlists.filter(s => s.role !== "viewer" && !isBuiltin(s.id));
+  const examples = app.setlists.filter(s => isBuiltin(s.id)); // read-only: picking one adds the tune to your own copy
   const sg = cur.song;
   const item = () => newItem(sg.raw, 1, app.prefs.libShift[sg.title + "|" + sg.composer] ?? null);
   const into = (s: Setlist) => {
     app.updateSetlist(s.id, x => ({ ...x, items: [...x.items, item()] }));
     app.toast(`Added to ${s.name}.`); setOpen(false);
+  };
+  const intoCopy = async (s: Setlist) => {
+    const n = s.name + " (copy)";
+    await app.addSetlist({ ...s, id: app.store.newId(n, id => !!app.setlistById(id)), name: n, role: "owner", visibility: "private",
+      items: [...s.items.map(it => ({ ...it, id: newItemId() })), item()] });
+    app.toast(`Added to ${n}.`); setOpen(false);
   };
   const fresh = async () => {
     const n = name.trim().slice(0, 200);
@@ -348,6 +355,14 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
           <b>{s.name}</b><span className="hint">{s.items.length} tunes{s.items.some(it => it.raw === sg.raw) ? " · already has this tune" : ""}</span>
         </button>
       ))}</div>}
+      {examples.length > 0 && <>
+        <h3 className="modal-sub">Examples</h3>
+        <div className="pick-list">{examples.map(s => (
+          <button key={s.id} className="pick-row" onClick={() => void intoCopy(s)}>
+            <b>{s.name}</b><span className="hint">Adds it to your own copy</span>
+          </button>
+        ))}</div>
+      </>}
       <h3 className="modal-sub">New setlist</h3>
       <form className="new-set" onSubmit={e => { e.preventDefault(); void fresh(); }}>
         <input aria-label="New setlist name" maxLength={200} placeholder="Setlist name (required)" value={name} onChange={e => setName(e.target.value)} />

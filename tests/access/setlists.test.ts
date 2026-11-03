@@ -119,6 +119,14 @@ describe("setlist guards", () => {
     expect(ben.some(s => s.id === IDS.cleoSet)).toBe(false);
   });
 
+  it("a setlist can have up to 9 sets (0024)", async () => {
+    const id = await scratchSetlist({ owner: "ava" });
+    const at = (set_no: number) => [{ position: 0, song: "Sets=X==Medium Swing=C==", set_no }];
+    must(await M.ava.sb.rpc("replace_setlist_items", { p_setlist_id: id, p_items: at(3) }), "set 3");
+    expect((await M.ava.store.getSetlist(id))?.items[0].set).toBe(3);
+    expect((await M.ava.sb.rpc("replace_setlist_items", { p_setlist_id: id, p_items: at(10) })).error).toBeTruthy();
+  });
+
   it("the signed-out client sees no setlists", async () => {
     const { anon } = await import("./helpers");
     const r = await anon().from("setlists").select("id");

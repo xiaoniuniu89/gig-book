@@ -14,7 +14,7 @@ export function NiuAiView() {
       <h1>Niu AI</h1>
       <section className="panel" aria-label="Draft a setlist">
         <h2>Draft a setlist</h2>
-        <p className="hint">Describe the gig: the style, the tempo, how many tunes. Niu AI picks tunes from your library and says why. Reorder, swap or remove any of them, then save it as a setlist.</p>
+        <p className="hint">Tap what fits the gig. Niu AI picks tunes from your library and says why; you can reorder, swap or remove any of them before saving.</p>
         {app.store.kind === "supabase"
           ? <AiDraft />
           : <p className="hint">Niu AI needs an account. Sign in from the <Link href="/">home page</Link> to use it.</p>}

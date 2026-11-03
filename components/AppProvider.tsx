@@ -152,7 +152,7 @@ interface Ctx {
 
   // practice gig
   gig: Gig | null;
-  startGig(s: Setlist, which: "all" | "1" | "2"): void;
+  startGig(s: Setlist, which: "all" | number): void;
 }
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -494,8 +494,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTimeout(() => { if (gigRef.current === g) gotoGigSong(true); }, 3000);
   }, [toast, gotoGigSong]);
 
-  const startGig = useCallback((s: Setlist, which: "all" | "1" | "2") => {
-    const order = s.items.map((it, i) => ({ it, i })).filter(x => which === "all" || String(x.it.set || 1) === which).map(x => x.i);
+  const startGig = useCallback((s: Setlist, which: "all" | number) => {
+    const order = s.items.map((it, i) => ({ it, i })).filter(x => which === "all" || (x.it.set || 1) === which).map(x => x.i);
     if (!order.length) { toast("That set is empty."); return; }
     setGig({ setId: s.id, order, pos: 0 });
     band?.init().catch(() => { /* reported through the band's error event */ });

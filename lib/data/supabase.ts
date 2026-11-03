@@ -103,7 +103,7 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
   const items: SetlistItem[] = (r.setlist_items || [])
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map(it => ({ id: it.id, raw: it.song, set: it.set_no === 2 ? 2 : 1, shift: it.shift, versions: it.versions || [] }));
+    .map(it => ({ id: it.id, raw: it.song, set: it.set_no || 1, shift: it.shift, versions: it.versions || [] }));
   return { id: r.id, name: r.name, spotify: r.spotify_uri, visibility: r.visibility, role, items, band: r.band_id && r.bands ? { id: r.band_id, name: r.bands.name } : null };
 }
 

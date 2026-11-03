@@ -10,11 +10,12 @@ import { song } from "@/lib/songs";
 import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { Modal } from "../Modal";
+import { Info } from "../Info";
 import { Collaborators } from "../Collaborators";
 import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { isBuiltin } from "@/lib/seeds";
-import { MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
+import { MAX_SETS, MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
 
 export function SetView() {
   const params = useParams<{ id: string }>();
@@ -55,6 +56,8 @@ function SetBody({ s }: { s: Setlist }) {
   const [picking, setPicking] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [making, setMaking] = useState(false);
+  const [pasting, setPasting] = useState(false);
+  const canMake = !builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0;
   // back from connecting Spotify: reopen the playlist dialog
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -79,8 +82,13 @@ function SetBody({ s }: { s: Setlist }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when the tunes change, not on every render
   }, [s.id, itemIds, app.store]);
 
-  const sets = useMemo(() => [1, 2].map(n => s.items.map((it, i) => ({ it, i })).filter(x => (x.it.set || 1) === n)),
-    [s.items]);
+  // as many sets as the tunes use, plus empty ones you've added on this screen (they go when you leave if still empty)
+  const used = s.items.reduce((m, it) => Math.max(m, it.set || 1), 1);
+  const [shown, setShown] = useState(1);
+  const count = Math.min(MAX_SETS, Math.max(used, shown));
+  const nums = Array.from({ length: count }, (_, k) => k + 1);
+  const sets = useMemo(() => Array.from({ length: count }, (_, k) => k + 1).map(n => s.items.map((it, i) => ({ it, i })).filter(x => (x.it.set || 1) === n)),
+    [s.items, count]);
   const mins = (xs: typeof sets[number]) => Math.round(xs.reduce((t, x) => t + (feelOf(song(x.it.raw).style) === "ballad" ? 4 : 3.5), 0));
 
   const moveUp = (i: number) => {
@@ -93,7 +101,7 @@ function SetBody({ s }: { s: Setlist }) {
   };
   const moveSet = (i: number) => {
     setArmed(null);
-    edit(x => ({ ...x, items: x.items.map((it, k) => k === i ? { ...it, set: (it.set || 1) === 1 ? 2 : 1 } : it) }));
+    edit(x => ({ ...x, items: x.items.map((it, k) => k === i ? { ...it, set: (it.set || 1) % count + 1 } : it) }));
   };
   const moveDown = (i: number) => {
     const it = s.items[i];
@@ -104,13 +112,13 @@ function SetBody({ s }: { s: Setlist }) {
     setArmed(null); edit(x => ({ ...x, items }));
   };
   // Drag by the grip (pointer events, so touch works). Nothing saves until the drop.
-  const [drag, setDrag] = useState<{ set: 1 | 2; before: number | null } | null>(null);
+  const [drag, setDrag] = useState<{ set: number; before: number | null } | null>(null);
   const hitTest = (e: PointerEvent) => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const sec = el?.closest<HTMLElement>("[data-set]");
     if (!sec) return null;
     const row = el?.closest<HTMLElement>("[data-i]");
-    const set = Number(sec.dataset.set) as 1 | 2;
+    const set = Number(sec.dataset.set);
     if (!row) return { set, before: null };
     const r = row.getBoundingClientRect();
     if (e.clientY < r.top + r.height / 2) return { set, before: Number(row.dataset.i) };
@@ -139,7 +147,7 @@ function SetBody({ s }: { s: Setlist }) {
     const v = plLink.trim();
     const uri = v ? toUri(v) : null;
     if (v && !uri) { toast("That isn't a Spotify playlist, album or track link."); return; }
-    edit(x => ({ ...x, spotify: uri })); toast(uri ? "Playlist linked." : "Playlist removed.");
+    edit(x => ({ ...x, spotify: uri })); setPasting(false); toast(uri ? "Playlist linked." : "Playlist removed.");
   };
   const startRename = () => { setDraft(s.name); setRenaming(true); };
   const commitRename = () => {
@@ -160,9 +168,9 @@ function SetBody({ s }: { s: Setlist }) {
     router.push("/set/" + encodeURIComponent(copy.id));
   };
 
-  const addTunes = (raws: string[], n: 1 | 2) => {
+  const addTunes = (raws: string[], n: number) => {
     edit(x => ({ ...x, items: [...x.items, ...raws.map(r => newItem(r, n))] }));
-    toast(`Added ${raws.length} tune${raws.length === 1 ? "" : "s"} to set ${n}.`);
+    toast(`Added ${raws.length} tune${raws.length === 1 ? "" : "s"}${count > 1 ? ` to set ${n}` : ""}.`);
   };
 
   return (
@@ -185,17 +193,18 @@ function SetBody({ s }: { s: Setlist }) {
           {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}>Add tunes</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
-          <button className="btn" data-gig="1" onClick={() => app.startGig(s, "1")}>Set 1</button>
-          <button className="btn" data-gig="2" onClick={() => app.startGig(s, "2")}>Set 2</button>
           {!builtin && app.store.kind === "supabase" && <button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button>}
-          {!builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0 && <button className="btn" id="make-pl" data-tour="playlist" onClick={() => setMaking(true)}><Icon name="music" size={18} /> Make Spotify playlist</button>}
-          {s.spotify && <button className="btn" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play the Spotify playlist</button>}
         </div>
       </div>
       <div className="sets" data-tour="tunes">
-        {[1, 2].map(n => (
+        {nums.map(n => (
           <section className={"set" + (drag?.set === n ? " drop" : "")} aria-label={`Set ${n}`} key={n} data-set={canEdit ? n : undefined}>
-            <div className="set-title"><h2>Set {n}</h2><span className="dur">{sets[n - 1].length} tunes · about {mins(sets[n - 1])} min</span></div>
+            <div className="set-title">
+              <h2>Set {n}</h2>
+              <span className="dur">{sets[n - 1].length} tunes · about {mins(sets[n - 1])} min</span>
+              {count > 1 && sets[n - 1].length > 0 && <button className="btn small" data-gig={n} title={`Practice set ${n} with the band`} aria-label={`Practice set ${n} with the band`} onClick={() => app.startGig(s, n)}>▶</button>}
+              {canEdit && n === count && n > used && <button className="btn small" title="Remove this empty set" aria-label={`Remove set ${n}`} onClick={() => setShown(count - 1)}>✕</button>}
+            </div>
             {sets[n - 1].length ? sets[n - 1].map((x, pos) => {
               const sg = song(x.it.raw);
               return (
@@ -206,39 +215,59 @@ function SetBody({ s }: { s: Setlist }) {
                   {canEdit && (
                     <span className="tune-btns">
                       <span className="grip" title="Drag to reorder" aria-hidden="true"
-                        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); setDrag({ set: n as 1 | 2, before: null }); }}
+                        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); setDrag({ set: n, before: null }); }}
                         onPointerMove={e => { if (drag) setDrag(hitTest(e)); }}
                         onPointerUp={e => dragEnd(e, x.i)} onPointerCancel={e => dragEnd(e, x.i)}>⠿</span>
                       <button className="btn small" title="Move up" aria-label="Move up" onClick={() => moveUp(x.i)}>↑</button>
                       <button className="btn small" title="Move down" aria-label="Move down" onClick={() => moveDown(x.i)}>↓</button>
-                      <button className="btn small" title={`Move to set ${n === 1 ? 2 : 1}`} onClick={() => moveSet(x.i)}>→ {n === 1 ? 2 : 1}</button>
+                      {count > 1 && <button className="btn small" title={`Move to set ${n % count + 1}`} onClick={() => moveSet(x.i)}>→ {n % count + 1}</button>}
                       <button className="btn small" title="Remove from setlist" aria-label="Remove" onClick={() => del(x.i)}>{armed === x.i ? "Remove?" : "✕"}</button>
                     </span>
                   )}
                 </div>
               );
-            }) : <p className="hint pad">Nothing in this set yet.</p>}
+            }) : <p className="hint pad">{canEdit && count > 1 ? "Nothing in this set yet. Drag tunes here, or use → on a tune." : "Nothing in this set yet."}</p>}
           </section>
         ))}
       </div>
-      <section className="panel">
-        <h2>Spotify playlist</h2>
-        <p className="hint">Paste the playlist (or album) link. The chart follows whichever track is playing, so the order doesn&apos;t need to match.</p>
-        <div className="inline-form">
-          <input id="pl-link" type="url" placeholder="https://open.spotify.com/playlist/…" value={plLink} onChange={e => setPlLink(e.target.value)} disabled={!canEdit} />
-          {canEdit && <button className="btn" id="pl-save" onClick={savePl}>Save</button>}
-          {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener">Open in Spotify</a>}
+      {canEdit && count < MAX_SETS && (
+        <div className="row-btns add-set"><button className="btn small" onClick={() => setShown(count + 1)}><Icon name="plus" size={16} /> Add set</button></div>
+      )}
+      <section className="panel sp-panel" aria-label="Spotify" data-tour="playlist">
+        <div className="panel-head">
+          <h2>Spotify</h2>
+          <Info label="About Spotify playlists">Play the setlist&apos;s recordings in the Listen tab. The chart follows whichever track is playing, so the order doesn&apos;t need to match.</Info>
         </div>
+        {s.spotify ? (
+          <div className="row-btns">
+            <button className="btn primary" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play here</button>
+            <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="music" size={18} /> Open in Spotify</a>
+            {canMake && s.spotify.startsWith("spotify:playlist:") && <button className="btn" id="make-pl" onClick={() => setMaking(true)}>Update playlist</button>}
+            {canEdit && !pasting && <button className="btn small link-btn" onClick={() => setPasting(true)}>Change</button>}
+          </div>
+        ) : canMake ? (
+          <div className="row-btns">
+            <button className="btn primary" id="make-pl" onClick={() => setMaking(true)}><Icon name="music" size={18} /> Create Spotify playlist</button>
+            {!pasting && <button className="btn small link-btn" onClick={() => setPasting(true)}>or use one you already have</button>}
+          </div>
+        ) : canEdit ? null : <p className="hint">No playlist yet.</p>}
+        {canEdit && (pasting || (!s.spotify && !canMake)) && (
+          <form className="inline-form" onSubmit={e => { e.preventDefault(); savePl(); }}>
+            <input id="pl-link" type="url" aria-label="Spotify playlist or album link" placeholder="Paste a playlist or album link" value={plLink} onChange={e => setPlLink(e.target.value)} />
+            <button className="btn" id="pl-save" type="submit">Save</button>
+            {s.spotify && <button className="btn" type="button" onClick={() => { setPlLink(""); edit(x => ({ ...x, spotify: null })); setPasting(false); toast("Playlist removed."); }}>Remove</button>}
+          </form>
+        )}
       </section>
       {!builtin && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
-      <Modal open={making} title={"Spotify playlist: " + s.name} onClose={() => setMaking(false)}>
+      <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
       </Modal>
       <Modal open={sharing} title={"Share " + s.name} onClose={() => setSharing(false)}>
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />
       </Modal>
-      {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} onAdd={addTunes} onClose={() => setPicking(false)} />}
+      {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} sets={count} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
         <section className="danger-zone">
           <button className="btn small" id="del-set" onClick={async () => {

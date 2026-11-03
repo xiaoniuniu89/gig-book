@@ -10,7 +10,7 @@ import { disconnectSpotify, makePlaylist, spotifyConnected, startConnect } from 
 import { webUrl } from "@/lib/spotify/uri";
 import type { Setlist, Version } from "@/lib/data/types";
 
-interface Row { id: string; title: string; set: 1 | 2; pick: Version | null; options: Version[] | null; saved: boolean; skip: boolean }
+interface Row { id: string; title: string; set: number; pick: Version | null; options: Version[] | null; saved: boolean; skip: boolean }
 
 const composerName = (c: string) => c.split(" ").reverse().join(" ").replace(/"/g, "").trim();
 const asVersion = (t: { uri: string; name: string; artists: string }): Version => ({ uri: t.uri, name: t.name, artists: t.artists });
@@ -125,7 +125,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
 
   return (
     <div className="sp-make">
-      <p className="hint">One recording per tune, set 1 then set 2. Change any of them, or skip a tune.</p>
+      <p className="hint">One recording per tune, in set order. Change any of them, or skip a tune.</p>
       <ol className="sp-rows">
         {(rows ?? []).map(r => (
           <li key={r.id} className={r.skip ? "skipped" : ""}>
@@ -152,10 +152,14 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
       <label className="sp-check"><input type="checkbox" checked={pub} onChange={e => setPub(e.target.checked)} /> Show it on my Spotify profile</label>
       {err && <p className="flag" role="alert">{err}</p>}
       <div className="row-btns">
-        <button className="btn primary" id="sp-create" disabled={busy || pending || !uris.length} onClick={() => void create()}>
-          <Icon name="music" size={18} /> {busy ? "Making it…" : pending ? "Finding recordings…" : `Make playlist (${uris.length} tracks)`}
-        </button>
-        {linked && <button className="btn" disabled={busy || pending || !uris.length} onClick={() => void create(linked)}>Update the linked playlist</button>}
+        {linked && <button className="btn primary" id="sp-update" disabled={busy || pending || !uris.length} onClick={() => void create(linked)}>
+          <Icon name="music" size={18} /> {busy ? "Updating…" : pending ? "Finding recordings…" : `Update playlist (${uris.length} tracks)`}
+        </button>}
+        {linked
+          ? <button className="btn" id="sp-create" disabled={busy || pending || !uris.length} onClick={() => void create()}>Make a new one instead</button>
+          : <button className="btn primary" id="sp-create" disabled={busy || pending || !uris.length} onClick={() => void create()}>
+              <Icon name="music" size={18} /> {busy ? "Making it…" : pending ? "Finding recordings…" : `Create playlist (${uris.length} tracks)`}
+            </button>}
       </div>
       <div><button className="btn small" onClick={() => void disconnectSpotify().then(() => setConnected(false))}>Disconnect Spotify</button></div>
     </div>
