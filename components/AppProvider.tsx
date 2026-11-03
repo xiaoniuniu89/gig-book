@@ -162,6 +162,8 @@ interface Ctx {
   recKind: "spotify" | "youtube";
   ytPos: { pos: number; count: number } | null;
   recTitle: string;
+  /** Nothing loaded in the Listen tab yet (recTitle is then the chosen player's name). */
+  recIdle: boolean;
   recStatus: string;
   follow: boolean;
   setFollow(v: boolean): void;
@@ -201,7 +203,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [bandStatus, setBandStatus] = useState("Ready");
   const [tempo, setTempoState] = useState(140);
   const [loop, setLoop] = useState("");
-  const [recTitle, setRecTitle] = useState("Spotify");
+  const [recTitle, setRecTitle] = useState("");
   const [recStatus, setRecStatus] = useState("");
   const [follow, setFollow] = useState(true);
   const [recKind, setRecKind] = useState<"spotify" | "youtube">("spotify");
@@ -743,7 +745,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     settings, updateSettings, prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
     band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, setLevel, bandKeyShift, markBar, lastBar,
-    setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, playYoutube, ytStep, ytEmbedRef, recKind, ytPos: yt && { pos: yt.pos, count: yt.queue.length }, recTitle, recStatus, follow, setFollow,
+    setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, playYoutube, ytStep, ytEmbedRef, recKind, ytPos: yt && { pos: yt.pos, count: yt.queue.length }, recTitle: recTitle || (settings.player === "youtube" ? "YouTube" : "Spotify"), recIdle: !recTitle, recStatus, follow, setFollow,
     gig, startGig,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

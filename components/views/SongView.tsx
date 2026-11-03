@@ -235,12 +235,13 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
   const [found, setFound] = useState<Found | null>(null);
   const [busy, setBusy] = useState(false);
   const results = found?.rows ?? null;
-  const [status, setStatus] = useState<{ msg: string; flag?: boolean } | null>(null);
+  const [status, setStatus] = useState<{ msg: string; flag?: boolean; settings?: boolean } | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
-  const [src, setSrc] = useState(app.settings.player); // which service "Find versions" searches
+  const src = app.settings.player; // the one player chosen in Settings; "Find versions" searches it
+  const pName = src === "youtube" ? "YouTube" : "Spotify";
   const [ytFound, setYtFound] = useState<YtFound | null>(null);
   const [pasted, setPasted] = useState<Version | null>(null);
-  useEffect(() => { setSrc(app.settings.player); }, [app.settings.player]);
+  useEffect(() => { setStatus(null); setPasted(null); }, [src]);
   useEffect(() => {
     const who = composerName(cur.song.composer);
     setQ(cur.song.title); setStatus(null); setSaved(new Set()); setPasted(null);
@@ -248,7 +249,8 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
     setYtFound(ytFoundCache.get(norm(cur.song.title) + "|" + who) ?? null);
   }, [cur.song]);
 
-  const vs = item?.versions ?? [];
+  // the other player's versions stay saved but aren't listed or playable here
+  const vs = (item?.versions ?? []).filter(v => isYtUri(v.uri) === (src === "youtube"));
   const ref = cur.kind === "set" ? { setId: cur.setId, idx: cur.itemIdx } : undefined;
   const playVideo = (id: string, title: string) => void app.playYoutube([{ key: "yt:" + id, title, composer: "", id, ...ref }]);
   const playUri = (uri: string, name: string) => { if (isYtUri(uri)) playVideo(ytId(uri), name); else void app.playSpotify(uri, true); };
@@ -289,6 +291,11 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
   };
   const go = () => {
     const link = parseRecordingLink(q);
+    if (link && link.kind !== src) {
+      setPasted(null);
+      setStatus({ msg: `That's a ${link.kind === "youtube" ? "YouTube" : "Spotify"} link. You're playing with ${pName}; change it in Settings.`, flag: true, settings: true });
+      return;
+    }
     if (link) void findLink(link); else if (src === "youtube") void findYt(); else void find();
   };
 
@@ -342,9 +349,9 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
     const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
     return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
   };
-  const removeVersion = (k: number) => {
+  const removeVersion = (uri: string) => {
     if (cur.kind !== "set") return;
-    app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, versions: (it.versions || []).filter((_, i) => i !== k) }));
+    app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, versions: (it.versions || []).filter(v => v.uri !== uri) }));
   };
 
   return (
@@ -352,25 +359,20 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
       <div className="panel-head"><h2>Recordings</h2></div>
       <div id="versions">
         {cur.kind !== "set" ? null
-          : vs.length ? vs.map((v, k) => (
+          : vs.length ? vs.map(v => (
             <div className="ver" key={v.uri}>
               <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => playUri(v.uri, v.name)}>▶</button>
               <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
-              {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(k)}>✕</button>}
+              {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
-          )) : <p className="hint">No saved versions yet. Search below.</p>}
+          )) : <p className="hint">No saved {pName} versions yet. Search below.</p>}
       </div>
       <div className="inline-form">
-        <input id="v-q" type="search" aria-label="Search for recordings, or paste a link" placeholder={src === "youtube" ? "Search YouTube or paste a link" : "Search Spotify or paste a link"} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") go(); }} />
+        <input id="v-q" type="search" aria-label="Search for recordings, or paste a link" placeholder={`Search ${pName} or paste a link`} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") go(); }} />
         <button className="btn" id="v-go" onClick={go} disabled={busy}>Find versions</button>
       </div>
-      <div className="seg v-src" role="group" aria-label="Search on">
-        {(["youtube", "spotify"] as const).map(p => (
-          <button key={p} type="button" aria-pressed={src === p} onClick={() => { setSrc(p); setStatus(null); setPasted(null); }}><Icon name={p} size={14} /> {p === "youtube" ? "YouTube" : "Spotify"}</button>
-        ))}
-      </div>
       <div id="v-results" className="list">
-        {status && <p className={status.flag ? "flag" : "hint"}>{status.msg}</p>}
+        {status && <p className={status.flag ? "flag" : "hint"}>{status.msg}{status.settings && <> <Link href="/settings">Open Settings</Link></>}</p>}
         {pasted && (
           <div className="ver">
             <button className="btn icon-btn small" aria-label={"Play " + pasted.name} onClick={() => playUri(pasted.uri, pasted.name)}>▶</button>
