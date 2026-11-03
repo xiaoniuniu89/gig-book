@@ -2,7 +2,7 @@
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
-import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -57,6 +57,11 @@ interface AttachmentRow {
   created_by: string;
   created_at: string;
 }
+interface VersionRow {
+  id: string; song_key: string; name: string; changes: string; source: "ai" | "community";
+  checked_by: string | null; checked_at: string | null; created_by: string | null; created_at: string;
+}
+const VERSION_COLS = "id, song_key, name, changes, source, checked_by, checked_at, created_by, created_at";
 interface ChartRow {
   id: string; owner: string; song_key: string; setlist_id: string | null; name: string;
   file_path: string; file_kind: "pdf" | "image" | "musicxml"; file_name: string; file_mime: string; file_size: number;
@@ -642,6 +647,53 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.from("charts").select(CHART_COLS).eq("song_key", key).or(or).order("created_at");
       if (error) fail("load the charts", error);
       return ((data || []) as ChartRow[]).map(toChart);
+    },
+
+    async listTuneVersions(key) {
+      const [v, c] = await Promise.all([
+        sb.from("tune_versions").select(VERSION_COLS).eq("song_key", key).order("created_at"),
+        sb.from("tune_version_claims").select("song_key").eq("song_key", key),
+      ]);
+      if (v.error) fail("load the versions", v.error);
+      const rows = (v.data || []) as VersionRow[];
+      const nm = await namesOf(rows.flatMap(r => [r.created_by, r.checked_by]).filter((x): x is string => !!x));
+      const who = (id: string | null) => id ? (id === userId ? "You" : nm.get(id) || "Member") : null;
+      const versions = rows.map((r): TuneVersion => ({
+        id: r.id, songKey: r.song_key, name: r.name, changes: r.changes, source: r.source, mine: r.created_by === userId,
+        authorName: who(r.created_by), checkedByName: who(r.checked_by), checked: !!r.checked_by, createdAt: r.created_at,
+      }));
+      return { versions, aiDone: !c.error && (c.data || []).length > 0 };
+    },
+
+    async addTuneVersion(key, name, changes) {
+      const { data, error } = await sb.from("tune_versions").insert({ song_key: key, name, changes, source: "community", created_by: userId }).select("id").single();
+      if (error) {
+        if (error.message.includes("version_limit")) throw new Error(`You can add ${VERSION_DAILY_LIMIT} versions a day. Try again tomorrow.`);
+        fail("save that version", error);
+      }
+      return (await this.listTuneVersions(key)).versions.find(v => v.id === (data as { id: string }).id)!;
+    },
+
+    async updateTuneVersion(v, f) {
+      const patch: { changes: string; name?: string } = { changes: f.changes };
+      if (v.mine && f.name !== v.name) patch.name = f.name;
+      const { data, error } = await sb.from("tune_versions").update(patch).eq("id", v.id).select("id");
+      if (error) fail("save that version", error);
+      if (!data?.length) throw new Error("Couldn't save that version: you can't change it.");
+      return (await this.listTuneVersions(v.songKey)).versions.find(x => x.id === v.id) ?? v;
+    },
+
+    async checkTuneVersion(v) {
+      // the database stamps who and when, whatever is sent
+      const { data, error } = await sb.from("tune_versions").update({ checked_by: userId }).eq("id", v.id).eq("source", "ai").select("id");
+      if (error) fail("mark that checked", error);
+      if (!data?.length) throw new Error("Couldn't mark that checked.");
+      return (await this.listTuneVersions(v.songKey)).versions.find(x => x.id === v.id) ?? v;
+    },
+
+    async deleteTuneVersion(v) {
+      const { error } = await sb.from("tune_versions").delete().eq("id", v.id).eq("created_by", userId);
+      if (error) fail("delete that version", error);
     },
 
     async createChart(f, file, audio, onProgress) {

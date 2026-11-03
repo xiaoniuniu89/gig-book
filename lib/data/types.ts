@@ -281,6 +281,28 @@ export interface Chart {
   createdAt: string;
 }
 
+/** A version of a tune's changes (R3.5), shared with everyone and keyed by song key. `changes` is the text format of lib/versions.ts. */
+export interface TuneVersion {
+  id: string;
+  songKey: string;
+  name: string;
+  changes: string;
+  source: "ai" | "community";
+  mine: boolean;
+  /** Who added a community version ("You" for yours). */
+  authorName: string | null;
+  /** Who last checked an AI version; null = still carries the "AI can make mistakes" tag. */
+  checkedByName: string | null;
+  checked: boolean;
+  createdAt: string;
+}
+export interface TuneVersions {
+  versions: TuneVersion[];
+  /** The AI has already looked this tune up (once per tune, ever), whether or not it found any. */
+  aiDone: boolean;
+}
+export const VERSION_DAILY_LIMIT = 10;
+
 /** Short names offered when adding a chart. */
 export const CHART_NAMES = ["Lead sheet", "Intro", "Outro", "Arrangement", "Bass part", "Horn parts"] as const;
 
@@ -346,6 +368,16 @@ export interface DataStore {
   setChartAudio(c: Chart, audio: File | null, onProgress?: (p: number) => void): Promise<Chart>;
   /** Owner, or the setlist owner for a shared chart. Removes its files too. */
   deleteChart(c: Chart): Promise<void>;
+  /** Shared versions of a tune's changes (accounts only; local mode has none). Oldest first. */
+  listTuneVersions(songKey: string): Promise<TuneVersions>;
+  /** A community version, as you. Rejected past the daily limit. */
+  addTuneVersion(songKey: string, name: string, changes: string): Promise<TuneVersion>;
+  /** Author only for community versions (name and changes); anyone for AI versions' changes (which also marks them checked). */
+  updateTuneVersion(v: TuneVersion, f: { name: string; changes: string }): Promise<TuneVersion>;
+  /** Marks an AI version checked, as you. */
+  checkTuneVersion(v: TuneVersion): Promise<TuneVersion>;
+  /** Author only. */
+  deleteTuneVersion(v: TuneVersion): Promise<void>;
   /** Your profile and press kit (accounts only). */
   getMyProfile(): Promise<Profile>;
   updateMyProfile(p: Profile): Promise<void>;

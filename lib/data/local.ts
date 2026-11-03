@@ -121,6 +121,12 @@ export const localStore: DataStore = {
   updateChart: () => Promise.reject(new Error("Charts need an account.")),
   setChartAudio: () => Promise.reject(new Error("Charts need an account.")),
   deleteChart: () => Promise.reject(new Error("Charts need an account.")),
+  // shared versions need an account (the UI hides the tabs in local mode)
+  listTuneVersions: async () => ({ versions: [], aiDone: true }),
+  addTuneVersion: () => Promise.reject(new Error("Versions need an account.")),
+  updateTuneVersion: () => Promise.reject(new Error("Versions need an account.")),
+  checkTuneVersion: () => Promise.reject(new Error("Versions need an account.")),
+  deleteTuneVersion: () => Promise.reject(new Error("Versions need an account.")),
   // the profile needs an account (the UI hides it in local mode)
   getMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
   updateMyProfile: () => Promise.reject(new Error("The profile needs an account.")),

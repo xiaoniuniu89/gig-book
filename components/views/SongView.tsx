@@ -16,6 +16,7 @@ import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
+import { VersionBar, useVersions } from "../Versions";
 import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
 import { searchVideos, videoInfo, type VideoResult } from "@/lib/youtube/client";
@@ -62,9 +63,11 @@ export function LibrarySongView() {
   return <SongBody cur={cur} />;
 }
 
-function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
+function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
   const app = useApp();
   const { prefs, updatePrefs, setCrumb, setCurrent, gig, library } = app;
+  const vs = useVersions(cur0.song); // R3.5: the picked version's chords replace the tune's for everything below
+  const cur = useMemo<TuneCurrent>(() => !vs.song || vs.song === cur0.song ? cur0 : { ...cur0, song: vs.song }, [cur0, vs.song]);
   const sg = cur.song;
   const shift = app.shiftOf(cur);
   const s = cur.kind === "set" ? setlist : undefined;
@@ -133,6 +136,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
       <section className="panel" aria-label="Chord chart" data-tour="chart">
         <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} />
         {ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
+        <VersionBar sg={cur0.song} vs={vs} />
         <div className="panel-head">
           <span className="seg" role="group" aria-label="Approach">
             <button data-mode="trad" aria-pressed={prefs.mode === "trad"} onClick={() => updatePrefs({ mode: "trad" })}>Chord scales</button>
