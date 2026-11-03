@@ -39,11 +39,13 @@ describe("plain selects", () => {
   });
 
   it("the tour flag is yours to set, and only yours", async () => {
+    // the seed marks everyone as having seen it (so it doesn't cover the end-to-end tests); start Eli and Ben fresh
+    await admin().from("profiles").update({ tour_seen: false }).in("id", [USERS.eli.id, USERS.ben.id]);
     expect(await M.eli.store.getTourSeen()).toBe(false);
     await M.eli.store.setTourSeen();
     expect(await M.eli.store.getTourSeen()).toBe(true);
     expect(await M.ben.store.getTourSeen()).toBe(false);
-    await admin().from("profiles").update({ tour_seen: false }).eq("id", USERS.eli.id);
+    await admin().from("profiles").update({ tour_seen: true }).in("id", [USERS.eli.id, USERS.ben.id]);
   });
 
   it("my_profile returns your own full profile only", async () => {
