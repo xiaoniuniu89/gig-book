@@ -5,8 +5,8 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
 - Vercel: project `niu-real-book` (GitHub-connected, production branch `main`, env vars set, live site uses the live Supabase). This folder is linked (`.vercel/`).
-- Dev Supabase: migrations up to `0020` applied, fake musicians seeded.
-- Live Supabase: up to `0015`. Migrations 0016 to 0020 go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
+- Dev Supabase: migrations up to `0021` applied, fake musicians seeded.
+- Live Supabase: up to `0015`. Migrations 0016 to 0021 go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
 - New on develop (not released):
   - **Make Spotify playlist** on a setlist (#45): `lib/spotify/user.ts`, `components/SpotifyPlaylist.tsx`, migration 0019.
   - **Recent collaborators** in Share and band invites (#46): migration 0018.
@@ -26,6 +26,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 4. **Add note** with a file; **Band chat** link; a MusicXML file on a lick.
 
 ## Before inviting testers
+0. **OpenRouter**: set a monthly credit limit on the API key (the hard spending ceiling, on top of Niu AI's 10 drafts a person and 200 site-wide a day).
 1. Supabase sign-in addresses (#48): live Site URL `https://niu-real-book.vercel.app` plus redirect `/auth/callback`; dev Site URL `http://localhost:3000` plus redirect. Then release `develop` to `main`.
 2. **#47 Resend SMTP**: first question, which domain should emails come from?
 3. **#50 Test with a real lead sheet**.

@@ -3,7 +3,15 @@ import { getSupabase } from "../supabase/client";
 import type { LibTune } from "@/components/TunePicker";
 
 export const AI_NOT_SET_UP = "AI drafts aren't set up on this site yet.";
-export interface DraftResult { picks: { index: number; reason: string }[]; spotifyQuery: string }
+export interface DraftResult { picks: { index: number; reason: string }[]; left: number | null }
+
+/** How many Niu AI drafts you have left today, or null when it can't tell. */
+export async function draftsLeft(): Promise<number | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc("ai_remaining");
+  return error || typeof data !== "number" ? null : data;
+}
 
 export async function requestDraft(prompt: string, tunes: LibTune[]): Promise<DraftResult> {
   const { data } = (await getSupabase()?.auth.getSession()) ?? { data: null };

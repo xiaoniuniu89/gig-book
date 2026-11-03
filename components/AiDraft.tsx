@@ -1,10 +1,10 @@
 "use client";
 // "Help me pick" (R9.2): describe a setlist, review the AI's draft from your library, then save it as a normal setlist.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
 import { libraryTunes, newItem, type LibTune } from "./TunePicker";
-import { requestDraft } from "@/lib/ai/client";
+import { draftsLeft, requestDraft } from "@/lib/ai/client";
 import { prettyKey } from "@/lib/songs";
 
 interface Row { tune: LibTune; reason: string }
@@ -19,6 +19,9 @@ export function AiDraft() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [name, setName] = useState("");
   const [swap, setSwap] = useState<number | null>(null);
+  const [left, setLeft] = useState<number | null>(null);
+  const online = app.store.kind === "supabase";
+  useEffect(() => { if (online) void draftsLeft().then(setLeft); }, [online]);
 
   if (app.store.kind !== "supabase") return null;
 
@@ -29,8 +32,9 @@ export function AiDraft() {
     try {
       const d = await requestDraft(prompt.trim(), all);
       setRows(d.picks.map(p => ({ tune: all[p.index], reason: p.reason })));
+      if (d.left !== null) setLeft(d.left);
       setName(prompt.trim().slice(0, 60)); setSwap(null);
-    } catch (e) { setErr(e instanceof Error ? e.message : "AI draft failed."); }
+    } catch (e) { setErr(e instanceof Error ? e.message : "AI draft failed."); void draftsLeft().then(setLeft); }
     setBusy(false);
   };
 
@@ -56,8 +60,9 @@ export function AiDraft() {
     <div className="ai-draft">
       <form className="new-set" onSubmit={e => { e.preventDefault(); void run(); }}>
         <input type="text" aria-label="What kind of set?" maxLength={300} placeholder="e.g. bebop heads, medium-up, 10 tunes" value={prompt} onChange={e => setPrompt(e.target.value)} />
-        <button className="btn primary" type="submit" disabled={busy || !prompt.trim()}>{busy ? "Thinking…" : "Draft a setlist"}</button>
+        <button className="btn primary" type="submit" disabled={busy || !prompt.trim() || left === 0}>{busy ? "Thinking…" : "Draft a setlist"}</button>
       </form>
+      {left !== null && <p className="hint">{left === 0 ? "No drafts left today. You get more tomorrow." : `${left} draft${left === 1 ? "" : "s"} left today.`}</p>}
       {err && <p className="flag" role="alert">{err}</p>}
       {rows && (
         <div className="ai-review">
