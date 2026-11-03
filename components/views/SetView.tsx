@@ -241,7 +241,7 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
         {s.spotify ? (
           <div className="row-btns">
-            <button className="btn primary" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play here</button>
+            <button className="btn primary" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play</button>
             <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="music" size={18} /> Open in Spotify</a>
             {canMake && s.spotify.startsWith("spotify:playlist:") && <button className="btn" id="make-pl" onClick={() => setMaking(true)}>Update playlist</button>}
             {canEdit && !pasting && <button className="btn small link-btn" onClick={() => setPasting(true)}>Change</button>}

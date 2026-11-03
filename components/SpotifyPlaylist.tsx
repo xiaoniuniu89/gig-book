@@ -7,7 +7,6 @@ import { Icon } from "./Icon";
 import { song } from "@/lib/songs";
 import { searchTracks } from "@/lib/spotify/client";
 import { disconnectSpotify, makePlaylist, serviceMode, spotifyConnected, startConnect } from "@/lib/spotify/account";
-import { webUrl } from "@/lib/spotify/uri";
 import type { Setlist, Version } from "@/lib/data/types";
 
 interface Row { id: string; title: string; set: number; pick: Version | null; options: Version[] | null; saved: boolean; skip: boolean }
@@ -39,7 +38,6 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
   const [pub, setPub] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [made, setMade] = useState<string | null>(null);
   const linked = s.spotify?.startsWith("spotify:playlist:") ? s.spotify : null;
 
   useEffect(() => {
@@ -92,12 +90,13 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
     try {
       const uri = await makePlaylist({ name: name.trim() || s.name, public: pub, uris, update });
       if (uri !== s.spotify) app.updateSetlist(s.id, x => ({ ...x, spotify: uri }));
-      setMade(uri);
       app.toast(update ? "Playlist updated." : "Playlist made.");
+      onClose();
+      return;
     } catch (e) {
       const status = (e as { status?: number }).status;
-      if (status === 401 && !service) setConnected(false);
-      setErr(e instanceof Error ? e.message : "Couldn't make the playlist.");
+      if (status === 401 && !service) { setConnected(false); setErr(e instanceof Error ? e.message : ""); }
+      else app.toast(e instanceof Error ? e.message : "Couldn't make the playlist.");
     }
     setBusy(false);
   };
@@ -113,17 +112,6 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
         <button className="btn" onClick={onClose}>Not now</button>
       </div>
       <p className="hint">Spotify playlists are in early access. If Spotify says the app isn&apos;t available to you, send us feedback with the email your Spotify account uses.</p>
-    </div>
-  );
-
-  if (made) return (
-    <div className="sp-make">
-      <p>{service ? "Your playlist is on Spotify and linked to this setlist. Open it and tap Save to add it to your library." : "Your playlist is in Spotify and linked to this setlist."}</p>
-      <div className="row-btns">
-        <a className="btn primary" href={webUrl(made)} target="_blank" rel="noreferrer"><Icon name="music" size={18} /> Open in Spotify</a>
-        <button className="btn" onClick={() => { app.playSpotify(made, true); onClose(); }}>Play it here</button>
-        <button className="btn" onClick={onClose}>Done</button>
-      </div>
     </div>
   );
 
