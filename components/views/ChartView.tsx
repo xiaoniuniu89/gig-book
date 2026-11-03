@@ -12,6 +12,7 @@ import { song, songKey } from "@/lib/songs";
 import { isBuiltin } from "@/lib/seeds";
 import { FileChart } from "../Attachments";
 import { ChartAudio, useCharts } from "../Charts";
+import { useVersions } from "../Versions";
 import type { Attachment } from "@/lib/data/types";
 
 /** What the view shows. R3.4 adds an attached PDF/image kind here. */
@@ -52,10 +53,12 @@ export function LibraryChartView() {
     prev={p && idx > 0 ? base + (idx - 1) + "/chart" : ""} next={p && idx < p.songs.length - 1 ? base + (idx + 1) + "/chart" : ""} />;
 }
 
-function Focus({ cur, back, prev, next, missing, tune }: {
+function Focus({ cur: cur0, back, prev, next, missing, tune }: {
   cur: Current | null; back: string; prev: string; next: string; missing: boolean; tune?: { setlistId: string; itemId: string };
 }) {
   const app = useApp();
+  const vs = useVersions(cur0?.song ?? null); // R3.5: the version picked on the tune page
+  const cur = useMemo<Current | null>(() => !cur0 || !vs.song || vs.song === cur0.song ? cur0 : { ...cur0, song: vs.song }, [cur0, vs.song]);
   const ch = useCharts(cur ? songKey(cur.song.raw) : "", tune?.setlistId); // R3.4: the chart tab you last picked for this tune
   const router = useRouter();
   const { prefs, setCurrent } = app;

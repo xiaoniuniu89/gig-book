@@ -41,6 +41,12 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R3.2 Swipe left/right (and on-screen buttons) for the previous/next tune in the setlist; transpose still available.
 - R3.3 Keeps the screen awake while open (Screen Wake Lock API, where supported).
 - R3.4 A tune can have uploaded charts (PDF, photo or MusicXML: lead sheet, intro, outro…), each with an optional recording, shown as tabs beside the iReal chart on the tune page and in the chart view. Your own charts follow the song everywhere; a chart can be shared with a setlist. The last tab picked per song is remembered.
+- R3.5 Versions of a tune's changes: the reharmonisations players actually recorded (e.g. Bill Evans on "Someday My Prince Will Come", *Portrait in Jazz*) plus versions players add. Shared with everyone signed in, keyed by `songKey`; on library and setlist tunes alike; hidden when signed out.
+  - A row of tabs above the iReal chart: Original, then each version named by player and recording. Picking one redraws the chart; the scale band, guide tones, sixth diminished and the band use it.
+  - **Find famous versions** (shown only while the tune has no AI versions): the AI picks at most 3 well-known recorded versions and writes their changes. No user prompt; the model sees only title, composer, style and the original changes. It runs **once per tune, ever**: the database claims the tune first (`claim_tune_versions`, unique per song key) and it counts toward the daily Niu AI limits. Its answer is never trusted: every chord must parse, the bar count must match, names are plain text (60 chars).
+  - AI versions carry the tag "AI can make mistakes" until someone marks them checked; saving a fix also marks them checked and records who. The Info icon explains.
+  - **Add your own version**: a name, then plain-text changes (`| Bbmaj7 | G7 | Cm7 | F7 |`) starting from the Original or the picked version; same form and bar count. Signed in only, 10 new versions a day each. Authors edit and delete their own; Dan deletes any (service role). A Report item goes through the feedback path.
+  - Migration 0028 (`tune_versions`, `tune_version_claims`); access tests in `tests/access/tune-versions.test.ts`.
 
 ### R4 Members, permissions and sharing
 - R4.1 The setlist owner shares a setlist with an existing user by email. Unknown emails are not invited automatically (closed beta, R1); the owner is told to ask Dan.

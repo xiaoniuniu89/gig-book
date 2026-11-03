@@ -45,7 +45,7 @@ export function validatePick(raw: unknown, count: number): number {
   return Number.isInteger(i) && i >= 0 && i < count ? i : -1;
 }
 
-async function ask(system: string, user: string, maxTokens: number): Promise<unknown> {
+export async function ask(system: string, user: string, maxTokens: number, model?: string, timeoutMs = 20000): Promise<unknown> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key || !isConfigured()) throw new AiError("AI isn't set up on this site yet.", 503);
   let res: Response;
@@ -54,11 +54,11 @@ async function ask(system: string, user: string, maxTokens: number): Promise<unk
       method: "POST",
       headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", "X-Title": "Niu Real Book" },
       body: JSON.stringify({
-        model: process.env.AI_MODEL_SMALL || process.env.AI_MODEL || "anthropic/claude-haiku-5.5",
+        model: model || process.env.AI_MODEL_SMALL || process.env.AI_MODEL || "anthropic/claude-haiku-5.5",
         response_format: { type: "json_object" }, max_tokens: maxTokens, temperature: 0,
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
       }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch { throw new AiError("Couldn't reach the AI service.", 502); }
   if (!res.ok) throw new AiError("The AI service failed (" + res.status + ").", 502);
