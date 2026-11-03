@@ -1,7 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -56,6 +56,14 @@ interface AttachmentRow {
   created_by: string;
   created_at: string;
 }
+interface ChartRow {
+  id: string; owner: string; song_key: string; setlist_id: string | null; name: string;
+  file_path: string; file_kind: "pdf" | "image" | "musicxml"; file_name: string; file_mime: string; file_size: number;
+  audio_path: string | null; audio_name: string | null; audio_mime: string | null; audio_size: number | null;
+  created_at: string;
+}
+const CHART_COLS = "id, owner, song_key, setlist_id, name, file_path, file_kind, file_name, file_mime, file_size, audio_path, audio_name, audio_mime, audio_size, created_at";
+const CHART_BUCKET = "charts";
 interface LickRow {
   id: string;
   owner: string;
@@ -108,6 +116,7 @@ const toAttachment = (r: AttachmentRow): Attachment => ({
 const safeName = (n: string): string => n.normalize("NFKD").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|-+$/g, "").slice(-80) || "file";
 
 const newUuid = () => crypto.randomUUID();
+const mimeOf = (f: File): string => (f.type || "application/octet-stream").split(";")[0].trim();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -183,19 +192,26 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     progression: r.progression || "", key: r.prog_key || "", notation: r.notation || "", createdAt: r.created_at, updatedAt: r.updated_at,
   });
 
-  /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
-  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string } | { band_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
-    const kind = attachmentKind(file.type, file.name);
-    if (!kind) throw new Error("Only PDF, image, audio and MusicXML files can be attached.");
-    const mime = (file.type || "application/octet-stream").split(";")[0].trim();
-    const path = `${dir}/${newUuid()}-${safeName(file.name)}`;
+  const toChart = (r: ChartRow): Chart => {
+    const part = (path: string, kind: Attachment["kind"], name: string, mime: string, size: number): Attachment => ({
+      id: r.id + (kind === "audio" ? ":audio" : ""), noteId: null, lickId: null, resourceId: null, bucket: CHART_BUCKET, path, kind, name, mime, size: Number(size),
+      createdBy: r.owner, createdAt: r.created_at,
+    });
+    return {
+      id: r.id, mine: r.owner === userId, songKey: r.song_key, setlistId: r.setlist_id, name: r.name, createdAt: r.created_at,
+      file: part(r.file_path, r.file_kind, r.file_name, r.file_mime, r.file_size),
+      audio: r.audio_path && r.audio_name && r.audio_mime ? part(r.audio_path, "audio", r.audio_name, r.audio_mime, r.audio_size ?? 0) : null,
+    };
+  };
+
+  /** Uploads one file to Storage (XHR rather than supabase-js, to get upload progress). */
+  const putFile = async (bucket: string, path: string, file: File, mime: string, onProgress?: (p: number) => void): Promise<void> => {
     const { data: sess } = await sb.auth.getSession();
     const token = sess.session?.access_token;
     if (!token) throw new Error("Sign in again to upload.");
-    // XHR rather than supabase-js, to get upload progress
     await new Promise<void>((resolve, reject) => {
       const x = new XMLHttpRequest();
-      x.open("POST", `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`);
+      x.open("POST", `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`);
       x.setRequestHeader("Authorization", "Bearer " + token);
       x.setRequestHeader("apikey", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
       x.setRequestHeader("x-upsert", "false");
@@ -205,6 +221,15 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       x.onerror = () => reject(new Error(`Couldn't upload ${file.name}: no connection.`));
       x.send(file);
     });
+  };
+
+  /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
+  const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string } | { band_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
+    const kind = attachmentKind(file.type, file.name);
+    if (!kind) throw new Error("Only PDF, image, audio and MusicXML files can be attached.");
+    const mime = mimeOf(file);
+    const path = `${dir}/${newUuid()}-${safeName(file.name)}`;
+    await putFile(BUCKET, path, file, mime, onProgress);
     const { data, error } = await sb.from("attachments")
       .insert({ ...parent, storage_path: path, kind, name: file.name.slice(0, 300), mime, size: file.size })
       .select(ATT_COLS).single();
@@ -595,25 +620,72 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async attachmentUrl(a) {
-      const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(a.path, 3600);
+      const { data, error } = await sb.storage.from(a.bucket || BUCKET).createSignedUrl(a.path, 3600);
       if (error || !data) fail("open that file", error);
       return data.signedUrl;
     },
 
-    async getChartChoice(setlistId, itemId) {
-      const { data, error } = await sb.from("chart_choices").select("attachments(" + ATT_COLS + ")")
-        .eq("user_id", userId).eq("setlist_item_id", itemUuid(setlistId, itemId)).maybeSingle();
-      if (error) fail("load the chart choice", error);
-      const a = (data as unknown as { attachments: AttachmentRow | null } | null)?.attachments;
-      return a ? toAttachment(a) : null;
+    async listCharts(key, setlistId) {
+      const or = setlistId && UUID.test(setlistId) ? `and(owner.eq.${userId},setlist_id.is.null),setlist_id.eq.${setlistId}` : `and(owner.eq.${userId},setlist_id.is.null)`;
+      const { data, error } = await sb.from("charts").select(CHART_COLS).eq("song_key", key).or(or).order("created_at");
+      if (error) fail("load the charts", error);
+      return ((data || []) as ChartRow[]).map(toChart);
     },
 
-    async setChartChoice(setlistId, itemId, attachmentId) {
-      const item = itemUuid(setlistId, itemId);
-      const { error } = attachmentId
-        ? await sb.from("chart_choices").upsert({ user_id: userId, setlist_item_id: item, attachment_id: attachmentId })
-        : await sb.from("chart_choices").delete().eq("user_id", userId).eq("setlist_item_id", item);
-      if (error) fail("save the chart choice", error);
+    async createChart(f, file, audio, onProgress) {
+      const fk = attachmentKind(file.type, file.name);
+      if (fk !== "pdf" && fk !== "image" && fk !== "musicxml") throw new Error("A chart has to be a PDF, a photo or a MusicXML file.");
+      if (audio && attachmentKind(audio.type, audio.name) !== "audio") throw new Error("The recording has to be an audio file.");
+      const id = newUuid();
+      const fileMime = mimeOf(file), audioMime = audio ? mimeOf(audio) : null;
+      const filePath = `${userId}/${id}/${newUuid()}-${safeName(file.name)}`;
+      const audioPath = audio ? `${userId}/${id}/${newUuid()}-${safeName(audio.name)}` : null;
+      const total = file.size + (audio?.size ?? 0) || 1;
+      await putFile(CHART_BUCKET, filePath, file, fileMime, p => onProgress?.(p * file.size / total));
+      try {
+        if (audio && audioPath && audioMime) await putFile(CHART_BUCKET, audioPath, audio, audioMime, p => onProgress?.((file.size + p * audio.size) / total));
+        const { data, error } = await sb.from("charts").insert({
+          id, song_key: f.songKey, setlist_id: f.setlistId, name: f.name,
+          file_path: filePath, file_kind: fk, file_name: file.name.slice(0, 300), file_mime: fileMime, file_size: file.size,
+          audio_path: audioPath, audio_name: audio ? audio.name.slice(0, 300) : null, audio_mime: audioMime, audio_size: audio ? audio.size : null,
+        }).select(CHART_COLS).single();
+        if (error) fail("save that chart", error);
+        return toChart(data as ChartRow);
+      } catch (e) {
+        await sb.storage.from(CHART_BUCKET).remove(audioPath ? [filePath, audioPath] : [filePath]);
+        throw e;
+      }
+    },
+
+    async updateChart(c, f) {
+      const { data, error } = await sb.from("charts").update({ name: f.name, setlist_id: f.setlistId, updated_at: new Date().toISOString() })
+        .eq("id", c.id).select(CHART_COLS).single();
+      if (error) fail("save that chart", error);
+      return toChart(data as ChartRow);
+    },
+
+    async setChartAudio(c, audio, onProgress) {
+      if (audio && attachmentKind(audio.type, audio.name) !== "audio") throw new Error("The recording has to be an audio file.");
+      const old = c.audio?.path ?? null;
+      const mime = audio ? mimeOf(audio) : null;
+      const path = audio ? `${userId}/${c.id}/${newUuid()}-${safeName(audio.name)}` : null;
+      if (audio && path && mime) await putFile(CHART_BUCKET, path, audio, mime, onProgress);
+      const { data, error } = await sb.from("charts").update({
+        audio_path: path, audio_name: audio ? audio.name.slice(0, 300) : null, audio_mime: mime, audio_size: audio ? audio.size : null, updated_at: new Date().toISOString(),
+      }).eq("id", c.id).select(CHART_COLS).single();
+      if (error) {
+        if (path) await sb.storage.from(CHART_BUCKET).remove([path]);
+        fail("save that recording", error);
+      }
+      if (old) await sb.storage.from(CHART_BUCKET).remove([old]);
+      return toChart(data as ChartRow);
+    },
+
+    async deleteChart(c) {
+      const rm = await sb.storage.from(CHART_BUCKET).remove(c.audio ? [c.file.path, c.audio.path] : [c.file.path]);
+      if (rm.error) fail("delete that chart", rm.error);
+      const { error } = await sb.from("charts").delete().eq("id", c.id);
+      if (error) fail("delete that chart", error);
     },
 
     async listBands() {

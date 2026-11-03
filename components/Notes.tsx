@@ -79,7 +79,7 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   );
 }
 
-export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, chart, tour }: {
+export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, tour }: {
   title: string;
   /** Marks the panel for the first-run tour. */
   tour?: string;
@@ -95,8 +95,6 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
   itemRaw?: string;
   /** Local mode only: an old single-line tune note, turned into a note once. */
   legacy?: { text: string; clear: () => void };
-  /** A setlist tune's chart pick (R3.4): its PDF/image attachments get "Use as chart". */
-  chart?: { current: string | null; set: (a: Attachment | null) => void };
 }) {
   const app = useApp();
   const { store, toast } = app;
@@ -153,7 +151,6 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
     try {
       await store.deleteAttachment(a);
       setAtts(p => p.filter(x => x.id !== a.id));
-      if (chart?.current === a.id) chart.set(null);
     } catch (e) { err(e, "Couldn't delete that file."); }
   };
   const remove = async (n: Note) => {
@@ -217,7 +214,7 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
         onSubmit={(b, t) => save(n, b, t)} onCancel={() => setEditing(null)} />
     : <div className="note-inner" {...(canAttach && isMine(n) ? dropProps(f => uploads.add(n.id, f)) : {})}>
         {meta(n)}<p className="note-body">{linkify(n.body)}</p>
-        <AttachmentList store={store} items={atts.filter(a => a.noteId === n.id)} chart={chart}
+        <AttachmentList store={store} items={atts.filter(a => a.noteId === n.id)}
           canDelete={a => a.createdBy === app.account?.id || (isOwner && home.kind !== "song")} onDelete={removeFile} />
         <UploadRows ups={uploads.ups} noteId={n.id} retry={uploads.retry} dismiss={uploads.dismiss} />
         {actions(n, reply)}

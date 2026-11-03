@@ -40,7 +40,7 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R3.1 A full-screen "chart only" view per tune: just the chart (or later the PDF), large type, minimal chrome.
 - R3.2 Swipe left/right (and on-screen buttons) for the previous/next tune in the setlist; transpose still available.
 - R3.3 Keeps the screen awake while open (Screen Wake Lock API, where supported).
-- R3.4 When a tune has a PDF/image chart attached (R6), the chart view can show it instead of the iReal chart.
+- R3.4 A tune can have uploaded charts (PDF, photo or MusicXML: lead sheet, intro, outro…), each with an optional recording, shown as tabs beside the iReal chart on the tune page and in the chart view. Your own charts follow the song everywhere; a chart can be shared with a setlist. The last tab picked per song is remembered.
 
 ### R4 Members, permissions and sharing
 - R4.1 The setlist owner shares a setlist with an existing user by email. Unknown emails are not invited automatically (closed beta, R1); the owner is told to ask Dan.

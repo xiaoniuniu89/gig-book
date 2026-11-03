@@ -93,6 +93,8 @@ export interface Attachment {
   /** Set on a band's press kit files (R10). */
   bandId?: string | null;
   resourceId: string | null;
+  /** Storage bucket; missing = "attachments". Chart files are in "charts". */
+  bucket?: string;
   path: string;
   kind: AttachmentKind;
   name: string;
@@ -264,6 +266,22 @@ export interface ResourceFields { kind: Resource["kind"]; title: string; url: st
 
 export interface ResourceLink { id: string; resource: Resource }
 
+/** A chart on a tune (R3.4): a PDF / image / MusicXML with an optional recording, shown as a tab beside the iReal chart. */
+export interface Chart {
+  id: string;
+  mine: boolean;
+  songKey: string;
+  /** Shared with everyone in this setlist; null = only you, on this song everywhere. */
+  setlistId: string | null;
+  name: string;
+  file: Attachment;
+  audio: Attachment | null;
+  createdAt: string;
+}
+
+/** Short names offered when adding a chart. */
+export const CHART_NAMES = ["Lead sheet", "Intro", "Outro", "Arrangement", "Bass part", "Horn parts"] as const;
+
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
 
 /** A fresh id for a setlist item (a UUID, so Supabase keeps it). */
@@ -313,9 +331,16 @@ export interface DataStore {
   deleteAttachment(a: Attachment): Promise<void>;
   /** A short-lived URL to read the file. */
   attachmentUrl(a: Attachment): Promise<string>;
-  /** The PDF/image you picked as the chart for a tune, if any (R3.4). */
-  getChartChoice(setlistId: string, itemId: string): Promise<Attachment | null>;
-  setChartChoice(setlistId: string, itemId: string, attachmentId: string | null): Promise<void>;
+  /** Charts on a song (key: `songKey()`): your own, plus those shared with `setlistId` (accounts only; local mode has none). Oldest first. */
+  listCharts(songKey: string, setlistId?: string): Promise<Chart[]>;
+  /** A new chart; `setlistId` shares it with that setlist. Progress is 0..1 over both files. */
+  createChart(f: { songKey: string; setlistId: string | null; name: string }, file: File, audio: File | null, onProgress?: (p: number) => void): Promise<Chart>;
+  /** Owner only: rename, or share with a setlist (null = only you). */
+  updateChart(c: Chart, f: { name: string; setlistId: string | null }): Promise<Chart>;
+  /** Owner only: add, replace or (null) remove the recording. */
+  setChartAudio(c: Chart, audio: File | null, onProgress?: (p: number) => void): Promise<Chart>;
+  /** Owner, or the setlist owner for a shared chart. Removes its files too. */
+  deleteChart(c: Chart): Promise<void>;
   /** Your profile and press kit (accounts only). */
   getMyProfile(): Promise<Profile>;
   updateMyProfile(p: Profile): Promise<void>;

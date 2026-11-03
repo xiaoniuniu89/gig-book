@@ -115,8 +115,11 @@ export const localStore: DataStore = {
   uploadAttachment: () => Promise.reject(new Error("Attachments need an account.")),
   deleteAttachment: () => Promise.reject(new Error("Attachments need an account.")),
   attachmentUrl: () => Promise.reject(new Error("Attachments need an account.")),
-  getChartChoice: async () => null,
-  setChartChoice: async () => {},
+  listCharts: async () => [],
+  createChart: () => Promise.reject(new Error("Charts need an account.")),
+  updateChart: () => Promise.reject(new Error("Charts need an account.")),
+  setChartAudio: () => Promise.reject(new Error("Charts need an account.")),
+  deleteChart: () => Promise.reject(new Error("Charts need an account.")),
   // the profile needs an account (the UI hides it in local mode)
   getMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
   updateMyProfile: () => Promise.reject(new Error("The profile needs an account.")),

@@ -1,5 +1,5 @@
 "use client";
-// Attachments on notes (R6): attach menu (photo / record / file), upload queue, list with viewers, "use as chart" (R3.4).
+// Attachments on notes (R6): attach menu (photo / record / file), upload queue, list with viewers.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
 import { MAX_FILE_MB, attachmentKind, type Attachment, type DataStore, type NoteHome } from "@/lib/data/types";
@@ -26,7 +26,7 @@ const recMime = () => typeof MediaRecorder === "undefined" ? "" : ["audio/webm;c
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 
 /** Record / stop / preview / discard. Hands back a File on "Use recording". */
-function Recorder({ onDone, onCancel }: { onDone: (f: File) => void; onCancel: () => void }) {
+export function Recorder({ onDone, onCancel }: { onDone: (f: File) => void; onCancel: () => void }) {
   const [state, setState] = useState<"idle" | "rec" | "review">("idle");
   const [secs, setSecs] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -201,14 +201,10 @@ export function FileChart({ store, a, transpose }: { store: DataStore; a: Attach
     : <object className="file-chart" data={url} type="application/pdf" aria-label={a.name}><a className="btn" href={url} target="_blank" rel="noopener noreferrer">Open PDF</a></object>;
 }
 
-function One({ store, a, canDelete, onDelete, chart }: {
-  store: DataStore; a: Attachment; canDelete: boolean; onDelete: (a: Attachment) => void;
-  chart?: { current: string | null; set: (a: Attachment | null) => void };
-}) {
+function One({ store, a, canDelete, onDelete }: { store: DataStore; a: Attachment; canDelete: boolean; onDelete: (a: Attachment) => void }) {
   const [show, setShow] = useState(false);
   const [armed, setArmed] = useState(false);
   const url = useSignedUrl(store, a, (a.kind !== "pdf" && a.kind !== "musicxml") || show);
-  const isChart = chart?.current === a.id;
   return (
     <div className={"attachment " + a.kind}>
       {a.kind === "audio" && <>
@@ -226,37 +222,15 @@ function One({ store, a, canDelete, onDelete, chart }: {
       {show && url && <Viewer a={a} url={url} onClose={() => setShow(false)} />}
       {show && url === null && <p className="hint">Couldn&apos;t open that file.</p>}
       <div className="note-actions">
-        {chart && a.kind !== "audio" && (
-          <button className="btn small" type="button" aria-pressed={isChart} onClick={() => chart.set(isChart ? null : a)}>{isChart ? "Using as chart ✓" : "Use as chart"}</button>
-        )}
         {canDelete && <button className="btn small" type="button" onClick={() => { if (armed) onDelete(a); else setArmed(true); }}>{armed ? "Delete?" : "Delete file"}</button>}
       </div>
     </div>
   );
 }
 
-export function AttachmentList({ store, items, canDelete, onDelete, chart }: {
+export function AttachmentList({ store, items, canDelete, onDelete }: {
   store: DataStore; items: Attachment[]; canDelete: (a: Attachment) => boolean; onDelete: (a: Attachment) => void;
-  chart?: { current: string | null; set: (a: Attachment | null) => void };
 }) {
   if (!items.length) return null;
-  return <div className="attachments">{items.map(a => <One key={a.id} store={store} a={a} canDelete={canDelete(a)} onDelete={onDelete} chart={chart} />)}</div>;
-}
-
-/** Your "use as chart" pick for a tune of a setlist (R3.4). `undefined` while loading; null = none. */
-export function useChartChoice(store: DataStore, setlistId: string | undefined, itemId: string | undefined) {
-  const [att, setAtt] = useState<Attachment | null | undefined>(undefined);
-  useEffect(() => {
-    if (!setlistId || !itemId || store.kind !== "supabase") { setAtt(null); return; }
-    let gone = false;
-    setAtt(undefined);
-    store.getChartChoice(setlistId, itemId).then(a => { if (!gone) setAtt(a); }, () => { if (!gone) setAtt(null); });
-    return () => { gone = true; };
-  }, [store, setlistId, itemId]);
-  const set = useCallback(async (a: Attachment | null) => {
-    if (!setlistId || !itemId) return;
-    await store.setChartChoice(setlistId, itemId, a?.id ?? null);
-    setAtt(a);
-  }, [store, setlistId, itemId]);
-  return { att, set };
+  return <div className="attachments">{items.map(a => <One key={a.id} store={store} a={a} canDelete={canDelete(a)} onDelete={onDelete} />)}</div>;
 }

@@ -5,8 +5,8 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
 - Vercel: project `niu-real-book` (GitHub-connected, production branch `main`, env vars set, live site uses the live Supabase). This folder is linked (`.vercel/`).
-- Dev Supabase: migrations up to `0021` applied, fake musicians seeded.
-- Live Supabase: up to `0021` (released 2026-11-03). Live site: https://www.niurealbook.com.
+- Dev Supabase: migrations up to `0022` applied, fake musicians seeded.
+- Live Supabase: up to `0021` (released 2026-11-03). `0022_charts` goes to live with the next release. Live site: https://www.niurealbook.com.
 - Released 2026-11-03:
   - **Make Spotify playlist** on a setlist (#45): `lib/spotify/user.ts`, `components/SpotifyPlaylist.tsx`, migration 0019.
   - **Recent collaborators** in Share and band invites (#46): migration 0018.
@@ -33,6 +33,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Apply to Spotify for extended quota. Development mode is capped at 5 users.
 
 ## Built, to verify
+- **Chart tabs (R3.4)**: Upload chart on a tune page; tabs for iReal and each chart (lead sheet, intro…), each with an optional recording; share with the setlist; the last tab per song is remembered (this device). Replaces "Use as chart" on note files (chart_choices is unused now). `components/Charts.tsx`, migration 0022 (own `charts` bucket). Access tests in `tests/access/charts.test.ts` run in CI on release.
 - **#49 First-run tour**: `components/Tour.tsx`; migration 0020 is on dev; local mode remembers it in `gigbook-tour`. Smoke test: a fresh sign-in starts it; Skip, Escape and Done stop it for good; "Take the tour" on the Account page replays it; try a phone and dark mode.
 
 ## Later

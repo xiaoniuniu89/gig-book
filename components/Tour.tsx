@@ -21,9 +21,9 @@ const STEPS: Step[] = [
   { title: "Practice gig", path: "set", targets: ["gig"],
     body: "Play through the whole set, or just Set 1 or Set 2, with the backing band. It moves on to the next tune for you." },
   { title: "Read and play along", path: "song", targets: ["chart"],
-    body: "Here is the chart. Use − and + by the title to transpose. In the player, press play for the backing band, or switch to Record to hear the Spotify recording." },
+    body: "Here is the chart. Upload chart adds your own lead sheet, intro or outro as a tab, with a recording if you like. Use − and + by the title to transpose. In the player, press play for the backing band, or switch to Record to hear the Spotify recording." },
   { title: "Notes and files", path: "song", targets: ["notes"],
-    body: "Keep your own notes on any tune. With an account you can also attach lead sheets and PDFs, and use one as the chart." },
+    body: "Keep your own notes on any tune. With an account you can also attach photos, PDFs and recordings." },
   { title: "Tell us what's broken", path: "any", targets: ["feedback"],
     body: "Something not working, or missing? Send a quick message with the Feedback button. You can take this tour again from your Account page." },
 ];

@@ -7,9 +7,10 @@ import { useApp, songHref, type Current } from "../AppProvider";
 import { ChartHost } from "./SongView";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
-import { song } from "@/lib/songs";
+import { song, songKey } from "@/lib/songs";
 import { isBuiltin } from "@/lib/seeds";
-import { FileChart, useChartChoice } from "../Attachments";
+import { FileChart } from "../Attachments";
+import { ChartAudio, useCharts } from "../Charts";
 import type { Attachment } from "@/lib/data/types";
 
 /** What the view shows. R3.4 adds an attached PDF/image kind here. */
@@ -54,9 +55,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
   cur: Current | null; back: string; prev: string; next: string; missing: boolean; tune?: { setlistId: string; itemId: string };
 }) {
   const app = useApp();
-  const pick = useChartChoice(app.store, tune?.setlistId, tune?.itemId); // R3.4: a PDF/image you picked for this tune
-  const [showIreal, setShowIreal] = useState(false); // overrides the picked file for this view
-  useEffect(() => setShowIreal(false), [tune?.itemId]);
+  const ch = useCharts(cur ? songKey(cur.song.raw) : "", tune?.setlistId); // R3.4: the chart tab you last picked for this tune
   const router = useRouter();
   const { prefs, setCurrent } = app;
   const [fs, setFs] = useState<"no" | "off" | "on">("no");
@@ -109,7 +108,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
   const shift = cur ? app.shiftOf(cur) : 0;
   const html = useMemo(() => sg ? chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn }) : "",
     [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn]);
-  const file = pick.att && !showIreal ? pick.att : null;
+  const file = ch.shown?.file ?? null;
   const source: ChartSource = file ? { kind: "file", att: file } : { kind: "ireal" };
 
   if (!cur || !sg) return (
@@ -146,9 +145,11 @@ function Focus({ cur, back, prev, next, missing, tune }: {
           <button aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>
           <button aria-label="Transpose up a half step" onClick={() => tr(1)}>+</button>
         </span>
-        {pick.att && (
-          <button className="btn" aria-pressed={!!file} aria-label={file ? "Show the iReal chart" : "Show the attached " + pick.att.kind}
-            onClick={() => setShowIreal(v => !v)}>{file ? "iReal" : pick.att.kind === "pdf" ? "PDF" : pick.att.kind === "musicxml" ? "Score" : "Image"}</button>
+        {ch.charts.length > 0 && (
+          <select className="focus-pick" aria-label="Which chart" value={ch.tab} onChange={e => ch.setTab(e.target.value)}>
+            <option value="ireal">iReal</option>
+            {ch.charts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         )}
         <button className="btn icon-btn" aria-label={playing ? "Stop the band" : "Play with the band"} disabled={!app.band}
           onClick={() => playing ? app.stopBand() : app.startBand(cur)}>{playing ? "■" : "▶"}</button>
@@ -159,6 +160,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
         onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
         {source.kind === "ireal" ? <ChartHost html={html} live={playing} fit /> : <FileChart store={app.store} a={source.att} transpose={shift} />}
       </div>
+      {ch.shown?.audio && <div className="focus-audio"><ChartAudio c={ch.shown} /></div>}
     </div>
   );
 }

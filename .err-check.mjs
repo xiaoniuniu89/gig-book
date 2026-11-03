@@ -1,0 +1,13 @@
+import { chromium } from "playwright";
+const t = setTimeout(() => { console.log("TIMEOUT"); process.exit(1); }, 120000);
+const b = await chromium.launch(); const p = await b.newPage();
+p.on("response", r => { if (r.status() >= 400) console.log("HTTP", r.status(), r.url()); });
+p.on("pageerror", e => console.log("PAGEERROR", e.message));
+await p.goto("http://localhost:3000/", { timeout: 90000 });
+await p.getByRole("button", { name: /^Ava/ }).click();
+await p.getByRole("heading", { name: /Welcome back, Ava/ }).waitFor({ timeout: 90000 });
+await p.goto("http://localhost:3000/setlists", { timeout: 90000 }); await p.waitForTimeout(4000);
+console.log("H1:", await p.locator("h1").allInnerTexts());
+const txt = await p.locator("nextjs-portal").evaluate(e => { const r = e.shadowRoot; return r ? Array.from(r.querySelectorAll("h1,h2,p,pre,[class*=message],[id*=error]")).map(x => x.textContent).join(" || ").slice(0, 2000) : ""; });
+console.log("OVERLAY TEXT:", txt);
+clearTimeout(t); await b.close();

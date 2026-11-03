@@ -14,10 +14,10 @@ import { Icon } from "../Icon";
 import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
-import { useChartChoice } from "../Attachments";
+import { ChartPane, ChartTabs, useCharts } from "../Charts";
 import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
-import type { Attachment, Setlist, SetlistItem } from "@/lib/data/types";
+import type { Setlist, SetlistItem } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -68,11 +68,8 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
   const list = s ? s.items : null;
   const item = cur.kind === "set" && s ? s.items[cur.itemIdx] : undefined;
   const canEdit = !s || s.role !== "viewer";
-  const pick = useChartChoice(app.store, s?.id, item?.id);
-  const chart = s && item ? {
-    current: pick.att?.id ?? null,
-    set: (a: Attachment | null) => { app.flushSetlist(s.id).then(() => pick.set(a)).catch(e => app.toast(e instanceof Error ? e.message : "Couldn't save that.")); },
-  } : undefined;
+  const shareTo = s && !isBuiltin(s.id) ? s : undefined; // charts can be shared with a real setlist
+  const ch = useCharts(songKey(sg.raw), shareTo?.id);
 
   // register as the tune on screen (the dock plays it, the band highlights it)
   useEffect(() => { setCurrent(cur); }, [cur, setCurrent]);
@@ -131,6 +128,8 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
         </div>
       </div>
       <section className="panel" aria-label="Chord chart" data-tour="chart">
+        <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} />
+        {ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
         <div className="panel-head">
           <span className="seg" role="group" aria-label="Approach">
             <button data-mode="trad" aria-pressed={prefs.mode === "trad"} onClick={() => updatePrefs({ mode: "trad" })}>Chord scales</button>
@@ -143,10 +142,11 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
           </div>
         </div>
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
+        </>}
       </section>
       {cur.kind === "set" && s && item && !isBuiltin(s.id) && (
         <Notes key={"band:" + item.id} title="Band notes" hint="For this tune in this setlist. Everyone in the band can read and reply."
-          home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw} chart={chart}
+          home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw}
           legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
       )}
       {cur.kind === "set" && s && item && !isBuiltin(s.id) && (
@@ -157,7 +157,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
         home={{ kind: "song", songKey: songKey(sg.raw) }} />
       <MyResources key={"my-res:" + songKey(sg.raw)} songKey={songKey(sg.raw)} />
       <Notes tour="notes" key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
-        home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} chart={chart} />
+        home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} item={item} canEdit={canEdit} />
