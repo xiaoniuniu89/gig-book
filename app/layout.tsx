@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@/components/AppProvider";
 import { Gate } from "@/components/Gate";
 import { Toast } from "@/components/Toast";
+import { PREPAINT } from "@/lib/settings";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* the saved light/dark choice, before first paint so there's no flash */}
-        <script dangerouslySetInnerHTML={{ __html: "try{if(localStorage.getItem('gigbook-theme-v2')==='dark'&&location.pathname!=='/')document.documentElement.dataset.theme='dark'}catch(e){}" }} />
+        <script dangerouslySetInnerHTML={{ __html: PREPAINT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}

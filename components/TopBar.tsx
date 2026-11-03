@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
 import { Bell } from "./Bell";
 import { Icon } from "./Icon";
 import { Feedback } from "./Feedback";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { resolveTheme } from "@/lib/settings";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
 export function TopBar() {
@@ -19,7 +20,7 @@ export function TopBar() {
           <PlayerButton />
           <ThemeToggle />
           {supabaseConfigured && <Bell />}
-          {supabaseConfigured && <Account />}
+          <Account />
         </span>
       </div>
     </header>
@@ -38,39 +39,51 @@ function PlayerButton() {
   );
 }
 
-// Sign out; the sign-in screen itself is in Gate. Only rendered when Supabase is configured.
+// The user menu: Account, Settings, Sign out (the sign-in screen itself is in Gate). Only rendered when Supabase is configured.
 function Account() {
   const { account, toast, stopBand, store } = useApp();
   const router = useRouter();
-  if (!account) return null;
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLSpanElement>(null);
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  if (supabaseConfigured && !account) return null; // signed out: the sign-in screen has no menu
+  const signedIn = !!account && store.kind === "supabase";
   return (
-    <span className="acct-wrap">
-      {store.kind === "supabase" && <Link className="btn small icon-btn" href="/account" aria-label="Account" title="Account and press kit"><Icon name="user" size={18} /></Link>}
-      <button className="btn small icon-btn" aria-label="Sign out" title={"Sign out" + (account.email ? " " + account.email : "")} onClick={async () => {
-        stopBand();
-        await getSupabase()?.auth.signOut();
-        router.replace("/"); // the landing page lives at /, not at whatever page you were on
-        toast("Signed out.");
-      }}><Icon name="logout" size={18} /></button>
+    <span className="acct-wrap" ref={wrap}>
+      <button className="btn small icon-btn" aria-label="Your menu" aria-haspopup="menu" aria-expanded={open} title={account?.email || "Your menu"} onClick={() => setOpen(o => !o)}><Icon name="user" size={18} /></button>
+      {open && (
+        <div className="user-menu" role="menu">
+          {signedIn && <Link role="menuitem" className="user-menu-item" href="/account"><Icon name="user" size={18} /> Account</Link>}
+          <Link role="menuitem" className="user-menu-item" href="/settings"><Icon name="settings" size={18} /> Settings</Link>
+          {signedIn && <button role="menuitem" className="user-menu-item" onClick={async () => {
+            setOpen(false);
+            stopBand();
+            await getSupabase()?.auth.signOut();
+            router.replace("/"); // the landing page lives at /, not at whatever page you were on
+            toast("Signed out.");
+          }}><Icon name="logout" size={18} /> Sign out</button>}
+        </div>
+      )}
     </span>
   );
 }
 
-// Light (paper) by default; dark is stage mode for dim rooms. The choice is applied before paint by a script in the layout.
-export const THEME_KEY = "gigbook-theme-v2"; // v2: the Real Book look starts everyone on light
+// Light (paper) by default; dark is stage mode for dim rooms. A shortcut for the theme in Settings; the layout's script applies the saved choice before paint.
 export function ThemeToggle({ labelled }: { labelled?: boolean }) {
-  const [dark, setDark] = useState<boolean | null>(null);
-  useEffect(() => {
-    const t = document.documentElement.dataset.theme;
-    setDark(t === "dark");
-  }, []);
-  if (dark === null) return null;
-  const flip = () => {
-    const next = dark ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch { /* private mode */ }
-    setDark(!dark);
-  };
+  const { settings, updateSettings } = useApp();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  const dark = resolveTheme(settings.theme) === "dark";
+  const flip = () => updateSettings({ theme: dark ? "light" : "dark" });
   return (
     labelled
       ? <button className="btn small" type="button" aria-pressed={dark} onClick={flip}><Icon name={dark ? "sun" : "moon"} size={16} /> {dark ? "Light mode" : "Stage mode (dark)"}</button>

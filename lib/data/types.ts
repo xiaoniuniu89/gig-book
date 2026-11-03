@@ -1,4 +1,5 @@
 // The app's data model and the one interface both storage adapters implement.
+import type { Settings } from "../settings";
 
 export interface Version { uri: string; name: string; artists: string }
 
@@ -351,6 +352,9 @@ export interface DataStore {
   /** Whether you've finished or skipped the first-run tour (local mode: remembered in this browser). */
   getTourSeen(): Promise<boolean>;
   setTourSeen(): Promise<void>;
+  /** Your saved settings, or null if none are saved yet (local mode: this browser's). */
+  getSettings(): Promise<Settings | null>;
+  saveSettings(s: Settings): Promise<void>;
   /** Promo files, oldest first. */
   listProfileFiles(): Promise<Attachment[]>;
   uploadProfileFile(file: File, onProgress?: (p: number) => void): Promise<Attachment>;

@@ -16,6 +16,7 @@ import { createSaveQueue } from "@/lib/data/saveQueue";
 import type { DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
+import { DEFAULT_SETTINGS, applySettings, loadLocalSettings, normalizeSettings, type Settings } from "@/lib/settings";
 import { BUILTIN_LIBRARY, LEGACY_SEED_IDS, isBuiltin, withBuiltins } from "@/lib/seeds";
 
 /* ---------------- types ---------------- */
@@ -106,6 +107,9 @@ interface Ctx {
   copyLocalToAccount(): Promise<number>;
   localCounts: { setlists: number; library: number } | null;
 
+  /** Account settings (theme, text size…); signed out they live in this browser. */
+  settings: Settings;
+  updateSettings(patch: Partial<Settings>): void;
   prefs: Prefs;
   updatePrefs(patch: Partial<Prefs> | ((p: Prefs) => Partial<Prefs>)): void;
   toast(msg: string): void;
@@ -248,6 +252,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updatePrefs = useCallback((patch: Partial<Prefs> | ((p: Prefs) => Partial<Prefs>)) => {
     setPrefs(p => ({ ...p, ...(typeof patch === "function" ? patch(p) : patch) }));
   }, []);
+
+  /* ---- settings: this browser's until signed in, then the account's ---- */
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef(settings); settingsRef.current = settings;
+  useEffect(() => { const s = loadLocalSettings(); setSettings(s); applySettings(s); }, []);
+  useEffect(() => {
+    let gone = false;
+    store.getSettings().then(saved => {
+      if (gone) return;
+      if (saved) { setSettings(saved); applySettings(saved); }
+      else if (store.kind === "supabase") store.saveSettings(loadLocalSettings()).catch(() => {}); // first sign-in: keep this browser's look
+    }, () => { /* keep what's showing */ });
+    return () => { gone = true; };
+  }, [store]);
+  useEffect(() => {
+    if (settings.theme !== "system") return;
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    const on = () => applySettings(settings);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [settings]);
+  const updateSettings = useCallback((patch: Partial<Settings>) => {
+    const next = normalizeSettings({ ...settingsRef.current, ...patch });
+    settingsRef.current = next;
+    setSettings(next); applySettings(next);
+    storeRef.current.saveSettings(next).catch(e => toast(e instanceof Error ? e.message : "Couldn't save your settings."));
+  }, [toast]);
 
   /* ---- storage: local, or Supabase once signed in ---- */
   useEffect(() => {
@@ -622,7 +653,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
-    prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
+    settings, updateSettings, prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
     band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, setLevel, bandKeyShift, markBar, lastBar,
     setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, recTitle, recStatus, follow, setFollow,

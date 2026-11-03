@@ -1,6 +1,7 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeSettings } from "../settings";
 import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
@@ -455,6 +456,17 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async setTourSeen() {
       const { error } = await sb.from("profiles").update({ tour_seen: true }).eq("id", userId);
       if (error) fail("save that you've seen the tour", error);
+    },
+
+    async getSettings() {
+      const { data, error } = await sb.from("user_settings").select("settings").eq("user_id", userId).maybeSingle();
+      if (error) fail("load your settings", error);
+      return data ? normalizeSettings((data as { settings: unknown }).settings) : null;
+    },
+
+    async saveSettings(s) {
+      const { error } = await sb.from("user_settings").upsert({ user_id: userId, settings: s, updated_at: new Date().toISOString() });
+      if (error) fail("save your settings", error);
     },
 
     async listProfileFiles() {

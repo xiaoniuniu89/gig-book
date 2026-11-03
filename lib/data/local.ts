@@ -1,5 +1,6 @@
 // Local adapter: a tiny IndexedDB key-value store. Everything lives in this browser only.
 // Same database name, store and keys as the old static app ("setlist:<id>", "library:<id>").
+import { SETTINGS_KEY, loadLocalSettings, saveLocalSettings } from "../settings";
 import { slug, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
 
 const DB_NAME = "gig-book", STORE = "kv";
@@ -125,6 +126,8 @@ export const localStore: DataStore = {
   updateMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
   getTourSeen: async () => { try { return localStorage.getItem("gigbook-tour") === "1"; } catch { return true; } },
   setTourSeen: async () => { try { localStorage.setItem("gigbook-tour", "1"); } catch { /* private mode */ } },
+  getSettings: async () => { try { return localStorage.getItem(SETTINGS_KEY) ? loadLocalSettings() : null; } catch { return null; } },
+  saveSettings: async s => saveLocalSettings(s),
   listProfileFiles: async () => [],
   uploadProfileFile: () => Promise.reject(new Error("The profile needs an account.")),
   // licks need an account (the UI hides them in local mode)
