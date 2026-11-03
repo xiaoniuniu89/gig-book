@@ -32,7 +32,8 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 3. **#49 First-run tour**.
 
 ## Then
-- **#51 Tools card**: metronome, drone, print sheet music. Find Dan's old repos to reuse first.
+- **#51 Tools card** is built (unverified: the build run couldn't install dependencies, so run `npm run typecheck` and `npm run lint` first and fix anything they report). `/tools`, `/tools/metronome`, `/tools/drone`, `/tools/print`; rewritten from scratch on Web Audio (no Tone.js). One shared `AudioContext` and "one source plays at a time" live in `lib/audio.ts` (band, metronome, drone, notation player). Smoke test: start each and check the others stop; print a setlist (one tune per page, key shown) in light and dark; try it on a phone.
+- Still to do for #51: a tuner (microphone) and ear training.
 
 ## Decided
 - No in-app music notation editor: free ones are too basic and good ones cost money. MusicXML upload and rendering is enough.

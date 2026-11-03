@@ -3,6 +3,7 @@ import { loadSampler, loadDrums, pickSample, DRUM_MAKEUP, type Sampler, type Dru
 import { Generator, feelOf, defaultTempo, type Feel } from "./gen";
 import { unroll, type Song } from "../ireal";
 import { detectTonic, hasRoot, type ChordLike } from "../theory";
+import { audioContext, claimAudio, releaseAudio } from "../audio";
 
 const LOOKAHEAD = 0.35; // seconds
 const TICK = 25;        // ms
@@ -73,8 +74,7 @@ export class Band {
   // Must be called from a click (browsers only start audio after a gesture).
   init(): Promise<void> {
     if (this.ready) return this.ready;
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    this.ctx = new Ctx({ latencyHint: "interactive" });
+    this.ctx = audioContext(); // shared with the tools, so only one of them sounds at a time
     const ctx = this.ctx;
     this.master = ctx.createDynamicsCompressor();
     this.master.threshold.value = -14; this.master.ratio.value = 3;
@@ -145,6 +145,7 @@ export class Band {
     const ctx = this.ctx as AudioContext;
     if (ctx.state === "suspended") await ctx.resume();
     this.stop(true);
+    claimAudio("band", () => this.stop());
     const song = opts.song;
     this.song = song; this.shift = opts.shift || 0;
     this.keyChange = opts.keyChange && opts.keyChange.step ? opts.keyChange : null;
@@ -269,6 +270,7 @@ export class Band {
     if (this.timer) clearInterval(this.timer);
     if (this.raf) cancelAnimationFrame(this.raf);
     this.timer = null; this.raf = null;
+    releaseAudio("band");
     if (this.voices && this.ctx) {
       const now = this.ctx.currentTime;
       this.voices.forEach(v => { try { v.stop(now + 0.05); } catch { /* already stopped */ } });

@@ -1,8 +1,9 @@
 "use client";
 // Sheet music from ABC notation, drawn by abcjs (loaded on first use), with swung playback and the chords comped underneath.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { MidiBuffer, TuneObject } from "abcjs";
 import { fullAbc } from "@/lib/abc";
+import { claimAudio, releaseAudio } from "@/lib/audio";
 
 type Abcjs = typeof import("abcjs");
 let lib: Promise<Abcjs> | null = null;
@@ -17,7 +18,8 @@ export function Notation({ abc, transpose = 0, play, compact }: { abc: string; t
   const [playing, setPlaying] = useState(false);
   const [tempo, setTempo] = useState(160);
 
-  const stop = () => { synth.current?.stop(); synth.current = null; setPlaying(false); };
+  const id = "notation:" + useId();
+  const stop = () => { synth.current?.stop(); synth.current = null; setPlaying(false); releaseAudio(id); };
 
   useEffect(() => {
     let gone = false;
@@ -32,12 +34,14 @@ export function Notation({ abc, transpose = 0, play, compact }: { abc: string; t
     }, () => { if (!gone) setBad(true); });
     return () => { gone = true; };
   }, [abc, transpose, compact]);
-  useEffect(() => () => { synth.current?.stop(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- id never changes
+  useEffect(() => () => { synth.current?.stop(); releaseAudio(id); }, []);
   useEffect(stop, [abc, transpose]);
 
   const start = async () => {
     const t = tune.current;
     if (!t) return;
+    claimAudio(id, stop); // the band, metronome and drone stop
     const ctx = new AudioContext(); // made inside the click so the browser lets it sound
     try {
       const a = await load();

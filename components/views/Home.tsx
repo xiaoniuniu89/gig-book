@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
+import { Icon } from "../Icon";
 
 export function Home() {
   const app = useApp();
@@ -37,6 +38,10 @@ export function Home() {
           <Link className="book res" href="/resources">
             <span className="t">Resources</span>
             <span className="m">Bookmarks, books and PDFs to pin to tunes</span>
+          </Link>
+          <Link className="book tools" href="/tools">
+            <span className="t"><Icon name="tools" size={26} /> Tools</span>
+            <span className="m">Metronome, drone and print sheet music</span>
           </Link>
         </div>
       )}
