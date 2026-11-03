@@ -7,6 +7,7 @@ import { SignIn } from "./SignIn";
 import { TopBar } from "./TopBar";
 import { Dock } from "./Dock";
 import { Tour } from "./Tour";
+import { WhatsNew } from "./WhatsNew";
 import { supabaseConfigured } from "@/lib/supabase/client";
 
 export function Gate({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export function Gate({ children }: { children: React.ReactNode }) {
       </div></main>
       <Dock />
       <Tour />
+      <WhatsNew />
     </>
   );
 }

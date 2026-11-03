@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
 import { TOUR_EVENT } from "../Tour";
+import { WHATS_NEW_EVENT } from "../WhatsNew";
 import { ThemeToggle } from "../TopBar";
 import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachments";
 import { Qr } from "../Qr";
@@ -51,7 +52,7 @@ export function AccountView() {
   const uploads = useUploads(store, "profile", useCallback((a: Attachment) => setFiles(l => l.concat(a)), []));
 
   if (!signedIn) return <><div className="page-head"><h1>Account</h1></div><p className="hint">Sign in to set up your profile.</p>
-    <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><ThemeToggle labelled /></div></>;
+    <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div></>;
   if (!p) return <><div className="page-head"><h1>Account</h1></div><p className="hint" role="status">Loading…</p></>;
 
   const edit = (f: (x: Profile) => Profile) => { setP(f(p)); setDirty(true); };
@@ -167,7 +168,7 @@ export function AccountView() {
 
       <section className="acct-sec">
         <h2>Help</h2>
-        <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><ThemeToggle labelled /></div>
+        <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div>
       </section>
     </>
   );
