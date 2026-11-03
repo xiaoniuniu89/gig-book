@@ -20,6 +20,11 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return j as T;
 }
 
+/** True when the site makes playlists in its own Spotify account, so there's nothing to connect. */
+export async function serviceMode(): Promise<boolean> {
+  try { return (await (await fetch("/api/spotify/playlist")).json()).service === true; } catch { return false; }
+}
+
 export async function spotifyConnected(): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;

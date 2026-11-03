@@ -78,6 +78,28 @@ export async function userToken(sb: SupabaseClient): Promise<string> {
   }
 }
 
+// ---- the app's own Spotify account ----
+// With SPOTIFY_SERVICE_REFRESH_TOKEN set, playlists are made in one Spotify account the app owns, so nobody has to
+// connect theirs (Spotify caps development-mode apps at 5 connected users). It can be its own Spotify app registration
+// (SPOTIFY_SERVICE_CLIENT_ID / _SECRET), so trouble there leaves search and playback alone. Get the token with
+// `node scripts/spotify-service-token.mjs`.
+const svcId = () => process.env.SPOTIFY_SERVICE_CLIENT_ID || clientId();
+const svcSecret = () => process.env.SPOTIFY_SERVICE_CLIENT_SECRET || secret();
+export const serviceMode = () => !!process.env.SPOTIFY_SERVICE_REFRESH_TOKEN;
+let svc: { value: string; expires: number } | null = null;
+export async function serviceToken(): Promise<string> {
+  if (svc && Date.now() < svc.expires) return svc.value;
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + Buffer.from(svcId() + ":" + svcSecret()).toString("base64") },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: process.env.SPOTIFY_SERVICE_REFRESH_TOKEN || "" }), cache: "no-store",
+  });
+  if (!res.ok) throw new SpotifyError("Spotify playlists are unavailable right now (" + res.status + ").", 503);
+  const t = (await res.json()) as { access_token: string; expires_in: number };
+  svc = { value: t.access_token, expires: Date.now() + (t.expires_in - 60) * 1000 };
+  return t.access_token;
+}
+
 /** Call the Web API as the user. */
 export async function userApi<T>(tk: string, method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch("https://api.spotify.com/v1" + path, {

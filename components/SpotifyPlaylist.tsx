@@ -1,12 +1,12 @@
 "use client";
 // "Make Spotify playlist" (#45): one recording per tune (the saved one, else the best search match), set 1 then set 2,
-// then make the playlist in the user's own Spotify account and link it to the setlist.
+// then make the playlist (in the site's own Spotify account when it has one, else the user's) and link it to the setlist.
 import { useEffect, useState } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { song } from "@/lib/songs";
 import { searchTracks } from "@/lib/spotify/client";
-import { disconnectSpotify, makePlaylist, spotifyConnected, startConnect } from "@/lib/spotify/account";
+import { disconnectSpotify, makePlaylist, serviceMode, spotifyConnected, startConnect } from "@/lib/spotify/account";
 import { webUrl } from "@/lib/spotify/uri";
 import type { Setlist, Version } from "@/lib/data/types";
 
@@ -33,6 +33,7 @@ async function candidates(title: string, composer: string): Promise<Version[]> {
 export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => void }) {
   const app = useApp();
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [service, setService] = useState(false); // the site's own Spotify account makes it: no connecting, always public
   const [rows, setRows] = useState<Row[] | null>(null);
   const [name, setName] = useState(s.name);
   const [pub, setPub] = useState(false);
@@ -42,7 +43,10 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
   const linked = s.spotify?.startsWith("spotify:playlist:") ? s.spotify : null;
 
   useEffect(() => {
-    spotifyConnected().then(setConnected, e => { setConnected(false); setErr(e instanceof Error ? e.message : String(e)); });
+    serviceMode().then(async svc => {
+      setService(svc);
+      setConnected(svc || await spotifyConnected());
+    }).catch(e => { setConnected(false); setErr(e instanceof Error ? e.message : String(e)); });
   }, []);
 
   // find a recording for every tune once connected
@@ -92,7 +96,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
       app.toast(update ? "Playlist updated." : "Playlist made.");
     } catch (e) {
       const status = (e as { status?: number }).status;
-      if (status === 401) setConnected(false);
+      if (status === 401 && !service) setConnected(false);
       setErr(e instanceof Error ? e.message : "Couldn't make the playlist.");
     }
     setBusy(false);
@@ -114,7 +118,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
 
   if (made) return (
     <div className="sp-make">
-      <p>Your playlist is in Spotify and linked to this setlist.</p>
+      <p>{service ? "Your playlist is on Spotify and linked to this setlist. Open it and tap Save to add it to your library." : "Your playlist is in Spotify and linked to this setlist."}</p>
       <div className="row-btns">
         <a className="btn primary" href={webUrl(made)} target="_blank" rel="noreferrer"><Icon name="music" size={18} /> Open in Spotify</a>
         <button className="btn" onClick={() => { app.playSpotify(made, true); onClose(); }}>Play it here</button>
@@ -149,7 +153,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
         <span className="field-label">Playlist name</span>
         <input maxLength={100} value={name} onChange={e => setName(e.target.value)} />
       </label>
-      <label className="sp-check"><input type="checkbox" checked={pub} onChange={e => setPub(e.target.checked)} /> Show it on my Spotify profile</label>
+      {!service && <label className="sp-check"><input type="checkbox" checked={pub} onChange={e => setPub(e.target.checked)} /> Show it on my Spotify profile</label>}
       {err && <p className="flag" role="alert">{err}</p>}
       <div className="row-btns">
         {linked && <button className="btn primary" id="sp-update" disabled={busy || pending || !uris.length} onClick={() => void create(linked)}>
@@ -161,7 +165,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
               <Icon name="music" size={18} /> {busy ? "Making it…" : pending ? "Finding recordings…" : `Create playlist (${uris.length} tracks)`}
             </button>}
       </div>
-      <div><button className="btn small" onClick={() => void disconnectSpotify().then(() => setConnected(false))}>Disconnect Spotify</button></div>
+      {!service && <div><button className="btn small" onClick={() => void disconnectSpotify().then(() => setConnected(false))}>Disconnect Spotify</button></div>}
     </div>
   );
 }
