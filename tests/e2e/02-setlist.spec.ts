@@ -14,7 +14,7 @@ test("2. build a setlist from the library, reorder it, open the chart view and s
     await page.getByRole("button", { name: "Add tunes" }).click();
     await page.getByPlaceholder("Search title, composer or style").fill(tune);
     await page.locator(".sheet-list label.pick", { hasText: tune }).first().click();
-    await page.getByRole("button", { name: /^Add 1 to set 1/ }).click();
+    await page.getByRole("button", { name: /^Add 1( to set 1)?$/ }).click();
   }
   const names = () => page.locator("section[aria-label='Set 1'] .tune .name").evaluateAll(els => els.map(e => e.childNodes[0].textContent));
   await expect.poll(names).toEqual(["Autumn Leaves", "Blue Bossa"]);

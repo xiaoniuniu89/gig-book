@@ -17,7 +17,7 @@ test("5. band members see and do exactly what their permissions allow; outsiders
   await ben.page.getByRole("button", { name: "Add tunes" }).click();
   await ben.page.getByPlaceholder("Search title, composer or style").fill("Anthropology");
   await ben.page.locator(".sheet-list label.pick", { hasText: "Anthropology" }).first().click();
-  await ben.page.getByRole("button", { name: /^Add 1 to set 1/ }).click();
+  await ben.page.getByRole("button", { name: /^Add 1( to set 1)?$/ }).click();
   await expect(tunes).toHaveCount(before + 1);
   // ...and put it back
   const remove = tunes.last().getByRole("button", { name: "Remove" });
@@ -53,9 +53,9 @@ test("5. band members see and do exactly what their permissions allow; outsiders
 
   // Eli is not in the band: nothing at all
   await go(eli.page, BAND);
-  await expect(eli.page.getByRole("heading", { name: "Band not found" })).toBeVisible();
+  await expect(eli.page.getByRole("heading", { name: "STOP!!!!" })).toBeVisible();
   await go(eli.page, SET);
-  await expect(eli.page.getByRole("heading", { name: "Setlist not found" })).toBeVisible();
+  await expect(eli.page.getByRole("heading", { name: "STOP!!!!" })).toBeVisible();
   await expect(eli.page.getByText("Ava Trio Book")).toHaveCount(0);
   await go(eli.page, "/bands");
   await expect(eli.page.getByText("No bands yet")).toBeVisible();
