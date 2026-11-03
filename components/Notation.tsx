@@ -35,7 +35,7 @@ export function Notation({ abc, transpose = 0, play, compact }: { abc: string; t
     return () => { gone = true; };
   }, [abc, transpose, compact]);
   useEffect(() => () => { synth.current?.stop(); releaseAudio(id); }, [id]); // id never changes
-  useEffect(stop, [abc, transpose]);
+  useEffect(stop, [abc, transpose, id]); // a new tune or key stops playback (id never changes)
 
   const start = async () => {
     const t = tune.current;
