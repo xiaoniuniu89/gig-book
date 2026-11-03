@@ -24,8 +24,8 @@ const STEPS: Step[] = [
     body: "Here is the chart. Upload chart adds your own lead sheet, intro or outro as a tab, with a recording if you like. Use − and + by the title to transpose. In the player, press play for the backing band, or switch to Record to hear the Spotify recording." },
   { title: "Notes and files", path: "song", targets: ["notes"],
     body: "Keep your own notes on any tune. With an account you can also attach photos, PDFs and recordings." },
-  { title: "Tell us what's broken", path: "any", targets: ["feedback"],
-    body: "Something not working, or missing? Send a quick message with the Feedback button. You can take this tour again from your Account page." },
+  { title: "Bugs and ideas", path: "any", targets: ["feedback"],
+    body: "Something not working, or missing? Tap Bugs & ideas to report a problem or suggest a feature. You can take this tour again from your Account page." },
 ];
 
 const same = (a: string, b: string) => { try { return decodeURIComponent(a) === decodeURIComponent(b); } catch { return a === b; } };

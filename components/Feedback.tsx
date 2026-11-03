@@ -7,6 +7,13 @@ import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { getSupabase } from "@/lib/supabase/client";
 
+const KINDS = ["Bug", "Feature idea", "Other"] as const;
+const HINTS: Record<(typeof KINDS)[number], string> = {
+  Bug: "What were you doing, what did you expect, and what happened instead?",
+  "Feature idea": "What would you like it to do? How would it help at a gig or in practice?",
+  Other: "Anything else: what worked, what was confusing, questions.",
+};
+
 export function Feedback() {
   const { account, toast } = useApp();
   const page = usePathname();
@@ -14,6 +21,7 @@ export function Feedback() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [kind, setKind] = useState<(typeof KINDS)[number]>("Bug");
   if (!account) return null;
 
   const send = async () => {
@@ -24,7 +32,7 @@ export function Feedback() {
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + (data?.session?.access_token || "") },
-        body: JSON.stringify({ text, page }),
+        body: JSON.stringify({ text: `[${kind}] ${text.trim()}`, page }),
       });
       const j = await res.json().catch(() => null);
       if (!res.ok) throw new Error(j?.error || "Couldn't send (" + res.status + ").");
@@ -35,11 +43,14 @@ export function Feedback() {
 
   return (
     <>
-      <button className="btn small feedback-btn" data-tour="feedback" onClick={() => setOpen(true)} title="Send feedback"><Icon name="chat" size={18} /><span>Feedback</span></button>
-      <Modal open={open} title="Send feedback" onClose={() => setOpen(false)}>
+      <button className="btn small feedback-btn" data-tour="feedback" onClick={() => setOpen(true)} title="Report a bug or suggest a feature"><Icon name="chat" size={18} /><span>Bugs &amp; ideas</span></button>
+      <Modal open={open} title="Report a bug or suggest a feature" onClose={() => setOpen(false)}>
         <form className="feedback-form" onSubmit={e => { e.preventDefault(); void send(); }}>
-          <textarea aria-label="Your feedback" rows={6} maxLength={5000} autoFocus value={text} onChange={e => setText(e.target.value)}
-            placeholder="What worked, what broke, what you wish it did. If something went wrong, what were you doing?" />
+          <span className="seg" role="group" aria-label="What is it?">
+            {KINDS.map(k => <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{k}</button>)}
+          </span>
+          <textarea aria-label="Your message" rows={6} maxLength={5000} autoFocus value={text} onChange={e => setText(e.target.value)}
+            placeholder={HINTS[kind]} />
           <p className="hint">It goes to the project&apos;s public issue tracker, without your name or email. Leave out anything private.</p>
           {err && <p className="flag" role="alert">{err}</p>}
           <div className="compose-row">

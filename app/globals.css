@@ -539,6 +539,8 @@ object.file-chart { height: 100%; min-height: 80vh; }
 /* chart tabs on a tune (R3.4) */
 .chart-tabs-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .chart-tabs .pl-tab { padding: 6px 12px; }
+.btn.accent { border: 2px solid var(--brass); color: var(--ink); font-weight: 600; }
+.btn.accent:hover { background: var(--brass-soft); }
 .chart-pane { display: grid; gap: 10px; min-width: 0; }
 .chart-pane-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .chart-pane-bar .chart-audio { flex: 1; }

@@ -196,7 +196,7 @@ export function ChartTabs({ songKey, setlist, ch }: { songKey: string; setlist?:
           </button>
         ))}
       </div>
-      {store.kind === "supabase" && <button className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
+      {store.kind === "supabase" && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
       <Modal open={adding} title="Upload a chart" onClose={() => setAdding(false)}>
         <AddChart songKey={songKey} setlist={setlist} taken={ch.charts.map(c => c.name)}
           onDone={c => { ch.setCharts(l => l.concat(c)); ch.setTab(c.id); setAdding(false); }} />
