@@ -21,6 +21,23 @@ export interface SetlistItem {
   note?: string | null;
 }
 
+/** Your own working copy of a tune, outside any setlist (R13). Private to you. */
+export interface Arrangement {
+  id: string;
+  /** Your name for it; the tune's title when you gave none. */
+  name: string;
+  /** The iReal Pro song string, exactly as imported. */
+  raw: string;
+  /** Semitones from the chart's written key; null = iReal's own transpose setting. */
+  shift: number | null;
+  /** Saved recordings, as on a setlist tune. */
+  versions: Version[];
+  createdAt: string;
+}
+
+/** The song key under which an arrangement keeps its private notes, licks and resources. */
+export const arrangementKey = (id: string): string => "arr:" + id;
+
 export type Visibility = "private" | "link" | "public";
 export type Role = "owner" | "editor" | "viewer";
 
@@ -383,6 +400,11 @@ export interface DataStore {
   checkTuneVersion(v: TuneVersion): Promise<TuneVersion>;
   /** Author only. */
   deleteTuneVersion(v: TuneVersion): Promise<void>;
+  /** Your arrangements, newest first. */
+  listArrangements(): Promise<Arrangement[]>;
+  /** Creates or updates one of yours. */
+  saveArrangement(a: Arrangement): Promise<void>;
+  deleteArrangement(id: string): Promise<void>;
   /** Your profile and press kit (accounts only). */
   getMyProfile(): Promise<Profile>;
   updateMyProfile(p: Profile): Promise<void>;

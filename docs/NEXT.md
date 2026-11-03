@@ -58,6 +58,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Not done: **tap along** (the issue allowed skipping it); fermatas are drawn but the band doesn't hold them; the band doesn't change its feel per section (feel is a drummer-view label only); hits aren't edited in the chart view. The iReal-export caveat is in the hits Info icon (there is no iReal tune export in the UI yet). Hits print on setlist pages.
 - Smoke test: on a setlist tune, Edit hits, tap bar 8, tap the "&" of 4, add Stop time through bar 12 on bar 9, Fermata; transpose (marks stay); play the band (accent, then silence); Drummer view on and off; change a section's feel; reload; as a viewer there is no Edit hits; library tune shows no editor. Add a "Hits" line to `lib/whatsNew.ts` at release.
 
+## Pending: arrangements (#65, R13)
+- Built by the bot, **typecheck, lint and tests not run** (no installed dependencies, `npm ci` was not allowed): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0030** (`arrangements`, owner only; tests in `tests/access/arrangements.test.ts`).
+- **Built without hits and section feel**: #64 wasn't on `develop` yet. When it lands, add them to `Arrangement` (types, both adapters, a migration after 0030 if it needs columns) and to `ArrangementActions.into` in `components/Arrangements.tsx` so the setlist copy carries them.
+- Code: `Arrangement` + `DataStore.list/save/deleteArrangement` (IndexedDB key `arrangement:<id>` locally), state in `AppProvider` (`arrangements`, `Current` kind `"arr"`), `/arrangements` (`ArrangementsView`), `/arrangements/[id]` (+ `/chart`) reuse `SongBody` in `SongView.tsx`. Private notes and licks use the song home with key `arr:<id>`, so no shared note rules changed. "My resources" is hidden on an arrangement (resources are pinned from their own page by song).
+- Smoke test: New arrangement (pick tune, optional name); Make an arrangement from a library chart; change key, save a recording, add a note; Add to setlist (copy is independent); rename, delete; signed out works on this device; tour step.
+
 ## Smoke test (Dan, on localhost)
 1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
 2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.

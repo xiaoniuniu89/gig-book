@@ -14,7 +14,7 @@ interface Step { title: string; body: string; path: "home" | "set" | "song" | "a
 // One stop per page, in the order you'd use them: gigs first, then practice, then your account.
 const STEPS: Step[] = [
   { title: "Your book", path: "home", targets: ["home"],
-    body: "Everything starts here. Gigs holds your setlists, library and bands; Practice holds licks, resources and tools; Niu AI drafts setlists for you." },
+    body: "Everything starts here. Gigs holds your setlists, library and bands; Practice holds your arrangements, licks, resources and tools; Niu AI drafts setlists for you." },
   { title: "Build a setlist", path: "set", targets: ["tunes"],
     body: "Add tunes, change any tune's key, and reorder by dragging the grip. Add set gives you a second or third set." },
   { title: "Share and listen", path: "set", targets: ["share", "playlist"],
@@ -29,6 +29,8 @@ const STEPS: Step[] = [
     body: "Play along with the backing band, or Listen to a recording of the tune. Tap any i icon for tips." },
   { title: "Library", path: "/library", targets: ["library"],
     body: "All your charts. Import playlists from iReal Pro, or use the built-in standards." },
+  { title: "Arrangements", path: "/arrangements", targets: ["arrangements"],
+    body: "Your own copies of tunes, with the key, recordings and notes you work on. Add one to a setlist and it goes in as a copy." },
   { title: "Licks", path: "/licks", targets: ["licks"],
     body: "Phrases and ideas, written out so you can hear them, and pinned to any tune." },
   { title: "Resources", path: "/resources", targets: ["resources"],

@@ -24,8 +24,10 @@ export function libraryTunes(library: LibraryPlaylist[]): LibTune[] {
 export const newItem = (raw: string, set: number, shift: number | null = null): SetlistItem =>
   ({ id: newItemId(), raw, set, shift, versions: [] });
 
-export function TunePicker({ library, have, sets = 1, onAdd, onClose }: {
+export function TunePicker({ library, have, sets = 1, single, onAdd, onClose }: {
   library: LibraryPlaylist[];
+  /** pick exactly one tune (the checkboxes act as radio buttons) */
+  single?: boolean;
   /** raw strings already in the setlist, marked in the list */
   have: string[];
   /** how many sets to offer (at least 1) */
@@ -48,12 +50,12 @@ export function TunePicker({ library, have, sets = 1, onAdd, onClose }: {
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose]);
 
-  const toggle = (raw: string) => setPicked(p => p.includes(raw) ? p.filter(x => x !== raw) : [...p, raw]);
+  const toggle = (raw: string) => setPicked(p => p.includes(raw) ? p.filter(x => x !== raw) : single ? [raw] : [...p, raw]);
 
   return createPortal(
     <div className="sheet" role="dialog" aria-modal="true" aria-label="Add tunes">
       <div className="sheet-head">
-        <h2>Add tunes</h2>
+        <h2>{single ? "Pick a tune" : "Add tunes"}</h2>
         <button className="btn" onClick={onClose}>Cancel</button>
       </div>
       <div className="sheet-tools">
@@ -80,7 +82,7 @@ export function TunePicker({ library, have, sets = 1, onAdd, onClose }: {
       <div className="sheet-foot">
         <span className="hint">{picked.length} selected</span>
         <button className="btn primary" disabled={!picked.length} onClick={() => { onAdd(picked, set); onClose(); }}>
-          Add {picked.length || ""}{sets > 1 ? ` to set ${set}` : ""}
+          {single ? "Pick" : <>Add {picked.length || ""}{sets > 1 ? ` to set ${set}` : ""}</>}
         </button>
       </div>
     </div>,

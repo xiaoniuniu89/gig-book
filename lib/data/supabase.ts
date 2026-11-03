@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import type { Hit, Feels } from "../hits";
-import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -85,6 +85,8 @@ interface LickRow {
   created_at: string;
   updated_at: string;
 }
+interface ArrangementRow { id: string; name: string; song: string; shift: number | null; versions: Version[] | null; created_at: string }
+const ARR_COLS = "id, name, song, shift, versions, created_at";
 interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
 interface LinkRow { id: string; created_by: string; licks: LickRow | null }
@@ -909,6 +911,22 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
 
     async uploadBandFile(bandId, file, onProgress) {
       return upload(`band/${bandId}/kit`, { band_id: bandId }, file, onProgress);
+    },
+
+    async listArrangements() {
+      const { data, error } = await sb.from("arrangements").select(ARR_COLS).eq("owner", userId).order("created_at", { ascending: false });
+      if (error) fail("load your arrangements", error);
+      return ((data || []) as ArrangementRow[]).map(r => ({ id: r.id, name: r.name, raw: r.song, shift: r.shift, versions: r.versions || [], createdAt: r.created_at }));
+    },
+
+    async saveArrangement(a: Arrangement) {
+      const { error } = await sb.from("arrangements").upsert({ id: a.id, owner: userId, name: a.name, song: a.raw, shift: a.shift, versions: a.versions });
+      if (error) fail("save that arrangement", error);
+    },
+
+    async deleteArrangement(id) {
+      const { error } = await sb.from("arrangements").delete().eq("id", id);
+      if (error) fail("remove that arrangement", error);
     },
 
     async listLibrary() {
