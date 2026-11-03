@@ -48,7 +48,7 @@ export class Drone {
   async start() {
     const ctx = audioContext();
     this.ctx = ctx;
-    claimAudio("drone", () => this.stop());
+    claimAudio("drone", () => this.stop(), "drone");
     if (ctx.state === "suspended") await ctx.resume();
     if (this.playing) return;
     const t = ctx.currentTime;

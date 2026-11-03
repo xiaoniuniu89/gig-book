@@ -36,6 +36,9 @@ export interface BeatEvent { beat: number; countIn: boolean }
 export class Metronome {
   opts: MetroOpts = { ...DEFAULT_METRO };
   playing = false;
+  /** Audio owner id and group (see lib/audio.ts): the drone page's click shares the drone's group. */
+  audioId = "metronome";
+  audioGroup = "metronome";
   onBeat: ((e: BeatEvent | null) => void) | null = null;
   onStop: (() => void) | null = null;
   private ctx: AudioContext | null = null;
@@ -57,7 +60,7 @@ export class Metronome {
   async start() {
     const ctx = audioContext();
     this.ctx = ctx;
-    claimAudio("metronome", () => this.stop());
+    claimAudio(this.audioId, () => this.stop(), this.audioGroup);
     if (ctx.state === "suspended") await ctx.resume();
     if (this.playing) return;
     this.out = ctx.createGain();
@@ -92,7 +95,7 @@ export class Metronome {
       this.out?.disconnect();
     }
     this.nodes = []; this.out = null;
-    releaseAudio("metronome");
+    releaseAudio(this.audioId);
     if (was) { this.onBeat?.(null); this.onStop?.(); }
   }
 

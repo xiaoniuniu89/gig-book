@@ -671,8 +671,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 
 /* Tools: metronome, drone, print */
 .book.tools { border-left-color: var(--iiv); }
-.book .t .icon { vertical-align: -3px; margin-right: 4px; }
 .tool-panel { gap: 16px; }
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px; align-items: start; }
 .tool-panel .seg { justify-self: start; }
 .tool-big { display: grid; justify-items: center; gap: 0; }
 .tool-num { font-family: var(--display); font-size: 96px; line-height: 1; letter-spacing: .02em; }
@@ -710,6 +710,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .print-key { font-size: 18px; font-weight: 600; }
 .print-sub { color: var(--muted); }
 .print-body { white-space: pre-wrap; }
+.ms-staves { display: grid; gap: 28px; }
+.ms-staff { width: 100%; height: auto; display: block; color: var(--ink); }
 @media print {
   @page { margin: 14mm; }
   .bar-top, #dock, .dock-scrim, #toast, .feedback-btn, .no-print, body::before { display: none !important; }
@@ -720,6 +722,10 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
   .print-page { border: 0; border-radius: 0; padding: 0; break-after: page; page-break-after: always; break-inside: auto; }
   .print-page:last-child { break-after: auto; page-break-after: auto; }
   .print-page .row { break-inside: avoid; }
+  /* blank manuscript fills the page, lines spread evenly */
+  .ms-page { height: 265mm; display: flex; flex-direction: column; gap: 10px; }
+  .ms-staves { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .ms-staff { break-inside: avoid; }
 }
 
 /* ---------------------------------------------------------------- first-run tour */

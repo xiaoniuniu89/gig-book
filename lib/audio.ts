@@ -2,7 +2,7 @@
 // The backing band, the metronome, the drone and the notation player all claim it; claiming stops whoever had it.
 
 let ctx: AudioContext | null = null;
-const owners = new Map<string, () => void>();
+const owners = new Map<string, { stop: () => void; group: string }>();
 
 /** The shared context. Call it from a click so the browser lets it sound. */
 export function audioContext(): AudioContext {
@@ -13,14 +13,15 @@ export function audioContext(): AudioContext {
   return ctx;
 }
 
-/** Make `id` the one that's playing: every other owner's `stop` runs. `stop` must be safe to call when already stopped. */
-export function claimAudio(id: string, stop: () => void): void {
-  for (const [other, fn] of [...owners]) {
-    if (other === id) continue;
+/** Make `id` the one that's playing: every other owner's `stop` runs, except owners in the same `group`
+ * (the drone page's click plays with its drone). `stop` must be safe to call when already stopped. */
+export function claimAudio(id: string, stop: () => void, group = id): void {
+  for (const [other, o] of [...owners]) {
+    if (other === id || o.group === group) continue;
     owners.delete(other);
-    try { fn(); } catch (e) { console.error(e); }
+    try { o.stop(); } catch (e) { console.error(e); }
   }
-  owners.set(id, stop);
+  owners.set(id, { stop, group });
 }
 
 /** `id` stopped by itself. */
