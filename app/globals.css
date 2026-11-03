@@ -859,3 +859,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
   .bar-top .theme-btn { display: none; }
 }
 @media (max-width: 640px) { .landing-form input, .landing-form textarea { font-size: 16px; } }
+
+/* "What works where" dialog: rows stack, so nothing scrolls sideways on a phone */
+.pb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pb-row { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-wrap: anywhere; }
+.pb-row[aria-current="true"] { border-color: var(--ink); background: var(--paper); }

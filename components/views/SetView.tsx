@@ -12,6 +12,7 @@ import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { Modal } from "../Modal";
 import { Info } from "../Info";
+import { PlaybackHelpLink } from "../PlaybackHelp";
 import { Collaborators } from "../Collaborators";
 import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
@@ -243,6 +244,7 @@ function SetBody({ s }: { s: Setlist }) {
           <div className="row-btns">
             <button className="btn primary" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play</button>
             <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="music" size={18} /> Open in Spotify</a>
+            <PlaybackHelpLink className="btn small link-btn" />
             {canMake && s.spotify.startsWith("spotify:playlist:") && <button className="btn" id="make-pl" onClick={() => setMaking(true)}>Update playlist</button>}
             {canEdit && !pasting && <button className="btn small link-btn" onClick={() => setPasting(true)}>Change</button>}
           </div>
