@@ -12,12 +12,13 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
   - Band chat link.
   - 20 MB file cap.
   - Feedback is triaged by the AI.
-- Not released to `main` yet. Migration 0015 is applied to live; migrations 0016 (`0016_musicxml_attachments.sql`) and 0017 (`0017_licks_select_owner.sql`) are applied to dev and will need `npm run db:live` when releasing `develop` to `main`.
+- Not released to `main` yet. Migration 0015 is applied to live; migrations 0016 (`0016_musicxml_attachments.sql`) and 0017 (`0017_licks_select_owner.sql`) are applied to dev and will go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
 
 ## Smoke test first (Dan, on localhost)
 1. Sign in as Ava. Open a setlist and use **Share**: the band picker, add by email, and change a role.
 2. Use **Add note** on a setlist, a tune, and the band Notes tab, with a file attached.
 3. Set a band's group chat link and check the **Band chat** button opens it.
+4. Upload a MusicXML file to a lick and check it renders and transposes.
 
 ## Before inviting testers
 1. **#48 Deploy to Vercel** (Dan is part way through): env vars, the Supabase Site URL and redirect URLs (live and dev), then release `develop` to `main`.
@@ -32,6 +33,9 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 
 ## Then
 - **#51 Tools card**: metronome, drone, print sheet music. Find Dan's old repos to reuse first.
+
+## Decided
+- No in-app music notation editor: free ones are too basic and good ones cost money. MusicXML upload and rendering is enough.
 
 ## Open questions
 - Should band invite links be multi-use or single-use?
