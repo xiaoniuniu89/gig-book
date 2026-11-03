@@ -34,8 +34,7 @@ export function Notation({ abc, transpose = 0, play, compact }: { abc: string; t
     }, () => { if (!gone) setBad(true); });
     return () => { gone = true; };
   }, [abc, transpose, compact]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- id never changes
-  useEffect(() => () => { synth.current?.stop(); releaseAudio(id); }, []);
+  useEffect(() => () => { synth.current?.stop(); releaseAudio(id); }, [id]); // id never changes
   useEffect(stop, [abc, transpose]);
 
   const start = async () => {
