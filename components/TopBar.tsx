@@ -32,7 +32,7 @@ function PlayerButton() {
   const { prefs, setDockSize, bandPlaying } = useApp();
   const open = prefs.dockSize !== "hidden";
   return (
-    <button className="btn small icon-btn player-btn" aria-label={bandPlaying ? "Player (the band is playing)" : "Player"} title="Play along or listen"
+    <button className="btn small icon-btn player-btn" data-tour="player" aria-label={bandPlaying ? "Player (the band is playing)" : "Player"} title="Play along or listen"
       aria-expanded={open} onClick={() => setDockSize(open ? "hidden" : "full")}>
       <Icon name="music" size={18} />{bandPlaying && <span className="player-dot" aria-hidden="true" />}
     </button>

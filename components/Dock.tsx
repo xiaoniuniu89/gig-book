@@ -47,7 +47,7 @@ export function Dock() {
 
   return (
     <aside id="dock" aria-label="Player" data-tab={tab} data-size={size}>
-      <div className="dock-rail" hidden={size !== "hidden"}>
+      <div className="dock-rail" data-tour="player" hidden={size !== "hidden"}>
         <button className="rail-btn" id="dock-open" aria-label="Open the player" aria-expanded={false} onClick={() => app.setDockSize("full")}>
           <span aria-hidden="true">‹</span>
         </button>
@@ -60,7 +60,7 @@ export function Dock() {
       <button className="dock-scrim" aria-label="Close the player" tabIndex={-1} hidden={size === "hidden"} onClick={() => app.setDockSize("hidden")} />
       <div className="dock-inner" inert={size === "hidden"}>
         <div className="dock-bar">
-          <span className="seg" role="group" aria-label="Sound source">
+          <span className="seg" role="group" aria-label="Sound source" data-tour="player">
             {(["band", "record"] as const).map(t => (
               <button key={t} data-dock={t} aria-pressed={tab === t} onClick={() => app.setDockTab(t)}>
                 {t === "band" ? "Play along" : "Listen"}

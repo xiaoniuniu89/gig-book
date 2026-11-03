@@ -17,14 +17,16 @@ const STEPS: Step[] = [
     body: "Everything starts here. Gigs holds your setlists, library and bands; Practice holds licks, resources and tools; Niu AI drafts setlists for you." },
   { title: "Build a setlist", path: "set", targets: ["tunes"],
     body: "Add tunes, change any tune's key, and reorder by dragging the grip. Add set gives you a second or third set." },
-  { title: "Share and Spotify", path: "set", targets: ["share", "playlist"],
-    body: "Share a setlist with your band. Create Spotify playlist builds one from your tunes' recordings, and Update keeps it in step." },
+  { title: "Share and listen", path: "set", targets: ["share", "playlist"],
+    body: "Share a setlist with your band. Play runs through the whole setlist on recordings, picking the right singer's version where it can." },
   { title: "Practice gig", path: "set", targets: ["gig"],
     body: "Play the whole setlist with the backing band, or one set with its ▶ button. It moves on to the next tune for you." },
   { title: "Read and play along", path: "song", targets: ["chart"],
     body: "The chart, in your key (− and + by the title transpose it). Upload chart adds your own lead sheet, intro or outro as a tab, with a recording if you like." },
   { title: "Notes and files", path: "song", targets: ["notes"],
     body: "Keep notes on any tune, and attach photos, PDFs and recordings." },
+  { title: "The player", path: "song", targets: ["player"],
+    body: "Play along with the backing band, or Listen to a recording of the tune. Tap any i icon for tips." },
   { title: "Library", path: "/library", targets: ["library"],
     body: "All your charts. Import playlists from iReal Pro, or use the built-in standards." },
   { title: "Licks", path: "/licks", targets: ["licks"],
@@ -38,7 +40,9 @@ const STEPS: Step[] = [
   { title: "Niu AI", path: "/ai", targets: ["ai"],
     body: "Tap what fits the gig and Niu AI drafts a setlist from your library. You check it before saving." },
   { title: "Your account", path: "/account", targets: ["account"],
-    body: "Your profile and press kit, light or stage mode, and this tour again whenever you want it." },
+    body: "Your profile and press kit. Each field has its own edit button, and AI can fill them in from your bio or CV. This tour is here again whenever you want it." },
+  { title: "Settings", path: "/settings", targets: ["settings"],
+    body: "Light or stage mode, bigger text, and whether recordings play on YouTube or Spotify. They follow you to every device you sign in on." },
   { title: "Bugs and ideas", path: "any", targets: ["feedback"],
     body: "Something not working, or missing? Tap Bugs & ideas to report a problem or suggest a feature." },
 ];
@@ -109,7 +113,8 @@ export function Tour() {
     if (!there) { router.push(want); return; }
     let tries = 0;
     const t = setInterval(() => {
-      const found = s.targets.map(k => document.querySelector(`[data-tour="${k}"]`)).find(Boolean) ?? null;
+      // the first one actually on screen: the player has a phone button, a rail and a drawer
+      const found = s.targets.flatMap(k => Array.from(document.querySelectorAll(`[data-tour="${k}"]`))).find(e => e.getClientRects().length > 0) ?? null;
       if (found) { clearInterval(t); setEl(found); }
       else if (++tries > 25) { clearInterval(t); go(i + dir.current, dir.current); }
     }, 120);

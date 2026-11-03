@@ -22,7 +22,7 @@ export function SettingsView() {
   useEffect(() => { setCurrent(null); setCrumb(null); }, [setCrumb, setCurrent]);
   return (
     <>
-      <div className="page-head"><h1>Settings</h1></div>
+      <div className="page-head" data-tour="settings"><h1>Settings</h1></div>
       <p className="hint">{store.kind === "supabase" ? "These follow your account, so they're the same on every device you sign in on." : "These are saved on this device."}</p>
 
       <section className="acct-sec">
