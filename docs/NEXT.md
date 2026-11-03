@@ -15,22 +15,22 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 - Access tests for 0018 and 0019 haven't run yet (no Docker on Dan's Mac). They run in CI on the release.
 
-## Waiting on Dan
-1. **Spotify dashboard → Redirect URIs**: add `http://127.0.0.1:3000/api/spotify/callback` and `https://niu-real-book.vercel.app/api/spotify/callback`.
-2. Does Dan have Spotify **Premium**? Development mode apps need a Premium owner (Spotify's February 2026 rules), and allow 5 users, added by hand under User Management.
-
 ## Smoke test (Dan, on localhost)
 1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
 2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.
 3. **Tools**: start the metronome, then the drone (the metronome should stop), then the band. Print a setlist.
 4. **Add note** with a file; **Band chat** link; a MusicXML file on a lick.
 
-## Before inviting testers
-0. **OpenRouter**: set a monthly credit limit on the API key (the hard spending ceiling, on top of Niu AI's 10 drafts a person and 200 site-wide a day).
-1. Supabase sign-in addresses (#48): live Site URL `https://niu-real-book.vercel.app` plus redirect `/auth/callback`; dev Site URL `http://localhost:3000` plus redirect. Then release `develop` to `main`.
-2. **#47 Resend SMTP**: first question, which domain should emails come from?
-3. **#50 Test with a real lead sheet**.
-4. Add testers' Spotify emails in the Spotify dashboard (5 max), then invite them in Supabase (Auth, Users, Invite).
+## Before inviting testers (in this order)
+1. **Own domain on Vercel**: add Dan's new domain to the `niu-real-book` project (apex plus `www` redirecting to it), add the DNS records Vercel shows at the registrar, wait for "Valid Configuration". The app uses `window.location.origin`, so no code changes.
+2. **Point everything at the new address** (`YOUR_SITE` below):
+   - Supabase live (#48): Site URL `YOUR_SITE`; redirect URLs `YOUR_SITE/auth/callback` and `https://niu-real-book.vercel.app/auth/callback`. Dev: Site URL `http://localhost:3000`, redirect `http://localhost:3000/auth/callback`.
+   - Spotify dashboard, Redirect URIs: add `YOUR_SITE/api/spotify/callback` (keep the 127.0.0.1 one for dev).
+   - OpenRouter: update the app's site URL if it's set there; set a monthly credit limit on the key.
+3. **#47 Resend SMTP** from `mail.<domain>` (same registrar, so do the DNS in one sitting).
+4. **Release** `develop` to `main` (migrations 0016 to 0021 go to live).
+5. **#50 Test with a real lead sheet** on the live site.
+6. Add testers' Spotify emails in the Spotify dashboard (5 max), then invite them in Supabase (Auth, Users, Invite).
 
 ## Before a public launch
 - Apply to Spotify for extended quota. Development mode is capped at 5 users.
