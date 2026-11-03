@@ -40,6 +40,7 @@ async function main() {
     if (made.error) throw made.error;
     ok("profile " + w, await sb.from("profiles").update({
       display_name: u.name, bio: u.bio, instruments: u.instruments, contact: u.contact, share: u.share, epk_slug: u.epkSlug,
+      tour_seen: true, // the first-run tour would cover the page in tests (the ? button still replays it)
     }).eq("id", u.id));
   }
 
