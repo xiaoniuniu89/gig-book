@@ -4,39 +4,45 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
-- The dev Supabase project is set up: all migrations (up to `0017`) are applied and the fake musicians are seeded. On localhost, `npm run dev` shows the "Sign in as a test musician" buttons.
-- Latest on develop:
-  - MusicXML (`.musicxml`, `.mxl`, `.xml`) upload, responsive score rendering (`opensheetmusicdisplay`), live key transposition, and hover previews on licks.
-  - Form UX cleanup: explicit field labels, validation messages instead of disabled submit buttons, 1-click `Upload file` button, visual chord bar builder (`+ Bar |`), and 4-bar starter licks.
-  - Share and Add note now open in modals.
-  - Band chat link.
-  - 20 MB file cap.
-  - Feedback is triaged by the AI.
-- Not released to `main` yet. Migration 0015 is applied to live; migrations 0016 (`0016_musicxml_attachments.sql`) and 0017 (`0017_licks_select_owner.sql`) are applied to dev and will go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
+- Vercel: project `niu-real-book` (GitHub-connected, production branch `main`, env vars set, live site uses the live Supabase). This folder is linked (`.vercel/`).
+- Dev Supabase: migrations up to `0019` applied, fake musicians seeded.
+- Live Supabase: up to `0015`. Migrations 0016 to 0019 (and 0020 once the tour lands) go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
+- New on develop (not released):
+  - **Make Spotify playlist** on a setlist (#45): `lib/spotify/user.ts`, `components/SpotifyPlaylist.tsx`, migration 0019.
+  - **Recent collaborators** in Share and band invites (#46): migration 0018.
+  - **Tools** card: metronome, drone, print (#51): `lib/tools/`, one shared audio context in `lib/audio.ts`.
+  - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
+- Access tests for 0018 and 0019 haven't run yet (no Docker on Dan's Mac). They run in CI on the release.
 
-## Smoke test first (Dan, on localhost)
-1. Sign in as Ava. Open a setlist and use **Share**: the band picker, add by email, and change a role.
-2. Use **Add note** on a setlist, a tune, and the band Notes tab, with a file attached.
-3. Set a band's group chat link and check the **Band chat** button opens it.
-4. Upload a MusicXML file to a lick and check it renders and transposes.
+## In progress
+- **#49 First-run tour**: cloud build (migration 0020). When it lands: run typecheck and lint (no warnings), apply 0020 to dev (`npm run db:dev`), check it on a phone.
+
+## Waiting on Dan
+1. **Spotify dashboard → Redirect URIs**: add `http://127.0.0.1:3000/api/spotify/callback` and `https://niu-real-book.vercel.app/api/spotify/callback`.
+2. Does Dan have Spotify **Premium**? Development mode apps need a Premium owner (Spotify's February 2026 rules), and allow 5 users, added by hand under User Management.
+
+## Smoke test (Dan, on localhost)
+1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
+2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.
+3. **Tools**: start the metronome, then the drone (the metronome should stop), then the band. Print a setlist.
+4. **Add note** with a file; **Band chat** link; a MusicXML file on a lick.
 
 ## Before inviting testers
-1. **#48 Deploy to Vercel** (Dan is part way through): env vars, the Supabase Site URL and redirect URLs (live and dev), then release `develop` to `main`.
-2. **#47 Resend SMTP**: Claude walks Dan through it. First question: which domain should emails come from?
-3. **#50 Test with a real lead sheet**: upload, Use as chart, fullscreen on a phone, a band member opening it.
-4. Invite testers: Supabase, then Auth, then Users, then Invite.
+1. Supabase sign-in addresses (#48): live Site URL `https://niu-real-book.vercel.app` plus redirect `/auth/callback`; dev Site URL `http://localhost:3000` plus redirect. Then release `develop` to `main`.
+2. **#47 Resend SMTP**: first question, which domain should emails come from?
+3. **#50 Test with a real lead sheet**.
+4. Add testers' Spotify emails in the Spotify dashboard (5 max), then invite them in Supabase (Auth, Users, Invite).
 
-## Next features (must haves)
-1. **#45 Make a Spotify playlist from a setlist, in the app**: Spotify OAuth, plus a modal to check the recordings, then create the playlist.
-2. **#46 Recent collaborators**: built (migration `0018_recent_collaborators.sql`, not yet applied to dev or live; one-tap picks in the setlist Share modal and band Invite). Still to do: licks/resources pickers and the optional hide list on the account page. Access tests are in `tests/access/collaborators.test.ts` (not run in the build; run the suite).
-3. **#49 First-run tour**.
+## Before a public launch
+- Apply to Spotify for extended quota. Development mode is capped at 5 users.
 
-## Then
-- **#51 Tools card** is built (unverified: the build run couldn't install dependencies, so run `npm run typecheck` and `npm run lint` first and fix anything they report). `/tools`, `/tools/metronome`, `/tools/drone`, `/tools/print`; rewritten from scratch on Web Audio (no Tone.js). One shared `AudioContext` and "one source plays at a time" live in `lib/audio.ts` (band, metronome, drone, notation player). Smoke test: start each and check the others stop; print a setlist (one tune per page, key shown) in light and dark; try it on a phone.
-- Still to do for #51: a tuner (microphone) and ear training.
+## Later
+- #46 extras: collaborator picks for licks and resources; hide someone from the list on the account page.
+- #51 extras: a tuner (microphone), ear training.
 
 ## Decided
 - No in-app music notation editor: free ones are too basic and good ones cost money. MusicXML upload and rendering is enough.
+- Spotify playlists use the Authorization Code flow with the app secret; the refresh token is sealed (AES-GCM) before it's stored.
 
 ## Open questions
 - Should band invite links be multi-use or single-use?
