@@ -11,6 +11,7 @@ import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { Modal } from "../Modal";
 import { Collaborators } from "../Collaborators";
+import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { isBuiltin } from "@/lib/seeds";
 import { MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
@@ -53,6 +54,15 @@ function SetBody({ s }: { s: Setlist }) {
   const [delArmed, setDelArmed] = useState(false);
   const [picking, setPicking] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [making, setMaking] = useState(false);
+  // back from connecting Spotify: reopen the playlist dialog
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("spotify") !== "playlist") return;
+    setMaking(true);
+    q.delete("spotify");
+    window.history.replaceState(null, "", window.location.pathname + (q.size ? "?" + q : ""));
+  }, []);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
   // notes per tune, for the little count under each title
@@ -178,6 +188,7 @@ function SetBody({ s }: { s: Setlist }) {
           <button className="btn" data-gig="1" onClick={() => app.startGig(s, "1")}>Set 1</button>
           <button className="btn" data-gig="2" onClick={() => app.startGig(s, "2")}>Set 2</button>
           {!builtin && app.store.kind === "supabase" && <button className="btn" id="share-set" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button>}
+          {!builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0 && <button className="btn" id="make-pl" onClick={() => setMaking(true)}><Icon name="music" size={18} /> Make Spotify playlist</button>}
           {s.spotify && <button className="btn" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play the Spotify playlist</button>}
         </div>
       </div>
@@ -220,6 +231,9 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
       </section>
       {!builtin && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
+      <Modal open={making} title={"Spotify playlist: " + s.name} onClose={() => setMaking(false)}>
+        <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
+      </Modal>
       <Modal open={sharing} title={"Share " + s.name} onClose={() => setSharing(false)}>
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />

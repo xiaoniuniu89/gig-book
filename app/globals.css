@@ -515,6 +515,16 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; border-bottom: 1px solid var(--rule); }
 .modal-body { padding: 16px; display: grid; gap: 14px; overflow-y: auto; }
 .share-part { display: grid; gap: 10px; }
+/* make a Spotify playlist */
+.sp-make { display: grid; gap: 12px; }
+.sp-rows { list-style: none; margin: 0; padding: 0; display: grid; }
+.sp-rows li { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--rule); }
+.sp-rows li:first-child { border-top: 0; }
+.sp-rows li.skipped .sp-tune b { color: var(--muted); text-decoration: line-through; }
+.sp-pick { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.sp-ver { min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.sp-rows select { font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 8px; width: 100%; min-height: 40px; }
+.sp-check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 .modal-sub { font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--muted); margin: 6px 0 -4px; }
 .modal .ai-draft { margin-top: 0; display: grid; gap: 10px; }
 .modal .import { display: grid; gap: 10px; }

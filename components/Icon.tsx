@@ -3,6 +3,7 @@ const PATHS = {
   plus: "M12 5v14M5 12h14",
   user: "M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 20c0-4 4-6 8-6s8 2 8 6",
   close:"M6 6l12 12M18 6L6 18",
+  music: "M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0a3 3 0 1 1 6 0zM20 16a3 3 0 1 1-6 0a3 3 0 1 1 6 0z",
   import: "M12 4v11M7 10l5 5 5-5M5 20h14",
   trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
   edit: "M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4",
