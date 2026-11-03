@@ -20,6 +20,13 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 ## Pending: user menu + Settings (#56)
 - The user icon opens a menu (Account, Settings, Sign out). `/settings` (`components/views/SettingsView.tsx`) has theme (light/dark/match device) and text size; add new sections there (e.g. Music). Settings live in `lib/settings.ts`, are saved through `DataStore.getSettings/saveSettings` (migration **0025**, not yet applied: `npm run db:dev`; tests in `tests/access/settings.test.ts`). Text size uses CSS `zoom` on `body` because the app's sizes are px. Typecheck and lint were not run in the bot session (no installed dependencies): run them first.
 
+## Pending: calm mode + quieter What's new (#58)
+- Built by the bot, **typecheck and lint not run** (no installed dependencies): run `npm run typecheck && npm run lint` first. No migration: `calm` is one more key in the settings JSON.
+- Code: `calm` in `lib/settings.ts` (mirrored to `gigbook-calm`, sets `data-calm` on `<html>`, read by the pre-paint script), Settings > Look, `.calm` rules at the end of `globals.css`, `components/More.tsx` (inline when calm is off, a "More" button when on; used for the song page's Scales/Chord tones/Harmony toggles and the setlist's Share), calm toasts as `CalmStatus` under the top bar (`Toast.tsx`), bell dot in `Bell.tsx`.
+- What's new (everyone): no popup any more. `useWhatsNew()` drives a dot on the user menu; "What's new" in that menu opens the list (Account > Help still does too).
+- Choices: in calm mode Share on a setlist is under More, so the tour's "share" step has no visible target there (the tour already falls back). Setlist header has only four actions, so it hides just that one.
+- Smoke test: calm on: cards don't lift, the drawer doesn't slide, spinner/bar highlight/metronome/tour still move; muted covers, picked chips still yellow; a confirmation appears under the top bar; bell shows a dot. Off: everything as before.
+
 ## Pending: choose your player, YouTube or Spotify (#59)
 - Built by the bot, **typecheck and lint not run** (no installed dependencies, `npm ci` was not allowed): run `npm run typecheck && npm run lint` first.
 - Needs: `YOUTUBE_API_KEY` (server env, `.env.development.local` and Vercel; YouTube Data API v3), then `npm run db:dev` for migration **0026** (`youtube_cache`; tests in `tests/access/youtube-cache.test.ts`). Settings gain `player` ("youtube" default).

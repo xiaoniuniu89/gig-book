@@ -888,6 +888,23 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 html[data-text="large"] { font-size: 112.5%; }
 html[data-text="larger"] { font-size: 125%; }
 
+/* Calm mode (Settings): no decorative motion, softer colours, quiet notifications. The layout is the same; only "More" (components/More.tsx) moves buttons.
+   Kept moving on purpose: .spinner, the playing bar, the metronome beat, the tour spotlight. Picked items stay --cover-yellow. */
+html[data-calm] .book, html[data-calm] .dock-inner, html[data-calm] .btn { transition: none !important; }
+html[data-calm] .book:hover, html[data-calm] .btn:active:not([disabled]) { transform: none; box-shadow: 0 2px 0 rgba(0,0,0,.06); }
+html[data-calm] .shelf.gigs .book, html[data-calm] .book.yellow { --cover: #E9EBB0; }
+html[data-calm] .shelf.practice .book, html[data-calm] .book.orange { --cover: #F2D9A8; }
+html[data-calm] .shelf.ai .book, html[data-calm] .book.pink { --cover: #E8BFDC; }
+html[data-calm] .book.blue { --cover: #CBD5F2; }
+html[data-calm] .callout.warn { background: var(--surface); }
+.more { position: relative; display: inline-flex; }
+.more-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; display: grid; gap: 10px; justify-items: start; padding: 12px; min-width: 180px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
+.calm-status { max-width: 1100px; margin: 8px auto 0; font-family: var(--type); font-size: 0.875rem; padding: 6px 10px; border-radius: 6px; background: var(--brass-soft); }
+.calm-status:empty { display: none; }
+.acct-wrap > .icon-btn, .acct-wrap > .bell { position: relative; }
+.new-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--brass); }
+
 /* YouTube player and the Recordings panel's search switch */
 #yt-embed { min-width: 200px; min-height: 200px; border-radius: 12px; overflow: hidden; background: #000; }
 #yt-embed:empty { display: none; }
