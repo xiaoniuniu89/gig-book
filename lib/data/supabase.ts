@@ -286,6 +286,17 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       }
     },
 
+    async listCollaborators() {
+      const { data, error } = await sb.rpc("recent_collaborators");
+      if (error) fail("load recent collaborators", error);
+      return ((data || []) as { user_id: string; display_name: string | null }[]).map(r => ({ userId: r.user_id, name: r.display_name || "Member" }));
+    },
+
+    async addCollaborator(setlistId, uid, role) {
+      const { error } = await sb.rpc("add_setlist_collaborator", { p_setlist: setlistId, p_user: uid, p_role: role });
+      if (error) fail("add that person", error);
+    },
+
     async setMemberRole(setlistId, uid, role) {
       const { data, error } = await sb.from("setlist_members").update({ role }).eq("setlist_id", setlistId).eq("user_id", uid).select("user_id");
       if (error) fail("change that role", error);

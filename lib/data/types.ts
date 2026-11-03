@@ -204,6 +204,8 @@ export interface BandMember {
 }
 
 /** Someone you can add to a band. Instruments are only known if they share them with bands. */
+/** Someone you've been in a band or shared a setlist with. */
+export interface Collaborator { userId: string; name: string }
 export interface BandCandidate { userId: string; name: string; instruments: string[] }
 
 /** A setlist shared with a band. */
@@ -280,6 +282,10 @@ export interface DataStore {
   listMembers(setlistId: string): Promise<Member[]>;
   /** Owner only. Throws Error(MEMBER_NOT_FOUND) when no account has that email. */
   addMember(setlistId: string, email: string, role: Member["role"]): Promise<void>;
+  /** Your recent collaborators, newest first (accounts only; local mode has none). */
+  listCollaborators(): Promise<Collaborator[]>;
+  /** Owner only. One of your recent collaborators. */
+  addCollaborator(setlistId: string, userId: string, role: Member["role"]): Promise<void>;
   setMemberRole(setlistId: string, userId: string, role: Member["role"]): Promise<void>;
   removeMember(setlistId: string, userId: string): Promise<void>;
   leaveSetlist(setlistId: string): Promise<void>;

@@ -224,6 +224,8 @@ h2 { font-size: 24px; }
 .panel h2 { font-size: 22px; }
 .row-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.collabs { display: grid; gap: 8px; margin: 10px 0; }
+.collab-list { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .inline-form input, .inline-form select { flex: 1; min-width: min(180px, 100%); }
 input[type="search"], input[type="url"], input[type="text"], textarea, select {
   font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; width: 100%;

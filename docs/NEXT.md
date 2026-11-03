@@ -28,7 +28,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 
 ## Next features (must haves)
 1. **#45 Make a Spotify playlist from a setlist, in the app**: Spotify OAuth, plus a modal to check the recordings, then create the playlist.
-2. **#46 Recent collaborators**: no friend requests; people you've been in a band or shared something with.
+2. **#46 Recent collaborators**: built (migration `0018_recent_collaborators.sql`, not yet applied to dev or live; one-tap picks in the setlist Share modal and band Invite). Still to do: licks/resources pickers and the optional hide list on the account page. Access tests are in `tests/access/collaborators.test.ts` (not run in the build; run the suite).
 3. **#49 First-run tour**.
 
 ## Then

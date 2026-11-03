@@ -8,6 +8,7 @@ import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachmen
 import { BandShareForm } from "../BandShare";
 import { InstrumentPicker } from "../Instruments";
 import { Modal } from "../Modal";
+import { Collaborators } from "../Collaborators";
 import { Notes } from "../Notes";
 import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
@@ -237,7 +238,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
         )}
       </section>
 
-      {(admin || band.perms.invite) && <Invite band={band} onAdded={load} />}
+      {(admin || band.perms.invite) && <Invite band={band} memberIds={members?.map(m => m.userId) ?? []} onAdded={load} />}
 
       <section className="panel">
         <h2>You in this band</h2>
@@ -261,7 +262,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
 }
 
 // Invite by search or by link (needs the invite permission).
-function Invite({ band, onAdded }: { band: Band; onAdded: () => Promise<void> }) {
+function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[]; onAdded: () => Promise<void> }) {
   const { store, toast } = useApp();
   const [q, setQ] = useState("");
   const [found, setFound] = useState<BandCandidate[] | null>(null);
@@ -300,6 +301,10 @@ function Invite({ band, onAdded }: { band: Band; onAdded: () => Promise<void> })
   return (
     <section className="panel">
       <h2>Invite</h2>
+      <Collaborators exclude={memberIds} onPick={async c => {
+        try { await store.addBandMember(band.id, c.userId, []); toast(c.name + " is in the band."); await onAdded(); }
+        catch (e) { toast(errText(e, "Couldn't add them.")); }
+      }} />
       <form className="inline-form" onSubmit={e => { e.preventDefault(); void search(); }}>
         <input type="search" aria-label="Find people" placeholder="Search by email or name" autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
         <button className="btn" type="submit" disabled={busy || q.trim().length < 2}>Search</button>

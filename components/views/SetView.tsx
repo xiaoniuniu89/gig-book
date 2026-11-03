@@ -10,6 +10,7 @@ import { song } from "@/lib/songs";
 import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { Modal } from "../Modal";
+import { Collaborators } from "../Collaborators";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { isBuiltin } from "@/lib/seeds";
 import { MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
@@ -334,6 +335,10 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
         </div>}
       {owner ? (
         <>
+          <Collaborators exclude={members?.map(m => m.userId) ?? []} verb={role === "editor" ? "Add editor" : "Add viewer"} onPick={async c => {
+            try { await store.addCollaborator(s.id, c.userId, role); toast(c.name + " added."); await reload(); }
+            catch (x) { toast(x instanceof Error ? x.message : "Couldn't add them."); }
+          }} />
           <form className="inline-form" onSubmit={add}>
             <input type="email" aria-label="Email" placeholder="Add by email" autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} />
             <select aria-label="Role" value={role} onChange={e => setRole(e.target.value as Member["role"])}>
