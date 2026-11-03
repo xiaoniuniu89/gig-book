@@ -23,7 +23,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 ## Before inviting testers (in this order)
 1. ~~Own domain on Vercel~~ Done 2026-11-03: **`https://www.niurealbook.com`** (Namecheap DNS; the bare domain redirects to www). `YOUR_SITE` below means that.
 2. ~~Supabase live URLs, Spotify redirect URI~~ done 2026-11-03.
-3. ~~#47 Resend SMTP~~ set up 2026-11-03 (`login@mail.niurealbook.com`, Namecheap DNS). To confirm: invite a second email of Dan's and sign in with it.
+3. ~~#47 Resend SMTP~~ set up 2026-11-03 (`login@mail.niurealbook.com`, Namecheap DNS). Confirmed: invite and sign-in emails arrive.
 4. ~~Release~~ done 2026-11-03.
 5. **OpenRouter**: set a monthly credit limit on the API key.
 6. **#50 Test with a real lead sheet** on the live site.
