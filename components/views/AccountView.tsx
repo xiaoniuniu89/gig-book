@@ -9,6 +9,7 @@ import { WHATS_NEW_EVENT } from "../WhatsNew";
 import { ThemeToggle } from "../TopBar";
 import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachments";
 import { Qr } from "../Qr";
+import { Modal } from "../Modal";
 import { InstrumentPicker } from "../Instruments";
 import { canonInstruments } from "@/lib/instruments";
 import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, type Profile, type Share } from "@/lib/data/types";
@@ -63,6 +64,8 @@ export function AccountView() {
   const [open, setOpen] = useState<string | null>(null);
   const [files, setFiles] = useState<Attachment[]>([]);
   const [slugText, setSlugText] = useState("");
+  const [slug0, setSlug0] = useState(""); // the address when the page field opened
+  const [ask, setAsk] = useState<{ then: () => void } | null>(null); // unsaved changes: save before moving on?
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>(lastTab);
   const signedIn = store.kind === "supabase";
@@ -88,10 +91,13 @@ export function AccountView() {
   const edit = (f: (x: Profile) => Profile) => setD(cur => f(cur || p));
   const setShare = (key: string, v: Share) => edit(x => ({ ...x, share: { ...x.share, [key]: v } }));
   const begin = (key: string) => {
-    setOpen(key); setD(p);
-    if (key === "epk") setSlugText(p.epkSlug || (() => { const s = slug(p.displayName); return (s === "set" ? "my-press-kit" : s).slice(0, 40); })());
+    setOpen(key); setD(null); // the draft starts on first change, from the latest saved profile
+    if (key === "epk") { const s0 = p.epkSlug || (() => { const s = slug(p.displayName); return (s === "set" ? "my-press-kit" : s).slice(0, 40); })(); setSlugText(s0); setSlug0(s0); }
   };
   const cancel = () => { setOpen(null); setD(null); };
+  const changed = !!open && !!d && (JSON.stringify(d) !== JSON.stringify(p) || (open === "epk" && slugText !== slug0));
+  // run `then` now, or after asking when the open field has unsaved changes
+  const leave = (then: () => void) => { if (changed) setAsk({ then }); else { cancel(); then(); } };
   const persist = async (next: Profile) => {
     setBusy(true);
     try {
@@ -100,18 +106,21 @@ export function AccountView() {
       await store.updateMyProfile(clean);
       setP(clean); setAccountName(clean.displayName); setOpen(null); setD(null);
       toast("Saved.");
+      setBusy(false); return true;
     } catch (e) { err(e, "Couldn't save your profile."); }
-    setBusy(false);
+    setBusy(false); return false;
   };
   const slugOk = SLUG_RE.test(slugText);
-  const saveOpen = () => {
-    if (!d) return;
+  const saveOpen = async () => {
+    if (!d) return false;
     if (open === "epk" && d.epkSlug !== null) {
-      if (!slugOk) { toast("Page address: 3–40 letters, numbers or dashes."); return; }
-      void persist({ ...d, epkSlug: slugText });
-    } else void persist(d);
+      if (!slugOk) { toast("Page address: 3–40 letters, numbers or dashes."); return false; }
+      return persist({ ...d, epkSlug: slugText });
+    }
+    return persist(d);
   };
-  const field = (key: string) => ({ open: open === key, busy, onEdit: () => begin(key), onSave: saveOpen, onCancel: cancel });
+  const edit1 = (key: string) => leave(() => begin(key));
+  const field = (key: string) => ({ open: open === key, busy, onEdit: () => edit1(key), onSave: () => void saveOpen(), onCancel: cancel });
 
   const bioWords = words(x.bio);
   const pay = p.contact.payment?.trim();
@@ -127,10 +136,18 @@ export function AccountView() {
   return (
     <>
       <div className="page-head" data-tour="account"><h1>Account</h1></div>
+      <Modal open={!!ask} title="Save your changes?" onClose={() => setAsk(null)}>
+        <p>You changed a field but haven&apos;t saved it.</p>
+        <div className="row-btns">
+          <button className="btn primary" type="button" disabled={busy} onClick={async () => { const a = ask; if (await saveOpen()) { setAsk(null); a?.then(); } }}>{busy ? "Saving…" : "Save"}</button>
+          <button className="btn" type="button" disabled={busy} onClick={() => { const a = ask; setAsk(null); cancel(); a?.then(); }}>Don&apos;t save</button>
+          <button className="btn" type="button" disabled={busy} onClick={() => setAsk(null)}>Keep editing</button>
+        </div>
+      </Modal>
       <p className="hint">Keep what agents and venues ask for in one place. Each item shows who can see it: only you, your bands, or anyone with your public page.</p>
       <div className="pl-tabs" role="tablist" aria-label="Account sections">
         {TABS.map(([id, name]) => (
-          <button key={id} role="tab" type="button" aria-selected={tab === id} className="pl-tab" onClick={() => { setTab(id); lastTab = id; cancel(); }}>{name}</button>
+          <button key={id} role="tab" type="button" aria-selected={tab === id} className="pl-tab" onClick={() => leave(() => { setTab(id); lastTab = id; })}>{name}</button>
         ))}
       </div>
 
@@ -172,11 +189,11 @@ export function AccountView() {
               <AttachmentList store={store} items={[a]} canDelete={() => true} onDelete={removeFile} />
               {open === k ? <div className="acct-row">
                 <ShareSelect label={a.name} value={x.share[k]} onChange={v => setShare(k, v)} />
-                <button className="btn small primary" type="button" disabled={busy} onClick={saveOpen}>{busy ? "Saving…" : "Save"}</button>
+                <button className="btn small primary" type="button" disabled={busy} onClick={() => void saveOpen()}>{busy ? "Saving…" : "Save"}</button>
                 <button className="btn small" type="button" disabled={busy} onClick={cancel}>Cancel</button>
               </div> : <div className="acct-row">
                 <ShareChip value={p.share[k]} />
-                <button className="btn icon-btn small" type="button" aria-label={"Edit who can see " + a.name} title="Edit who can see it" onClick={() => begin(k)}><Icon name="edit" size={16} /></button>
+                <button className="btn icon-btn small" type="button" aria-label={"Edit who can see " + a.name} title="Edit who can see it" onClick={() => edit1(k)}><Icon name="edit" size={16} /></button>
               </div>}
             </div>
           );
