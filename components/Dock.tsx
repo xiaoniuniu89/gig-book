@@ -36,7 +36,8 @@ export function Dock() {
   };
 
   const yTube = app.settings.player === "youtube";
-  const item = current && current.kind === "set" ? app.itemOf(current) : undefined;
+  const item = current && current.kind === "set" ? app.itemOf(current)
+    : current && current.kind === "arr" ? app.arrangements.find(a => a.id === current.arrId) : undefined;
   const playTune = () => {
     if (!current || current.kind === "lick") return;
     const ref = current.kind === "set" ? { setId: current.setId, idx: current.itemIdx } : undefined;

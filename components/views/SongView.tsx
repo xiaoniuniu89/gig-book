@@ -21,7 +21,8 @@ import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/clien
 import type { TrackResult } from "@/lib/spotify/uri";
 import { searchVideos, videoInfo, type VideoResult } from "@/lib/youtube/client";
 import { isYtUri, parseRecordingLink, ytId } from "@/lib/youtube/ids";
-import { newItemId, type Setlist, type SetlistItem, type Version } from "@/lib/data/types";
+import { ArrangementActions, MakeArrangement } from "../Arrangements";
+import { arrangementKey, newItemId, type Setlist, type Version } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -63,9 +64,22 @@ export function LibrarySongView() {
   return <SongBody cur={cur} />;
 }
 
+/** /arrangements/[id] */
+export function ArrangementSongView() {
+  const id = decodeURIComponent(useParams<{ id: string }>().id);
+  const app = useApp();
+  const raw = app.arrangements.find(x => x.id === id)?.raw;
+  const cur = useMemo<TuneCurrent | null>(() => (raw ? { kind: "arr", arrId: id, song: song(raw) } : null), [raw, id]);
+  if (!cur) return app.ready
+    ? <Oops code={404} lines={["That arrangement isn't here."]} links={[{ href: "/arrangements", label: "Back to arrangements" }]} />
+    : <p className="hint">Loading…</p>;
+  return <SongBody cur={cur} />;
+}
+
 function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
   const app = useApp();
   const { prefs, updatePrefs, setCrumb, setCurrent, gig, library } = app;
+  const arr = cur0.kind === "arr" ? app.arrangements.find(a => a.id === cur0.arrId) : undefined;
   const vs = useVersions(cur0.song); // R3.5: the picked version's chords replace the tune's for everything below
   const cur = useMemo<TuneCurrent>(() => !vs.song || vs.song === cur0.song ? cur0 : { ...cur0, song: vs.song }, [cur0, vs.song]);
   const sg = cur.song;
@@ -76,16 +90,28 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const canEdit = !s || s.role !== "viewer";
   const shareTo = s && !isBuiltin(s.id) ? s : undefined; // charts can be shared with a real setlist
   const ch = useCharts(songKey(sg.raw), shareTo?.id);
+  // an arrangement keeps its own private notes, licks and resources under its own key
+  const mineKey = arr ? arrangementKey(arr.id) : songKey(sg.raw);
+  const mineWhere = arr ? "this arrangement" : "this song";
+  const mineHint = arr ? "Private to you. They stay with this arrangement." : "Private to you. They show on this song in every setlist and in the library.";
+  // saved recordings: a setlist tune's, or the arrangement's
+  const versions = item ? item.versions : arr?.versions;
+  const editVersions = (fn: (v: Version[]) => Version[]) => {
+    if (cur.kind === "set") app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, versions: fn(it.versions || []) }));
+    else if (cur.kind === "arr") app.updateArrangement(cur.arrId, a => ({ ...a, versions: fn(a.versions) }));
+  };
 
   // register as the tune on screen (the dock plays it, the band highlights it)
   useEffect(() => { setCurrent(cur); }, [cur, setCurrent]);
   useEffect(() => () => setCurrent(null), [setCurrent]);
 
+  const arrName = arr?.name;
   useEffect(() => {
     setCrumb(s
       ? <><Link href="/setlists">Setlists</Link> / <Link href={"/set/" + encodeURIComponent(s.id)}>{s.name}</Link> / {sg.title}</>
+      : arrName !== undefined ? <><Link href="/arrangements">Arrangements</Link> / {arrName}</>
       : <><Link href="/library">Library</Link> / {sg.title}</>);
-  }, [s, sg, setCrumb]);
+  }, [s, sg, arrName, setCrumb]);
 
   let prevHref = "", nextHref = "";
   if (cur.kind === "set" && s && list) {
@@ -97,7 +123,8 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
     if (cur.songIdx > 0) prevHref = base + (cur.songIdx - 1);
     if (pl && cur.songIdx < pl.songs.length - 1) nextHref = base + (cur.songIdx + 1);
   }
-  const isOverride = cur.kind === "lib" ? (sg.title + "|" + sg.composer) in prefs.libShift : item?.shift !== null && item?.shift !== undefined;
+  const isOverride = cur.kind === "lib" ? (sg.title + "|" + sg.composer) in prefs.libShift : cur.kind === "arr" ? arr?.shift != null : item?.shift !== null && item?.shift !== undefined;
+  const pageHref = cur.kind === "set" ? songHref(cur.setId, cur.itemIdx) : cur.kind === "arr" ? "/arrangements/" + encodeURIComponent(cur.arrId) : "/library/" + encodeURIComponent(cur.plId) + "/" + cur.songIdx;
   const gigLine = gig && cur.kind === "set" && gig.setId === cur.setId ? <span className="pill">Practice gig · {gig.pos + 1} of {gig.order.length}</span> : null;
 
   const html = useMemo(() => chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn }),
@@ -114,9 +141,10 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
     <>
       <div className="song-head">
         <div className="song-title">
-          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} · ${cur.itemIdx + 1} of ${list.length}` : "Library"} {gigLine}</span>
-          <h1>{sg.title}</h1>
+          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} · ${cur.itemIdx + 1} of ${list.length}` : arr ? "Arrangement" : "Library"} {gigLine}</span>
+          <h1>{arr ? arr.name : sg.title}</h1>
           <div className="meta">
+            {arr && arr.name !== cur0.song.title && <><span>{cur0.song.title}</span><span>·</span></>}
             <span>{sg.composer}</span><span>·</span><span>{sg.style}</span><span>·</span>
             <span className="keybox" aria-label="Key">
               <button id="tr-down" aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>
@@ -128,9 +156,11 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         </div>
         <div className="nav-pair">
           {cur.kind === "lib" && <AddToSetlist cur={cur} />}
-          <Link className="btn" href={(cur.kind === "set" ? songHref(cur.setId, cur.itemIdx) : "/library/" + encodeURIComponent(cur.plId) + "/" + cur.songIdx) + "/chart"}>Chart view</Link>
-          {prevHref ? <Link className="btn icon-btn" href={prevHref} aria-label="Previous tune">‹</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Previous tune">‹</a>}
-          {nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>}
+          {cur.kind === "lib" && <MakeArrangement raw={cur0.song.raw} shift={prefs.libShift[sg.title + "|" + sg.composer] ?? null} versions={[]} />}
+          {arr && <ArrangementActions arr={arr} />}
+          <Link className="btn" href={pageHref + "/chart"}>Chart view</Link>
+          {!arr && (prevHref ? <Link className="btn icon-btn" href={prevHref} aria-label="Previous tune">‹</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Previous tune">‹</a>)}
+          {!arr && (nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>)}
         </div>
       </div>
       <section className="panel" aria-label="Chord chart" data-tour="chart">
@@ -160,14 +190,14 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         <Licks key={"band-licks:" + item.id} title="Licks" hint="Attached to this tune in this setlist. Everyone in the band can see them here."
           home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} />
       )}
-      <Licks key={"my-licks:" + songKey(sg.raw)} title="My licks on this song" hint="Private to you. They show on this song in every setlist and in the library."
-        home={{ kind: "song", songKey: songKey(sg.raw) }} />
-      <MyResources key={"my-res:" + songKey(sg.raw)} songKey={songKey(sg.raw)} />
-      <Notes tour="notes" key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
-        home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} />
+      <Licks key={"my-licks:" + mineKey} title={"My licks on " + mineWhere} hint={mineHint}
+        home={{ kind: "song", songKey: mineKey }} />
+      {!arr && <MyResources key={"my-res:" + mineKey} songKey={mineKey} />}
+      <Notes tour="notes" key={"mine:" + mineKey} title={"My notes on " + mineWhere} hint={mineHint}
+        home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
-        <Recordings cur={cur} item={item} canEdit={canEdit} />
+        <Recordings cur={cur} versions={versions} onVersions={cur.kind === "lib" ? undefined : editVersions} canEdit={canEdit} />
       </>, app.drawerSlot)}
     </>
   );
@@ -233,7 +263,8 @@ const composerName = (c: string) => c.split(" ").reverse().join(" ").replace(/"/
 type YtFound = { rows: VideoResult[]; next?: string };
 const ytFoundCache = new Map<string, YtFound>(); // each YouTube search costs 100 quota units, so keep what we found
 
-function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; canEdit: boolean }) {
+/** `versions` and `onVersions` are the saved recordings of a setlist tune or an arrangement; library tunes have none. */
+function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; versions?: Version[]; onVersions?: (fn: (v: Version[]) => Version[]) => void; canEdit: boolean }) {
   const app = useApp();
   const [q, setQ] = useState(cur.song.title);
   const [found, setFound] = useState<Found | null>(null);
@@ -254,7 +285,7 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
   }, [cur.song]);
 
   // the other player's versions stay saved but aren't listed or playable here
-  const vs = (item?.versions ?? []).filter(v => isYtUri(v.uri) === (src === "youtube"));
+  const vs = (versions ?? []).filter(v => isYtUri(v.uri) === (src === "youtube"));
   const ref = cur.kind === "set" ? { setId: cur.setId, idx: cur.itemIdx } : undefined;
   const playVideo = (id: string, title: string) => void app.playYoutube([{ key: "yt:" + id, title, composer: "", id, ...ref }]);
   const playUri = (uri: string, name: string) => { if (isYtUri(uri)) playVideo(ytId(uri), name); else void app.playSpotify(uri, true); };
@@ -341,28 +372,23 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
     setBusy(false);
   };
   const saveVersion = (r: Version) => {
-    if (cur.kind !== "set") return;
-    app.updateItem(cur.setId, cur.itemIdx, it => {
-      const have = it.versions || [];
-      return have.some(v => v.uri === r.uri) ? it : { ...it, versions: [...have, { uri: r.uri, name: r.name, artists: r.artists }] };
-    });
+    onVersions?.(have => have.some(v => v.uri === r.uri) ? have : [...have, { uri: r.uri, name: r.name, artists: r.artists }]);
     setSaved(prev => new Set(prev).add(r.uri));
   };
-  const canSave = cur.kind === "set" && canEdit;
+  const canSave = !!onVersions && canEdit;
   const saveBtn = (r: Version) => {
     const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
     return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
   };
   const removeVersion = (uri: string) => {
-    if (cur.kind !== "set") return;
-    app.updateItem(cur.setId, cur.itemIdx, it => ({ ...it, versions: (it.versions || []).filter(v => v.uri !== uri) }));
+    onVersions?.(have => have.filter(v => v.uri !== uri));
   };
 
   return (
     <section className="panel" aria-label="Recordings">
       <div className="panel-head"><h2>Recordings</h2></div>
       <div id="versions">
-        {cur.kind !== "set" ? null
+        {!onVersions ? null
           : vs.length ? vs.map(v => (
             <div className="ver" key={v.uri}>
               <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => playUri(v.uri, v.name)}>▶</button>

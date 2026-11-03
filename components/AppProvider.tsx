@@ -15,7 +15,7 @@ import { autoPick, performersFor } from "@/lib/youtube/client";
 import { localStore } from "@/lib/data/local";
 import { supabaseStore } from "@/lib/data/supabase";
 import { createSaveQueue } from "@/lib/data/saveQueue";
-import type { DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
+import type { Arrangement, DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
 import { DEFAULT_SETTINGS, applySettings, loadLocalSettings, normalizeSettings, type Settings } from "@/lib/settings";
@@ -28,8 +28,9 @@ export interface YtQueueItem { key: string; title: string; composer: string; id:
 export type Current =
   | { kind: "set"; setId: string; itemIdx: number; song: Song }
   | { kind: "lib"; plId: string; songIdx: number; song: Song }
+  | { kind: "arr"; arrId: string; song: Song } // one of your arrangements (R13)
   | { kind: "lick"; song: Song }; // a lick's progression opened to practise (R8.4)
-/** A tune of a setlist or the library (the ones with a tune page). */
+/** A tune of a setlist, the library or your arrangements (the ones with a tune page). */
 export type TuneCurrent = Exclude<Current, { kind: "lick" }>;
 
 export interface Prefs {
@@ -96,6 +97,12 @@ interface Ctx {
   setAccountName(name: string): void;
   setlists: Setlist[];
   library: LibraryPlaylist[];
+  /** Your arrangements (R13), newest first. */
+  arrangements: Arrangement[];
+  addArrangement(a: Arrangement): Promise<void>;
+  /** Replace an arrangement with fn(its current state); saved straight away. */
+  updateArrangement(id: string, fn: (a: Arrangement) => Arrangement): void;
+  removeArrangement(id: string): Promise<void>;
   setlistById(id: string): Setlist | undefined;
   ensureSetlist(id: string): Promise<Setlist | null>;
   /** Replace a setlist with fn(its current state); saved unless you're a viewer. */
@@ -191,6 +198,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [library, setLibrary] = useState<LibraryPlaylist[]>([]);
+  const [arrangements, setArrangements] = useState<Arrangement[]>([]);
   const [localCounts, setLocalCounts] = useState<{ setlists: number; library: number } | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -215,6 +223,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // refs mirror state for the long-lived band / player listeners
   const setlistsRef = useRef(setlists); setlistsRef.current = setlists;
+  const arrRef = useRef(arrangements); arrRef.current = arrangements;
+  const arrSaves = useRef(new Map<string, Promise<void>>()); // one save at a time per arrangement, in order
   const currentRef = useRef(current); currentRef.current = current;
   const prefsRef = useRef(prefs); prefsRef.current = prefs;
   const followRef = useRef(follow); followRef.current = follow;
@@ -333,7 +343,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     // closed beta: signed out means no data at all, not even this device's
     if (supabaseConfigured && store.kind !== "supabase") {
-      applySetlists(() => []); setLibrary([]); setLocalCounts(null); setReady(false);
+      applySetlists(() => []); setLibrary([]); setArrangements([]); setLocalCounts(null); setReady(false);
       return;
     }
     (async () => {
@@ -341,6 +351,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const sls = await store.listSetlists();
         const lib = await store.listLibrary();
+        const arrs = await store.listArrangements();
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
           const done = loadCopied(account?.id || "");
@@ -349,7 +360,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (!cancelled) setLocalCounts(unseededLocal.length || pendingLib.length ? { setlists: unseededLocal.length, library: pendingLib.length } : null);
         } else if (!cancelled) setLocalCounts(null);
         if (cancelled) return;
-        applySetlists(() => withBuiltins(sls)); setLibrary(lib);
+        applySetlists(() => withBuiltins(sls)); setLibrary(lib); setArrangements(arrs);
       } catch (e) {
         console.error(e);
         if (!cancelled) toast(e instanceof Error ? e.message : "Couldn't load your data.");
@@ -418,6 +429,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLibrary(prev => prev.filter(x => x.id !== p.id).concat(p));
   }, [toast]);
 
+  const saveArr = useCallback((a: Arrangement) => {
+    const prev = arrSaves.current.get(a.id) ?? Promise.resolve();
+    const run = prev.then(() => storeRef.current.saveArrangement(a)).catch(e => { toast(e instanceof Error ? e.message : "Couldn't save."); });
+    arrSaves.current.set(a.id, run);
+    return run;
+  }, [toast]);
+  const addArrangement = useCallback(async (a: Arrangement) => {
+    setArrangements(prev => [a, ...prev.filter(x => x.id !== a.id)]);
+    await saveArr(a);
+  }, [saveArr]);
+  const updateArrangement = useCallback((id: string, fn: (a: Arrangement) => Arrangement) => {
+    const cur = arrRef.current.find(x => x.id === id);
+    if (!cur) return;
+    const next = fn(cur);
+    if (next === cur) return;
+    arrRef.current = arrRef.current.map(x => x.id === id ? next : x); // read straight away by a band restart
+    setArrangements(arrRef.current);
+    void saveArr(next);
+  }, [saveArr]);
+  const removeArrangement = useCallback(async (id: string) => {
+    await (arrSaves.current.get(id) ?? Promise.resolve()); // don't let a pending save bring it back
+    try { await storeRef.current.deleteArrangement(id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
+    arrSaves.current.delete(id);
+    setArrangements(prev => prev.filter(x => x.id !== id));
+  }, [toast]);
+
   const removeLibraryPlaylist = useCallback(async (id: string) => {
     if (id === BUILTIN_LIBRARY.id) return; // ships with the app, not stored
     try { await storeRef.current.deleteLibraryPlaylist(id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
@@ -455,11 +492,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* ---- keys and tempo ---- */
   const shiftOf = useCallback((cur: Current) => {
     if (cur.kind === "set") return itemOf(cur)?.shift ?? irealShift(cur.song);
+    if (cur.kind === "arr") return arrRef.current.find(a => a.id === cur.arrId)?.shift ?? irealShift(cur.song);
     return prefsRef.current.libShift[libKey(cur.song)] ?? irealShift(cur.song);
   }, [itemOf]);
   const setShift = useCallback((cur: Current, v: number | null) => {
     if (cur.kind === "set") {
       updateItem(cur.setId, cur.itemIdx, it => ({ ...it, shift: v }));
+    } else if (cur.kind === "arr") {
+      updateArrangement(cur.arrId, a => ({ ...a, shift: v }));
     } else {
       const k = libKey(cur.song);
       const libShift = { ...prefsRef.current.libShift };
@@ -467,7 +507,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       prefsRef.current = { ...prefsRef.current, libShift }; // read straight away by a band restart
       setPrefs(p => ({ ...p, libShift }));
     }
-  }, [updateItem]);
+  }, [updateItem, updateArrangement]);
   const tempoFor = useCallback((sg: Song) => prefsRef.current.tempos[tempoKey(sg)] || sg.tempo || defaultTempo(sg.style), []);
 
   /* ---- dock ---- */
@@ -740,7 +780,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: Ctx = {
-    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
+    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, arrangements, addArrangement, updateArrangement, removeArrangement, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     settings, updateSettings, prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,

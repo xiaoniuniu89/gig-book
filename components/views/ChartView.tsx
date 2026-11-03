@@ -53,6 +53,15 @@ export function LibraryChartView() {
     prev={p && idx > 0 ? base + (idx - 1) + "/chart" : ""} next={p && idx < p.songs.length - 1 ? base + (idx + 1) + "/chart" : ""} />;
 }
 
+/** /arrangements/[id]/chart */
+export function ArrangementChartView() {
+  const id = decodeURIComponent(useParams<{ id: string }>().id);
+  const app = useApp();
+  const raw = app.arrangements.find(x => x.id === id)?.raw;
+  const cur = useMemo<Current | null>(() => (raw ? { kind: "arr", arrId: id, song: song(raw) } : null), [raw, id]);
+  return <Focus cur={cur} back={"/arrangements/" + encodeURIComponent(id)} prev="" next="" missing={app.ready && !cur} />;
+}
+
 function Focus({ cur: cur0, back, prev, next, missing, tune }: {
   cur: Current | null; back: string; prev: string; next: string; missing: boolean; tune?: { setlistId: string; itemId: string };
 }) {

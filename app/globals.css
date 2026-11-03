@@ -864,6 +864,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .book.pink { --cover: var(--cover-pink); }
 .book.blue { --cover: var(--cover-blue); }
 .book .keys { color: var(--cover-ink); opacity: .75; }
+.shelf .book.blue { --cover: var(--cover-blue); }
 .acct-wrap { display: inline-flex; gap: 8px; }
 /* phones: the bar keeps one row; light/stage mode moves to the Account page */
 @media (max-width: 480px) {

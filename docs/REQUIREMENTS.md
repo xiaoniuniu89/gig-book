@@ -114,6 +114,14 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R12.4 Pin a resource to a tune; it shows under "My resources on this song" on that tune in every setlist and in the library, for that user only.
 - R12.5 Files use the private `attachments` bucket at `user/<owner>/resources/<resource_id>/…`. Migration `0011_resources.sql`.
 
+### R13 Arrangements
+- R13.1 **Arrangements** are your own working copies of tunes outside any setlist: a tune from the library, an optional name (defaults to the tune title), your key and your saved recordings. Several per tune are fine. Private to the owner; they work signed out too (on this device, like local setlists).
+- R13.2 A card on the home page opens `/arrangements`; **New arrangement** picks a tune (the library picker) and a name. A library chart has **Make an arrangement**.
+- R13.3 An arrangement page (`/arrangements/<id>`) is the normal tune page: key, chart tabs and chord versions, recordings, and private notes, licks, resources and files (kept under the song key `arr:<id>`, so the notes rules are unchanged).
+- R13.4 **Add to setlist** copies the tune (key, recordings) into a setlist you can edit. The copy is independent both ways.
+- R13.5 Table `arrangements` (owner only, RLS); migration `0030_arrangements.sql`; tests in `tests/access/arrangements.test.ts`.
+- R13.6 Not yet: hits and section feel (needs #64), sharing with bands.
+
 ### Later (captured, not v1)
 - Offline chart view (service worker caching of setlists and attachments).
 - Storage quotas, open sign-up, public setlists.

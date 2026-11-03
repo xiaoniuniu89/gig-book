@@ -43,6 +43,10 @@ export function Home() {
                 <span className="t">Licks</span>
                 <span className="m">Phrases and ideas to keep with any tune</span>
               </Link>
+              <Link className="book blue" href="/arrangements">
+                <span className="t">Arrangements</span>
+                <span className="m">{app.arrangements.length ? `${app.arrangements.length} · ${names(app.arrangements)}` : "Your own copies of tunes: key, recordings, notes"}</span>
+              </Link>
               <Link className="book" href="/resources">
                 <span className="t">Resources</span>
                 <span className="m">Bookmarks, books and PDFs to pin to tunes</span>

@@ -1,7 +1,7 @@
 // Local adapter: a tiny IndexedDB key-value store. Everything lives in this browser only.
 // Same database name, store and keys as the old static app ("setlist:<id>", "library:<id>").
 import { SETTINGS_KEY, loadLocalSettings, saveLocalSettings } from "../settings";
-import { slug, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
+import { slug, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
 
 const DB_NAME = "gig-book", STORE = "kv";
 let dbp: Promise<IDBDatabase> | null = null;
@@ -181,6 +181,9 @@ export const localStore: DataStore = {
   setSetlistBand: () => Promise.reject(new Error("Bands need an account.")),
   listBandFiles: async () => [],
   uploadBandFile: () => Promise.reject(new Error("Bands need an account.")),
+  async listArrangements() { return (await all<Arrangement>("arrangement:")).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); },
+  saveArrangement: a => set("arrangement:" + a.id, JSON.parse(JSON.stringify(a))),
+  deleteArrangement: id => del("arrangement:" + id),
   listLibrary: () => all<LibraryPlaylist>("library:"),
   saveLibraryPlaylist: p => set("library:" + p.id, p),
   deleteLibraryPlaylist: id => del("library:" + id),

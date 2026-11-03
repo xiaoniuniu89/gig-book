@@ -45,6 +45,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Choices: Dan deletes any version with the service role (no admin flag). Report posts to `/api/feedback`. The 10-a-day limit counts existing rows, so deleting and re-adding gets round it. A version that doesn't fit someone's own chart (different bar count) shows a note instead of redrawing. The picked version is remembered per device. If the band is playing when you switch version it keeps the old one until restarted.
 - Smoke test: Find famous versions on "Someday My Prince Will Come" (once only: the button disappears); pick a tab, scales and guide tones follow, play the band; Edit an AI version (tag goes), Mark checked; Add your own from the Original and from a picked version; Report; Delete; signed out shows no tabs. Add a "Versions" line to `lib/whatsNew.ts` at release.
 
+## Pending: arrangements (#65, R13)
+- Built by the bot, **typecheck, lint and tests not run** (no installed dependencies, `npm ci` was not allowed): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0030** (`arrangements`, owner only; tests in `tests/access/arrangements.test.ts`).
+- **Built without hits and section feel**: #64 wasn't on `develop` yet. When it lands, add them to `Arrangement` (types, both adapters, a migration after 0030 if it needs columns) and to `ArrangementActions.into` in `components/Arrangements.tsx` so the setlist copy carries them.
+- Code: `Arrangement` + `DataStore.list/save/deleteArrangement` (IndexedDB key `arrangement:<id>` locally), state in `AppProvider` (`arrangements`, `Current` kind `"arr"`), `/arrangements` (`ArrangementsView`), `/arrangements/[id]` (+ `/chart`) reuse `SongBody` in `SongView.tsx`. Private notes and licks use the song home with key `arr:<id>`, so no shared note rules changed. "My resources" is hidden on an arrangement (resources are pinned from their own page by song).
+- Smoke test: New arrangement (pick tune, optional name); Make an arrangement from a library chart; change key, save a recording, add a note; Add to setlist (copy is independent); rename, delete; signed out works on this device; tour step.
+
 ## Smoke test (Dan, on localhost)
 1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
 2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.
