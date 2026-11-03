@@ -822,6 +822,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .tour-loading { display: inline-flex; align-items: center; gap: 8px; flex: 1; }
 .tour-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule); border-top-color: var(--brass); animation: tour-spin .8s linear infinite; }
 @keyframes tour-spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; vertical-align: -2px; margin-right: 6px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--rule); border-top-color: var(--brass); animation: tour-spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } .tour-dot { animation: none; } }
 
 /* (i) explanations */

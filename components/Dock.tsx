@@ -147,8 +147,13 @@ export function Dock() {
               {/* only on a setlist tune whose setlist has a playlist; elsewhere there's no "this setlist" */}
               {!yTube && current?.kind === "set" && app.setlistById(current.setId)?.spotify &&
                 <button className="btn small" id="rec-load" onClick={recLoad}>Load this setlist&apos;s playlist</button>}
-              <label className="toggle" htmlFor="rec-follow"><input id="rec-follow" type="checkbox" checked={app.follow} onChange={e => app.setFollow(e.target.checked)} /> Charts follow the music</label>
-              <span className="hint" id="rec-status">{app.recIdle && !app.recStatus ? "Nothing playing. Find a recording of a tune to hear it here." : app.recStatus}</span>
+              {/* only means something while a whole setlist plays: the chart turns to each tune as it starts */}
+              {(app.recTitle === "Setlist" || app.recTitle === "Playlist") &&
+                <label className="toggle" htmlFor="rec-follow"><input id="rec-follow" type="checkbox" checked={app.follow} onChange={e => app.setFollow(e.target.checked)} /> Charts follow the music</label>}
+              <span className="hint" id="rec-status" role="status">
+                {app.recStatus.startsWith("Finding") && <span className="spinner" aria-hidden="true" />}
+                {app.recIdle && !app.recStatus ? "Nothing playing. Find a recording of a tune to hear it here." : app.recStatus}
+              </span>
             </div>
             {/* Spotify's iFrame API owns this element's contents; React never renders children into it. */}
             <div id="sp-embed" ref={app.embedRef} hidden={app.recKind === "youtube"} suppressHydrationWarning />
