@@ -880,3 +880,13 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 /* the app's sizes are px, so text size zooms the page rather than the root font size */
 html[data-text="large"] body { zoom: 1.15; }
 html[data-text="larger"] body { zoom: 1.3; }
+
+/* YouTube player and the Recordings panel's search switch */
+#yt-embed { min-width: 200px; min-height: 200px; border-radius: 12px; overflow: hidden; background: #000; }
+#yt-embed:empty { display: none; }
+#yt-embed iframe { display: block; width: 100%; min-width: 200px; min-height: 200px; border: 0; }
+.v-src { margin: 8px 0 4px; }
+.v-src button, .set-opt .seg button { display: inline-flex; align-items: center; gap: 6px; }
+.set-opt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.ver-yt .name { display: flex; gap: 8px; align-items: center; }
+.ver .thumb { flex: none; width: 64px; height: 36px; border-radius: 4px; background: var(--rule) center / cover no-repeat; }

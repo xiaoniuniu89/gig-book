@@ -10,15 +10,15 @@ afterAll(async () => { await admin().from("user_settings").delete().in("user_id"
 describe("user_settings", () => {
   it("starts empty, then saves and reads back, keeping keys it doesn't know", async () => {
     expect(await M.ava.store.getSettings()).toBeNull();
-    await M.ava.store.saveSettings({ theme: "dark", textSize: "large", player: { volume: 3 }, future: { x: 1 } });
-    await M.ava.store.saveSettings({ theme: "system", textSize: "large", player: { volume: 3 }, future: { x: 1 } }); // second save updates
+    await M.ava.store.saveSettings({ theme: "dark", textSize: "large", player: "spotify", future: { x: 1 } });
+    await M.ava.store.saveSettings({ theme: "system", textSize: "large", player: "spotify", future: { x: 1 } }); // second save updates
     const s = await M.ava.store.getSettings();
-    expect(s).toMatchObject({ theme: "system", textSize: "large", player: { volume: 3 }, future: { x: 1 } });
+    expect(s).toMatchObject({ theme: "system", textSize: "large", player: "spotify", future: { x: 1 } });
   });
 
   it("fills in defaults for missing or bad values", async () => {
     await admin().from("user_settings").upsert({ user_id: USERS.ben.id, settings: { theme: "purple", extra: true } });
-    expect(await M.ben.store.getSettings()).toMatchObject({ theme: "light", textSize: "normal", extra: true });
+    expect(await M.ben.store.getSettings()).toMatchObject({ theme: "light", textSize: "normal", player: "youtube", extra: true });
   });
 
   it("can't be read, changed or created by anyone else", async () => {

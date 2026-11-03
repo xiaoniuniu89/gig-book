@@ -16,6 +16,7 @@ import { PlaybackHelpLink } from "../PlaybackHelp";
 import { Collaborators } from "../Collaborators";
 import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
+import { tuneQueueItem } from "@/lib/youtube/queue";
 import { isBuiltin } from "@/lib/seeds";
 import { MAX_SETS, MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
 
@@ -59,6 +60,11 @@ function SetBody({ s }: { s: Setlist }) {
   const [sharing, setSharing] = useState(false);
   const [making, setMaking] = useState(false);
   const [pasting, setPasting] = useState(false);
+  const yTube = app.settings.player === "youtube";
+  const playSet = () => {
+    if (yTube) void app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })));
+    else if (s.spotify) void app.playSpotify(s.spotify, true);
+  };
   const canMake = !builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0;
   // back from connecting Spotify: reopen the playlist dialog
   useEffect(() => {
@@ -235,26 +241,30 @@ function SetBody({ s }: { s: Setlist }) {
       {canEdit && count < MAX_SETS && (
         <div className="row-btns add-set"><button className="btn small" onClick={() => setShown(count + 1)}><Icon name="plus" size={16} /> Add set</button></div>
       )}
-      <section className="panel sp-panel" aria-label="Spotify" data-tour="playlist">
+      <section className="panel sp-panel" aria-label="Listen" data-tour="playlist">
         <div className="panel-head">
-          <h2>Spotify</h2>
-          <Info label="About Spotify playlists">Play the setlist&apos;s recordings in the Listen tab. The chart follows whichever track is playing, so the order doesn&apos;t need to match.</Info>
+          <h2>Listen</h2>
+          <Info label="About playing the setlist">Play runs through the setlist&apos;s recordings in the Listen tab, and the chart follows whichever one is playing. Save to Spotify makes a playlist in your Spotify; it doesn&apos;t change how the app plays.</Info>
         </div>
-        {s.spotify ? (
-          <div className="row-btns">
-            <button className="btn primary" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play</button>
-            <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="music" size={18} /> Open in Spotify</a>
+        <div className="row-btns">
+          {yTube && s.items.length > 0 && <>
+            <button className="btn primary" id="play-pl" onClick={playSet}>▶ Play</button>
+            <Info label="About playing here">Plays each song&apos;s saved YouTube recording, or the best match found automatically. Whole songs on every device; it may show ads. Next and previous are in the Listen tab.</Info>
+          </>}
+          {!yTube && s.spotify && <>
+            <button className="btn primary" id="play-pl" onClick={playSet}>▶ Play</button>
             <Info label="About playing here">Whether it plays whole songs depends on your browser. <PlaybackHelpLink /></Info>
-            {canMake && s.spotify.startsWith("spotify:playlist:") && <button className="btn" id="make-pl" onClick={() => setMaking(true)}>Update playlist</button>}
-            {canEdit && !pasting && <button className="btn small link-btn" onClick={() => setPasting(true)}>Change</button>}
-          </div>
-        ) : canMake ? (
-          <div className="row-btns">
-            <button className="btn primary" id="make-pl" onClick={() => setMaking(true)}><Icon name="music" size={18} /> Create Spotify playlist</button>
-            {!pasting && <button className="btn small link-btn" onClick={() => setPasting(true)}>or use one you already have</button>}
-          </div>
-        ) : canEdit ? null : <p className="hint">No playlist yet.</p>}
-        {canEdit && (pasting || (!s.spotify && !canMake)) && (
+          </>}
+          {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="spotify" size={18} /> Open in Spotify</a>}
+          {canMake && <button className="btn" id="make-pl" onClick={() => setMaking(true)}>
+            <Icon name="spotify" size={18} /> {s.spotify?.startsWith("spotify:playlist:") ? "Update Spotify playlist" : "Save to Spotify"}
+          </button>}
+          {canEdit && !pasting && (s.spotify
+            ? <button className="btn small link-btn" onClick={() => setPasting(true)}>Change</button>
+            : canMake && <button className="btn small link-btn" onClick={() => setPasting(true)}>or use one you already have</button>)}
+        </div>
+        {!yTube && !s.spotify && !canEdit && <p className="hint">No playlist yet.</p>}
+        {canEdit && (pasting || (!yTube && !s.spotify && !canMake)) && (
           <form className="inline-form" onSubmit={e => { e.preventDefault(); savePl(); }}>
             <input id="pl-link" type="url" aria-label="Spotify playlist or album link" placeholder="Paste a playlist or album link" value={plLink} onChange={e => setPlLink(e.target.value)} />
             <button className="btn" id="pl-save" type="submit">Save</button>

@@ -2,19 +2,22 @@
 
 export type ThemeChoice = "light" | "dark" | "system";
 export type TextSize = "normal" | "large" | "larger";
+export type PlayerChoice = "youtube" | "spotify";
 
 export interface Settings {
   theme: ThemeChoice;
   textSize: TextSize;
-  /** Room for the player's settings later. */
-  player?: Record<string, unknown>;
+  /** What plays recordings in the Listen tab. */
+  player: PlayerChoice;
   [key: string]: unknown;
 }
 
 export const THEMES: { value: ThemeChoice; label: string }[] = [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "Match my device" }];
 export const TEXT_SIZES: { value: TextSize; label: string }[] = [{ value: "normal", label: "Normal" }, { value: "large", label: "Large" }, { value: "larger", label: "Larger" }];
 
-export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal" };
+export const PLAYERS: { value: PlayerChoice; label: string }[] = [{ value: "youtube", label: "YouTube" }, { value: "spotify", label: "Spotify" }];
+
+export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube" };
 export const THEME_KEY = "gigbook-theme-v2"; // v2: the Real Book look starts everyone on light. Holds light, dark or system; the layout's pre-paint script reads it.
 export const TEXT_KEY = "gigbook-text"; // same idea for the text size
 export const SETTINGS_KEY = "gigbook-settings"; // signed out: the whole object lives here
@@ -24,7 +27,8 @@ export function normalizeSettings(raw: unknown): Settings {
   const o = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   const theme = THEMES.some(t => t.value === o.theme) ? o.theme as ThemeChoice : DEFAULT_SETTINGS.theme;
   const textSize = TEXT_SIZES.some(t => t.value === o.textSize) ? o.textSize as TextSize : DEFAULT_SETTINGS.textSize;
-  return { ...o, theme, textSize };
+  const player = PLAYERS.some(t => t.value === o.player) ? o.player as PlayerChoice : DEFAULT_SETTINGS.player;
+  return { ...o, theme, textSize, player };
 }
 
 export const prefersDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;

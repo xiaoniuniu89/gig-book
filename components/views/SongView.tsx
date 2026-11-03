@@ -16,9 +16,11 @@ import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
-import { searchTracks, SpotifyUnavailable } from "@/lib/spotify/client";
+import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
-import { newItemId, type Setlist, type SetlistItem } from "@/lib/data/types";
+import { searchVideos, videoInfo, type VideoResult } from "@/lib/youtube/client";
+import { isYtUri, parseRecordingLink, ytId } from "@/lib/youtube/ids";
+import { newItemId, type Setlist, type SetlistItem, type Version } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -224,6 +226,8 @@ function distinctTakes(rows: TrackResult[]): TrackResult[] {
   });
 }
 const composerName = (c: string) => c.split(" ").reverse().join(" ").replace(/"/g, "").trim();
+type YtFound = { rows: VideoResult[]; next?: string };
+const ytFoundCache = new Map<string, YtFound>(); // each YouTube search costs 100 quota units, so keep what we found
 
 function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; canEdit: boolean }) {
   const app = useApp();
@@ -233,12 +237,60 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
   const results = found?.rows ?? null;
   const [status, setStatus] = useState<{ msg: string; flag?: boolean } | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [src, setSrc] = useState(app.settings.player); // which service "Find versions" searches
+  const [ytFound, setYtFound] = useState<YtFound | null>(null);
+  const [pasted, setPasted] = useState<Version | null>(null);
+  useEffect(() => { setSrc(app.settings.player); }, [app.settings.player]);
   useEffect(() => {
-    setQ(cur.song.title); setStatus(null); setSaved(new Set());
-    setFound(foundCache.get(norm(cur.song.title) + "|" + composerName(cur.song.composer)) ?? null);
+    const who = composerName(cur.song.composer);
+    setQ(cur.song.title); setStatus(null); setSaved(new Set()); setPasted(null);
+    setFound(foundCache.get(norm(cur.song.title) + "|" + who) ?? null);
+    setYtFound(ytFoundCache.get(norm(cur.song.title) + "|" + who) ?? null);
   }, [cur.song]);
 
   const vs = item?.versions ?? [];
+  const ref = cur.kind === "set" ? { setId: cur.setId, idx: cur.itemIdx } : undefined;
+  const playVideo = (id: string, title: string) => void app.playYoutube([{ key: "yt:" + id, title, composer: "", id, ...ref }]);
+  const playUri = (uri: string, name: string) => { if (isYtUri(uri)) playVideo(ytId(uri), name); else void app.playSpotify(uri, true); };
+
+  const findYt = async (more = false) => {
+    const query = q.trim() || cur.song.title;
+    const key = norm(query) + "|" + composerName(cur.song.composer);
+    if (!more) {
+      const hit = ytFoundCache.get(key);
+      if (hit) { setYtFound(hit); setStatus(null); return; }
+      setYtFound(null);
+    }
+    setStatus({ msg: "Searching…" }); setBusy(true);
+    try {
+      const d = await searchVideos(query + " jazz", more ? ytFound?.next : "");
+      const have = new Set((more ? ytFound?.rows ?? [] : []).map(r => r.id));
+      const rows = (more ? ytFound?.rows ?? [] : []).concat(d.videos.filter(r => !have.has(r.id)));
+      const next = { rows, next: d.next };
+      ytFoundCache.set(key, next); setYtFound(next);
+      setStatus(rows.length ? null : { msg: "No versions found." });
+    } catch (e) {
+      setStatus({ msg: e instanceof Error ? e.message : "Search failed.", flag: true });
+    }
+    setBusy(false);
+  };
+
+  // a pasted YouTube or Spotify track link: look it up and offer it to save
+  const findLink = async (link: { uri: string; kind: "youtube" | "spotify" }) => {
+    setStatus({ msg: "Looking it up…" }); setBusy(true); setPasted(null);
+    try {
+      if (link.kind === "youtube") { const v = await videoInfo(ytId(link.uri)); setPasted({ uri: link.uri, name: v.title, artists: v.channel }); }
+      else { const t = await trackName(link.uri); setPasted({ uri: link.uri, name: t.name, artists: t.artists }); }
+      setStatus(null);
+    } catch (e) {
+      setStatus({ msg: e instanceof Error ? e.message : "Couldn't look that up.", flag: true });
+    }
+    setBusy(false);
+  };
+  const go = () => {
+    const link = parseRecordingLink(q);
+    if (link) void findLink(link); else if (src === "youtube") void findYt(); else void find();
+  };
 
   const find = async (page = 0) => {
     const query = q.trim() || cur.song.title;
@@ -277,13 +329,18 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
     }
     setBusy(false);
   };
-  const saveVersion = (r: TrackResult) => {
+  const saveVersion = (r: Version) => {
     if (cur.kind !== "set") return;
     app.updateItem(cur.setId, cur.itemIdx, it => {
       const have = it.versions || [];
       return have.some(v => v.uri === r.uri) ? it : { ...it, versions: [...have, { uri: r.uri, name: r.name, artists: r.artists }] };
     });
     setSaved(prev => new Set(prev).add(r.uri));
+  };
+  const canSave = cur.kind === "set" && canEdit;
+  const saveBtn = (r: Version) => {
+    const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
+    return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
   };
   const removeVersion = (k: number) => {
     if (cur.kind !== "set") return;
@@ -297,26 +354,47 @@ function Recordings({ cur, item, canEdit }: { cur: Current; item?: SetlistItem; 
         {cur.kind !== "set" ? null
           : vs.length ? vs.map((v, k) => (
             <div className="ver" key={v.uri}>
-              <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => app.playSpotify(v.uri, true)}>▶</button>
-              <span className="name">{v.name}<span className="sub">{v.artists}</span></span>
+              <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => playUri(v.uri, v.name)}>▶</button>
+              <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(k)}>✕</button>}
             </div>
-          )) : <p className="hint">No saved versions yet. Search Spotify below.</p>}
+          )) : <p className="hint">No saved versions yet. Search below.</p>}
       </div>
       <div className="inline-form">
-        <input id="v-q" type="search" placeholder="Search Spotify" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") find(); }} />
-        <button className="btn" id="v-go" onClick={() => find()} disabled={busy}>Find versions</button>
+        <input id="v-q" type="search" aria-label="Search for recordings, or paste a link" placeholder={src === "youtube" ? "Search YouTube or paste a link" : "Search Spotify or paste a link"} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") go(); }} />
+        <button className="btn" id="v-go" onClick={go} disabled={busy}>Find versions</button>
+      </div>
+      <div className="seg v-src" role="group" aria-label="Search on">
+        {(["youtube", "spotify"] as const).map(p => (
+          <button key={p} type="button" aria-pressed={src === p} onClick={() => { setSrc(p); setStatus(null); setPasted(null); }}><Icon name={p} size={14} /> {p === "youtube" ? "YouTube" : "Spotify"}</button>
+        ))}
       </div>
       <div id="v-results" className="list">
         {status && <p className={status.flag ? "flag" : "hint"}>{status.msg}</p>}
-        {results && results.map(r => (
+        {pasted && (
+          <div className="ver">
+            <button className="btn icon-btn small" aria-label={"Play " + pasted.name} onClick={() => playUri(pasted.uri, pasted.name)}>▶</button>
+            <span className="name"><Icon name={isYtUri(pasted.uri) ? "youtube" : "spotify"} size={14} /> {pasted.name}<span className="sub">{pasted.artists}</span></span>
+            {saveBtn(pasted)}
+          </div>
+        )}
+        {src === "spotify" && results && results.map(r => (
           <div className="ver" key={r.uri}>
-            <button className="btn icon-btn small" aria-label="Play" onClick={() => app.playSpotify(r.uri, true)}>▶</button>
+            <button className="btn icon-btn small" aria-label="Play" onClick={() => playUri(r.uri, r.name)}>▶</button>
             <span className="name">{r.artists}<span className="sub">{r.name} · {r.album}{r.year ? " · " + r.year : ""}</span></span>
-            {cur.kind === "set" && canEdit && <button className="btn small" disabled={saved.has(r.uri)} onClick={() => saveVersion(r)}>{saved.has(r.uri) ? "Saved" : "Save"}</button>}
+            {saveBtn(r)}
           </div>
         ))}
-        {found?.more && <button className="btn small v-more" onClick={() => find(found.page + 1)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
+        {src === "youtube" && ytFound && ytFound.rows.map(r => (
+          <div className="ver ver-yt" key={r.id}>
+            <button className="btn icon-btn small" aria-label={"Play " + r.title} onClick={() => playVideo(r.id, r.title)}>▶</button>
+            <span className="name"><span className="thumb" aria-hidden="true" style={{ backgroundImage: r.thumb ? `url("${r.thumb}")` : undefined }} />
+              <span>{r.title}<span className="sub">{r.channel}</span></span></span>
+            {saveBtn({ uri: "youtube:" + r.id, name: r.title, artists: r.channel })}
+          </div>
+        ))}
+        {src === "spotify" && found?.more && <button className="btn small v-more" onClick={() => find(found.page + 1)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
+        {src === "youtube" && ytFound?.next && <button className="btn small v-more" onClick={() => findYt(true)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
       </div>
     </section>
   );

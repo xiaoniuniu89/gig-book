@@ -19,7 +19,15 @@ export function PlaybackHelp({ open, onClose }: { open: boolean; onClose: () => 
   const mine = useMyPlayback();
   return (
     <Modal open={open} title="What works where" onClose={onClose}>
-      <p className="hint">The player here plays whole tracks only on some devices. Open in Spotify always works with a free Spotify account.</p>
+      <p className="hint">YouTube plays whole songs everywhere. Spotify&apos;s player here plays whole tracks only on some devices; Open in Spotify always works with a free Spotify account.</p>
+      <ul className="pb-list">
+        <li className="pb-row" data-level="full">
+          <b>YouTube, on any device</b>
+          <span>Whole songs, no account needed. May show ads.</span>
+          <span className="hint">Have YouTube Premium? Sign in to YouTube in this browser for fewer or no ads. Doesn&apos;t work in every browser.</span>
+        </li>
+      </ul>
+      <h3 className="modal-sub">Spotify</h3>
       {mine && <p><b>You&apos;re on {mine.you}.</b> {mine.tip}</p>}
       <ul className="pb-list">
         {PLAYBACK_ROWS.map(r => (

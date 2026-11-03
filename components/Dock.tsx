@@ -1,9 +1,12 @@
 "use client";
-// The player drawer on the right: Band (built-in backing band), Record (Spotify embed) and the page's side panels.
+// The player drawer on the right: Band (built-in backing band), Record (YouTube or Spotify player) and the page's side panels.
 // Collapsed, it shrinks to a slim rail (a floating button on phones) so the chart gets the whole screen. Rendered once in the root layout.
 import { useApp, sectionRanges } from "./AppProvider";
 import { Info } from "./Info";
 import { PlaybackHelpLink, useMyPlayback } from "./PlaybackHelp";
+import { Icon } from "./Icon";
+import { PREMIUM_NOTE, YOUTUBE_SIGN_IN } from "./YoutubePremium";
+import { tuneQueueItem } from "@/lib/youtube/queue";
 import { GENERAL_HINT } from "@/lib/playback";
 import type { Instrument } from "@/lib/band/engine";
 
@@ -30,6 +33,14 @@ export function Dock() {
     const cur = current;
     const s = cur && cur.kind === "set" ? app.setlistById(cur.setId) : undefined;
     if (s && s.spotify) app.playSpotify(s.spotify, false);
+  };
+
+  const yTube = app.settings.player === "youtube";
+  const item = current && current.kind === "set" ? app.itemOf(current) : undefined;
+  const playTune = () => {
+    if (!current || current.kind === "lick") return;
+    const ref = current.kind === "set" ? { setId: current.setId, idx: current.itemIdx } : undefined;
+    void app.playYoutube([tuneQueueItem(current.song, item?.versions, ref)]);
   };
 
   const open = (t: "band" | "record") => { app.setDockTab(t); app.setDockSize("full"); };
@@ -121,15 +132,28 @@ export function Dock() {
           <div className="pane-record">
             <div className="rec-head">
               <b id="rec-title">{app.recTitle}</b>
-              <Info label="About playing recordings here">{mine ? mine.hint : GENERAL_HINT} <PlaybackHelpLink /></Info>
+              {app.recKind === "youtube"
+                ? <Info label="About playing recordings here">
+                    YouTube plays whole songs on every device. It may show ads. {PREMIUM_NOTE}{" "}
+                    <a className="btn small" href={YOUTUBE_SIGN_IN} target="_blank" rel="noopener noreferrer"><Icon name="youtube" size={16} /> Connect YouTube Premium</a>
+                  </Info>
+                : <Info label="About playing recordings here">{mine ? mine.hint : GENERAL_HINT} <PlaybackHelpLink /></Info>}
+              {yTube && current && current.kind !== "lick" &&
+                <button className="btn small" id="rec-play-tune" onClick={playTune}><Icon name="youtube" size={16} /> Play this tune</button>}
+              {app.recKind === "youtube" && app.ytPos && app.ytPos.count > 1 && <>
+                <button className="btn icon-btn small" aria-label="Previous video" disabled={app.ytPos.pos === 0} onClick={() => app.ytStep(-1)}>⏮</button>
+                <button className="btn icon-btn small" aria-label="Next video" disabled={app.ytPos.pos >= app.ytPos.count - 1} onClick={() => app.ytStep(1)}>⏭</button>
+              </>}
               {/* only on a setlist tune whose setlist has a playlist; elsewhere there's no "this setlist" */}
-              {current?.kind === "set" && app.setlistById(current.setId)?.spotify &&
+              {!yTube && current?.kind === "set" && app.setlistById(current.setId)?.spotify &&
                 <button className="btn small" id="rec-load" onClick={recLoad}>Load this setlist&apos;s playlist</button>}
               <label className="toggle" htmlFor="rec-follow"><input id="rec-follow" type="checkbox" checked={app.follow} onChange={e => app.setFollow(e.target.checked)} /> Charts follow the music</label>
               <span className="hint" id="rec-status">{app.recStatus}</span>
             </div>
             {/* Spotify's iFrame API owns this element's contents; React never renders children into it. */}
-            <div id="sp-embed" ref={app.embedRef} suppressHydrationWarning />
+            <div id="sp-embed" ref={app.embedRef} hidden={app.recKind === "youtube"} suppressHydrationWarning />
+            {/* YouTube's player owns this one the same way */}
+            <div id="yt-embed" ref={app.ytEmbedRef} hidden={app.recKind !== "youtube"} suppressHydrationWarning />
           </div>
         </div>
         {/* the page on screen portals its side panels in here */}
