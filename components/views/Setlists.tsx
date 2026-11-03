@@ -42,7 +42,7 @@ export function Setlists() {
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelf">
           {books.map(({ s, keys }) => (
-            <Link key={s.id} className="book" href={"/set/" + encodeURIComponent(s.id)}>
+            <Link key={s.id} className={"book " + (isBuiltin(s.id) ? "blue" : "yellow")} href={"/set/" + encodeURIComponent(s.id)}>
               <span className="m">{s.items.length} tunes{!isBuiltin(s.id) && s.role && s.role !== "owner" ? " · shared with you" : ""}</span>
               <span className="t">{s.name}</span>
               <span className="keys">{keys}</span>

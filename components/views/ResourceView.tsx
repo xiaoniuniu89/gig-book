@@ -1,5 +1,6 @@
 "use client";
 // /resources/[id]: one resource. A link embeds YouTube and Spotify, else it's a card that opens in a new tab; a file shows its PDF or image.
+import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -44,7 +45,7 @@ export function ResourceView() {
 
   if (res === undefined) return <p className="hint">Loading…</p>;
   if (res === null) return (
-    <section className="panel"><h1>Resource not found</h1><p className="hint">It may have been deleted, or you need to sign in. <Link href="/resources">Back to resources</Link></p></section>
+    <Oops code={404} lines={["That resource isn't here.", "It may have been deleted, or you need to sign in."]} links={[{ href: "/resources", label: "Back to resources" }]} />
   );
 
   const save = async (f: ResourceFields) => {

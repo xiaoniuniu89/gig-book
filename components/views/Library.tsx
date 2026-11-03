@@ -52,7 +52,7 @@ export function Library() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" data-tour="library">
         <h1>Library</h1>
         <button className="btn" onClick={() => setImporting(true)}><Icon name="plus" size={18} /> Import playlist</button>
       </div>

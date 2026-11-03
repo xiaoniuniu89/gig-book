@@ -1,5 +1,6 @@
 "use client";
 // /bands/<id>: setlists, band notes, people and the press kit of one band (R10). Accounts only.
+import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -50,7 +51,7 @@ export function BandView() {
 
   if (!signedIn) return <section className="panel"><p className="hint">Sign in to use bands.</p></section>;
   if (band === undefined) return <p className="hint" role="status">Loading…</p>;
-  if (!band) return <section className="panel"><h2>Band not found</h2><p className="hint">It may have been deleted, or you&apos;re not in it.</p><Link className="btn" href="/bands">Your bands</Link></section>;
+  if (!band) return <Oops code={403} lines={["You're not in this band, or it's been deleted."]} links={[{ href: "/bands", label: "Your bands" }, { href: "/", label: "Home" }]} />;
 
   return (
     <>

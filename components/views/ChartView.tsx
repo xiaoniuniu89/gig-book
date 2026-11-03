@@ -1,5 +1,6 @@
 "use client";
 // Focus / chart view (R3): only the chart, big, with a slim bar. Swipe or arrow keys move through the setlist.
+import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -113,7 +114,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
 
   if (!cur || !sg) return (
     <div className="focus"><div className="focus-body">
-      {missing ? <><h2>Tune not found</h2><Link className="btn" href={back}>Back</Link></> : <p className="hint">Loading…</p>}
+      {missing ? <Oops code={404} lines={["That tune isn't here."]} links={[{ href: back, label: "Back" }]} /> : <p className="hint">Loading…</p>}
     </div></div>
   );
 

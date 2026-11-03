@@ -1,4 +1,5 @@
 "use client";
+import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -40,7 +41,7 @@ export function SetSongView() {
   const cur = useMemo<TuneCurrent | null>(() => (setId && raw ? { kind: "set", setId, itemIdx: idx, song: song(raw) } : null),
     [setId, raw, idx]);
   if (!cur) return (missing || (s && !item))
-    ? <section className="panel"><h2>Tune not found</h2><Link className="btn" href={s ? "/set/" + encodeURIComponent(s.id) : "/"}>Back</Link></section>
+    ? <Oops code={404} lines={["That tune isn't in this setlist."]} links={[{ href: s ? "/set/" + encodeURIComponent(s.id) : "/", label: "Back" }]} />
     : <p className="hint">Loading…</p>;
   return <SongBody cur={cur} setlist={s} />;
 }
@@ -54,7 +55,7 @@ export function LibrarySongView() {
   const raw = p && Number.isInteger(idx) ? p.songs[idx] : undefined;
   const cur = useMemo<TuneCurrent | null>(() => (p && raw ? { kind: "lib", plId: p.id, songIdx: idx, song: song(raw) } : null), [p, raw, idx]);
   if (!cur) return app.ready
-    ? <section className="panel"><h2>Chart not found</h2><Link className="btn" href="/library">Back to the library</Link></section>
+    ? <Oops code={404} lines={["That chart isn't in the library."]} links={[{ href: "/library", label: "Back to the library" }]} />
     : <p className="hint">Loading…</p>;
   return <SongBody cur={cur} />;
 }

@@ -11,3 +11,7 @@ test-results/
 supabase/.temp/
 supabase/.branches/
 .vitest/
+
+# design review captures
+.impeccable/review/
+.impeccable/build/

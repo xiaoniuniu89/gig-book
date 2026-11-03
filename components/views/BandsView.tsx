@@ -43,14 +43,14 @@ export function BandsView() {
   if (!signedIn) return <><div className="page-head"><h1>Bands</h1></div><p className="hint">Sign in to set up a band.</p></>;
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" data-tour="bands">
         <h1>Bands</h1>
         <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" size={18} /> New band</button>
       </div>
       {bands === null ? <p className="hint" role="status">Loading…</p> : (
         <div className="shelf">
           {bands.map(b => (
-            <Link key={b.id} className="book" href={"/bands/" + b.id}>
+            <Link key={b.id} className="book yellow" href={"/bands/" + b.id}>
               <span className="m">{b.role === "admin" ? "Admin" : "Member"}{b.plays.length ? " · " + b.plays.join(", ") : ""}</span>
               <span className="t">{b.name}</span>
             </Link>

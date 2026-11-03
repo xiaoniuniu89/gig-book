@@ -8,12 +8,11 @@ import { useEffect, useState } from "react";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
 export function TopBar() {
-  const { crumb } = useApp();
   return (
     <header className="bar-top">
       <div className="bar-top-inner">
         <Link className="brand" href="/">Niu<span> Real Book</span></Link>
-        <div className="crumb" id="crumb">{crumb}</div>
+        <span className="bar-gap" />
         <span className="acct">
           {supabaseConfigured && <Feedback />}
           <ThemeToggle />
@@ -41,13 +40,13 @@ function Account() {
   );
 }
 
-// Light or dark; until you pick, it follows the system. The choice is applied before paint by a script in the layout.
-export const THEME_KEY = "gigbook-theme";
-function ThemeToggle() {
+// Light (paper) by default; dark is stage mode for dim rooms. The choice is applied before paint by a script in the layout.
+export const THEME_KEY = "gigbook-theme-v2"; // v2: the Real Book look starts everyone on light
+export function ThemeToggle({ labelled }: { labelled?: boolean }) {
   const [dark, setDark] = useState<boolean | null>(null);
   useEffect(() => {
     const t = document.documentElement.dataset.theme;
-    setDark(t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
+    setDark(t === "dark");
   }, []);
   if (dark === null) return null;
   const flip = () => {
@@ -57,8 +56,10 @@ function ThemeToggle() {
     setDark(!dark);
   };
   return (
-    <button className="btn small icon-btn" aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Light mode" : "Dark mode"} onClick={flip}>
-      <Icon name={dark ? "sun" : "moon"} size={18} />
-    </button>
+    labelled
+      ? <button className="btn small" type="button" aria-pressed={dark} onClick={flip}><Icon name={dark ? "sun" : "moon"} size={16} /> {dark ? "Light mode" : "Stage mode (dark)"}</button>
+      : <button className="btn small icon-btn theme-btn" aria-label={dark ? "Switch to light mode" : "Switch to stage mode (dark)"} title={dark ? "Light mode" : "Stage mode (dark)"} onClick={flip}>
+          <Icon name={dark ? "sun" : "moon"} size={18} />
+        </button>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 // Closed-beta landing page: shown instead of the app until there is a session. Sign in, or ask for a spot.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { getSupabase } from "@/lib/supabase/client";
 import { Icon } from "./Icon";
+import { Modal } from "./Modal";
 
 // localhost only: the fake musicians from npm run seed:dev (dropped from production builds)
 const DevSignIn = process.env.NODE_ENV === "development" ? dynamic(() => import("./DevSignIn"), { ssr: false }) : null;
@@ -28,14 +29,12 @@ function RequestAccess() {
   };
 
   if (done) return (
-    <div className="card" role="status">
-      <h2>Request access</h2>
+    <div className="landing-form" role="status">
       <p className="hint">Thanks, you&apos;re on the list. We&apos;ll email you when there&apos;s a spot.</p>
     </div>
   );
   return (
-    <form className="card" onSubmit={submit}>
-      <h2>Request access</h2>
+    <form className="landing-form" onSubmit={submit}>
       <p className="hint">Want in? Tell us who you are and we&apos;ll email you when there&apos;s a spot.</p>
       <label htmlFor="req-name">Name</label>
       <input id="req-name" required maxLength={80} autoComplete="name" value={f.name} onChange={set("name")} />
@@ -56,6 +55,13 @@ export function SignIn() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [open, setOpen] = useState<"signin" | "request" | null>(null);
+  // the landing page is always light; your saved choice comes back once you're in
+  useEffect(() => {
+    const el = document.documentElement;
+    delete el.dataset.theme;
+    return () => { try { if (localStorage.getItem("gigbook-theme-v2") === "dark") el.dataset.theme = "dark"; } catch { /* private mode */ } };
+  }, []);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,30 +78,39 @@ export function SignIn() {
   return (
     <section className="landing">
       <header className="hero">
-        <div className="brand">Niu<span> Real Book</span></div>
-        <p>A real book for gigging jazz musicians: setlists, charts, recordings and your band in one place.</p>
-        <span className="chip">Closed beta</span>
+        <div className="hero-txt">
+          <div className="brand">Niu<span> Real Book</span></div>
+          <h1>Organise, practise, rehearse, gig!</h1>
+          <p className="type">A real book for working jazz musicians: your setlists, charts in your key, a band to play along with, and your bandmates, all in one book.</p>
+          <span className="stamp">Closed beta</span>
+          <div className="row-btns hero-btns">
+            <button className="btn primary" onClick={() => setOpen("signin")}><Icon name="user" size={18} /> Sign in</button>
+            <button className="btn" onClick={() => setOpen("request")}><Icon name="plus" size={18} /> Request access</button>
+          </div>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static line art */}
+        <img className="landing-art" src="/art/jazz-duo.png" alt="Silhouettes of a trumpet player and a sax player, notes flowing between them" width={1280} height={888} />
       </header>
-      <div className="landing-cards">
+      <Modal open={open === "signin"} title={sent ? "Check your email" : "Sign in"} onClose={() => setOpen(null)}>
         {sent ? (
-          <div className="card">
-            <h2>Check your email</h2>
+          <div className="landing-form">
             <p className="hint">We sent a sign-in link to {email}. Open it on this device.</p>
             <div className="row-btns"><button className="btn small" onClick={() => setSent(false)}>Use another email</button></div>
           </div>
         ) : (
-          <form className="card" onSubmit={send}>
-            <h2>Sign in</h2>
+          <form className="landing-form" onSubmit={send}>
             <p className="hint">Already invited? Enter your email and we&apos;ll send you a sign-in link. No password.</p>
             <label htmlFor="signin-email">Email</label>
-            <input id="signin-email" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-            {err && <p className="flag" role="alert">{err}</p>}
+            <input id="signin-email" type="email" required autoFocus autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+            {err && <p className="flag" role="alert">{err}{err === NOT_INVITED && <> <button type="button" className="btn small link-btn" onClick={() => setOpen("request")}>Request access</button></>}</p>}
             <div className="row-btns"><button className="btn primary" type="submit" disabled={busy}><Icon name="user" size={16} /> {busy ? "Sending…" : "Email me a link"}</button></div>
             {DevSignIn && <DevSignIn />}
           </form>
         )}
+      </Modal>
+      <Modal open={open === "request"} title="Request access" onClose={() => setOpen(null)}>
         <RequestAccess />
-      </div>
+      </Modal>
     </section>
   );
 }

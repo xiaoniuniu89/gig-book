@@ -1,4 +1,5 @@
 "use client";
+import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type PointerEvent } from "react";
@@ -37,7 +38,7 @@ export function SetView() {
   }, [s, s?.name, setCrumb]);
 
   if (!s) return missing
-    ? <section className="panel"><h2>Setlist not found</h2><p className="hint">It may have been deleted, or it isn&apos;t shared with you.</p><Link className="btn" href="/setlists">Back to setlists</Link></section>
+    ? <Oops code={403} lines={["This setlist isn't shared with you, or it's been deleted."]} links={[{ href: "/setlists", label: "Your setlists" }, { href: "/", label: "Home" }]} />
     : <p className="hint">Loading…</p>;
   return <SetBody key={s.id} s={s} />;
 }

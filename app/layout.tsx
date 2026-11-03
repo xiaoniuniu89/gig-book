@@ -17,11 +17,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* the saved light/dark choice, before first paint so there's no flash */}
-        <script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('gigbook-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}" }} />
+        <script dangerouslySetInnerHTML={{ __html: "try{if(localStorage.getItem('gigbook-theme-v2')==='dark'&&location.pathname!=='/')document.documentElement.dataset.theme='dark'}catch(e){}" }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&family=Kalam:wght@700&display=swap" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&family=Lato:ital,wght@0,400;0,700;0,900;1,400&family=Luckiest+Guy&family=Special+Elite&display=swap" />
       </head>
       <body data-docksize="full">
         <AppProvider>

@@ -16,9 +16,9 @@ export function ToolsView() {
   return (
     <>
       <h1>Tools</h1>
-      <div className="shelf">
+      <div className="shelf" data-tour="tools">
         {TOOLS.map(t => (
-          <Link key={t.href} className="book tool" href={t.href}>
+          <Link key={t.href} className="book tool orange" href={t.href}>
             <span className="t">{t.name}</span>
             <span className="m">{t.about}</span>
           </Link>

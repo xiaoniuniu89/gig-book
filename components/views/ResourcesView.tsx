@@ -47,7 +47,7 @@ export function ResourcesView() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" data-tour="resources">
         <h1>Resources</h1>
         {signedIn && <button className="btn primary" onClick={() => setAdding("choose")}><Icon name="plus" size={18} /> Add</button>}
       </div>

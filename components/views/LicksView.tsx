@@ -56,7 +56,7 @@ export function LicksView() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" data-tour="licks">
         <h1>Licks</h1>
         {signedIn && <button className="btn primary" aria-expanded={adding} onClick={() => { setAdding(a => !a); setPicked("mine"); }}><Icon name="plus" size={18} /> New lick</button>}
       </div>

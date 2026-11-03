@@ -1,5 +1,6 @@
 "use client";
 // Closed beta: with Supabase configured, nothing but the sign-in screen shows until there is a session.
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "./AppProvider";
 import { SignIn } from "./SignIn";
@@ -9,7 +10,7 @@ import { Tour } from "./Tour";
 import { supabaseConfigured } from "@/lib/supabase/client";
 
 export function Gate({ children }: { children: React.ReactNode }) {
-  const { account, authChecked } = useApp();
+  const { account, authChecked, crumb } = useApp();
   const path = usePathname();
   if (path.startsWith("/epk/")) return <>{children}</>; // public press kit pages: no sign-in, no app chrome
   const open =!supabaseConfigured || !!account || path.startsWith("/auth/callback");
@@ -19,7 +20,11 @@ export function Gate({ children }: { children: React.ReactNode }) {
   return (
     <>
       <TopBar />
-      <main><div className="wrap" id="view">{children}</div></main>
+      <main><div className="wrap" id="view">
+        {/* where you are, right above the page: Home / Setlists / Ava's Standards */}
+        {crumb && <nav className="crumb" id="crumb" aria-label="Breadcrumb"><Link href="/">Home</Link> / {crumb}</nav>}
+        {children}
+      </div></main>
       <Dock />
       <Tour />
     </>

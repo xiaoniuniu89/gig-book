@@ -1,5 +1,6 @@
 "use client";
 // /licks/[id]: one lick. Its notation (or the photo/PDF you uploaded) and its chords to loop with the band.
+import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -67,7 +68,7 @@ export function LickView() {
 
   if (lick === undefined) return <p className="hint">Loading…</p>;
   if (lick === null) return (
-    <section className="panel"><h1>Lick not found</h1><p className="hint">It may have been deleted, or it isn&apos;t shared with you. <Link href="/licks">Back to licks</Link></p></section>
+    <Oops code={404} lines={["That lick isn't here.", "It may have been deleted, or it isn't shared with you."]} links={[{ href: "/licks", label: "Back to licks" }]} />
   );
 
   const shift = steps(base, shown);

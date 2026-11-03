@@ -9,23 +9,38 @@ import { isBuiltin } from "@/lib/seeds";
 
 export const TOUR_EVENT = "niu-tour";
 
-interface Step { title: string; body: string; path: "home" | "set" | "song" | "any"; targets: string[] }
+interface Step { title: string; body: string; path: "home" | "set" | "song" | "any" | `/${string}`; targets: string[] }
 
+// One stop per page, in the order you'd use them: gigs first, then practice, then your account.
 const STEPS: Step[] = [
-  { title: "Start from the shelf", path: "home", targets: ["home"],
-    body: "Library holds your charts: import them from iReal Pro, or start from the standards. Licks and Resources sit beside it, the Tools card has a metronome, a drone and sheet-music printing, and Niu AI drafts a setlist from your library when you describe the gig." },
+  { title: "Your book", path: "home", targets: ["home"],
+    body: "Everything starts here. Gigs holds your setlists, library and bands; Practice holds licks, resources and tools; Niu AI drafts setlists for you." },
   { title: "Build a setlist", path: "set", targets: ["tunes"],
-    body: "Add tunes from your library, change the key of any tune, and reorder with the arrows or by dragging the grip. With an account you can also share a setlist and make a Spotify playlist from it." },
+    body: "Add tunes, change any tune's key, and reorder by dragging the grip. Add set gives you a second or third set." },
   { title: "Share and Spotify", path: "set", targets: ["share", "playlist"],
-    body: "Share a setlist with your band or with people you've played with lately. Create Spotify playlist builds one from your tunes' recordings, and Update keeps it in step. Bands have their own page for notes, files and a group chat link." },
+    body: "Share a setlist with your band. Create Spotify playlist builds one from your tunes' recordings, and Update keeps it in step." },
   { title: "Practice gig", path: "set", targets: ["gig"],
-    body: "Play through the whole setlist with the backing band, or one set with its ▶ button. It moves on to the next tune for you." },
+    body: "Play the whole setlist with the backing band, or one set with its ▶ button. It moves on to the next tune for you." },
   { title: "Read and play along", path: "song", targets: ["chart"],
-    body: "Here is the chart. Upload chart adds your own lead sheet, intro or outro as a tab, with a recording if you like. Use − and + by the title to transpose. In the player, press play for the backing band, or switch to Record to hear the Spotify recording." },
+    body: "The chart, in your key (− and + by the title transpose it). Upload chart adds your own lead sheet, intro or outro as a tab, with a recording if you like." },
   { title: "Notes and files", path: "song", targets: ["notes"],
-    body: "Keep your own notes on any tune. With an account you can also attach photos, PDFs and recordings." },
+    body: "Keep notes on any tune, and attach photos, PDFs and recordings." },
+  { title: "Library", path: "/library", targets: ["library"],
+    body: "All your charts. Import playlists from iReal Pro, or use the built-in standards." },
+  { title: "Licks", path: "/licks", targets: ["licks"],
+    body: "Phrases and ideas, written out so you can hear them, and pinned to any tune." },
+  { title: "Resources", path: "/resources", targets: ["resources"],
+    body: "Bookmarks, books and PDFs you practise from, pinned to the tunes they help with." },
+  { title: "Tools", path: "/tools", targets: ["tools"],
+    body: "A metronome, a drone, and printable sheet music for a tune, a lick or a whole setlist." },
+  { title: "Bands", path: "/bands", targets: ["bands"],
+    body: "Make a band, invite your bandmates, and share setlists, notes and files with them." },
+  { title: "Niu AI", path: "/ai", targets: ["ai"],
+    body: "Tap what fits the gig and Niu AI drafts a setlist from your library. You check it before saving." },
+  { title: "Your account", path: "/account", targets: ["account"],
+    body: "Your profile and press kit, light or stage mode, and this tour again whenever you want it." },
   { title: "Bugs and ideas", path: "any", targets: ["feedback"],
-    body: "Something not working, or missing? Tap Bugs & ideas to report a problem or suggest a feature. You can take this tour again from your Account page." },
+    body: "Something not working, or missing? Tap Bugs & ideas to report a problem or suggest a feature." },
 ];
 
 const same = (a: string, b: string) => { try { return decodeURIComponent(a) === decodeURIComponent(b); } catch { return a === b; } };
@@ -50,6 +65,7 @@ export function Tour() {
   const pathOf = useCallback((s: Step): string | null => {
     if (s.path === "home") return "/";
     if (s.path === "any") return null;
+    if (s.path.startsWith("/")) return s.path;
     if (!sample) return "";
     return s.path === "set" ? "/set/" + encodeURIComponent(sample.id) : songHref(sample.id, 0);
   }, [sample]);
@@ -88,7 +104,9 @@ export function Tour() {
     const s = STEPS[i];
     const want = pathOf(s);
     if (want === "") { go(i + dir.current, dir.current); return; } // no example to show
-    if (want !== null && !same(pathname, want)) { router.push(want); return; }
+    // a page route may redirect deeper (/library → /library/<playlist>), so being under it counts
+    const there = want === null || same(pathname, want) || (s.path.startsWith("/") && pathname.startsWith(want + "/"));
+    if (!there) { router.push(want); return; }
     let tries = 0;
     const t = setInterval(() => {
       const found = s.targets.map(k => document.querySelector(`[data-tour="${k}"]`)).find(Boolean) ?? null;
