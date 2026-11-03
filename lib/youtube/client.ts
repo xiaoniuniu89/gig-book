@@ -1,6 +1,7 @@
 // Browser side of YouTube: search through our route, and the once-ever automatic pick per song.
 // The pick is cached in the shared youtube_cache table when signed in, else in this browser (localStorage).
 import { getSupabase } from "../supabase/client";
+import { norm } from "../songs";
 import { isVideoId } from "./ids";
 
 export interface VideoResult { id: string; title: string; channel: string; thumb: string }
@@ -66,16 +67,48 @@ export async function cachedPick(key: string): Promise<Pick | null> {
   return p;
 }
 
-/** The pick for a song: the cached one, else search once and keep the first result. */
-export function autoPick(key: string, title: string, composer: string): Promise<Pick | null> {
+/** Cache key for a song and performer: norm(title)|norm(composer)|norm(performer); no performer = the plain song key. */
+export const pickKey = (key: string, performer = ""): string => { const p = norm(performer).slice(0, 80); return p ? key + "|" + p : key; };
+
+/* ---- AI help (background; any failure, limit or signed-out use means the plain search) ---- */
+async function ai<T>(body: unknown): Promise<T | null> {
+  try {
+    const sb = await signedIn();
+    const token = sb && (await sb.auth.getSession()).data.session?.access_token;
+    if (!token) return null;
+    const res = await fetch("/api/ai/youtube", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(body) });
+    return res.ok ? await res.json() as T : null;
+  } catch { return null; }
+}
+
+const setPerformers = new Map<string, Promise<string[]>>(); // this session: one call per set
+/** The intended performer per tune (same order, "" = none) for a set, from one AI call. Never throws. */
+export function performersFor(name: string, tunes: { title: string; composer: string }[]): Promise<string[]> {
+  const k = name + "\n" + tunes.map(t => t.title + "|" + t.composer).join("\n");
+  let p = setPerformers.get(k);
+  if (!p) {
+    p = ai<{ performers?: unknown }>({ kind: "performers", name, tunes: tunes.map(t => ({ title: t.title, composer: t.composer })) }).then(d => {
+      const a = Array.isArray(d?.performers) ? d.performers : [];
+      return tunes.map((_, i) => typeof a[i] === "string" ? a[i].slice(0, 60) : "");
+    });
+    setPerformers.set(k, p);
+  }
+  return p;
+}
+
+/** The pick for a song: the cached one, else search once (with the performer if known), let the AI choose, and keep it. */
+export function autoPick(songKey: string, title: string, composer: string, performer = ""): Promise<Pick | null> {
+  const key = pickKey(songKey, performer);
   const going = inflight.get(key);
   if (going) return going;
   const run = (async () => {
     const hit = await cachedPick(key);
     if (hit) return hit;
-    const { videos } = await searchVideos(`${title} ${composer}`.trim());
-    const v = videos[0];
-    if (!v) return null;
+    const { videos } = await searchVideos((performer ? `${title} ${performer}` : `${title} ${composer}`).trim());
+    if (!videos.length) return null;
+    const top = videos.slice(0, 10);
+    const d = await ai<{ index?: unknown }>({ kind: "pick", title, composer, performer, results: top.map(v => ({ title: v.title, channel: v.channel })) });
+    const v = top[typeof d?.index === "number" && d.index >= 0 && d.index < top.length ? d.index : 0];
     const p = { id: v.id, title: v.title };
     mem.set(key, p);
     const sb = await signedIn();

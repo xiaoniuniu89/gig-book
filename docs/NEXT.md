@@ -26,6 +26,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Code: `lib/youtube/` (ids/links, `client.ts` search + once-ever pick cache, `embed.ts` IFrame API, `queue.ts`), `app/api/youtube/search`, `playYoutube`/`ytStep` in `AppProvider`, Dock Record tab, Recordings panel in `SongView.tsx` (YouTube/Spotify switch, pasted links, `youtube:<id>` versions), Music section in Settings, setlist Listen panel (Play uses the chosen player; Save to Spotify is separate).
 - Smoke test: switch the player in Settings; Play a setlist (videos in order, next/previous, chart follows); Find versions on YouTube, save, remove; paste a youtube.com/youtu.be/open.spotify.com link; signed out (pick cached in the browser). Add a "YouTube" line to `lib/whatsNew.ts` at release.
 
+## Pending: right artist on YouTube (#61)
+- Typecheck and lint pass. Needs `OPENROUTER_API_KEY` and `npm run db:dev` for migration **0027** (widens the `youtube_cache.key` check to 500). Optional `AI_MODEL_SMALL` (defaults to `AI_MODEL`, then haiku).
+- Code: `app/api/ai/youtube/route.ts` + `lib/ai/youtube.ts` (performers per set, pick by index; each call uses one `ai_claim`), `lib/youtube/client.ts` (`performersFor`, `autoPick(…, performer)`, cache key `title|composer|performer`), `performer` on queue items (from saved versions' artists), SetView passes the set name to `playYoutube`.
+- Not done: set notes aren't sent (they live in the notes table, not on the setlist object). A single song from its own page uses the saved version's artist only. Signed out: no AI, plain search. No tests added (no AI tokens); `validatePick`/`validatePerformers` are the units to test.
+- Smoke test: play a "Billie Holiday" set with no saved videos; picks should be hers; replay uses the cache (no AI calls); unset `OPENROUTER_API_KEY` and playback still works.
+
 ## Pending: fill your profile from a bio or CV with AI (#60)
 - Built by the bot, **typecheck and lint not run** (no installed dependencies): run `npm run typecheck && npm run lint` first. No migration: it reuses `ai_claim()` (0021). Needs `OPENROUTER_API_KEY`.
 - Code: `app/api/ai/profile/route.ts`, `lib/ai/profile.ts` (prompt + validation), `lib/ai/profileClient.ts`, `components/ProfileAi.tsx` (modal + review), `.callout.warn` in `globals.css`. Requirement is **R11.8** (R11.6 was already the public page).

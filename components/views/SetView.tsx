@@ -62,7 +62,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [pasting, setPasting] = useState(false);
   const yTube = app.settings.player === "youtube";
   const playSet = () => {
-    if (yTube) void app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })));
+    if (yTube) void app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })), 0, s.name);
     else if (s.spotify) void app.playSpotify(s.spotify, true);
   };
   const canMake = !builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0;

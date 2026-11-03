@@ -11,7 +11,7 @@ import { defaultTempo } from "@/lib/band/gen";
 import { Player, type PlayerEvent } from "@/lib/spotify/embed";
 import { trackName } from "@/lib/spotify/client";
 import { YtPlayer, type YtEvent } from "@/lib/youtube/embed";
-import { autoPick } from "@/lib/youtube/client";
+import { autoPick, performersFor } from "@/lib/youtube/client";
 import { localStore } from "@/lib/data/local";
 import { supabaseStore } from "@/lib/data/supabase";
 import { createSaveQueue } from "@/lib/data/saveQueue";
@@ -22,7 +22,7 @@ import { DEFAULT_SETTINGS, applySettings, loadLocalSettings, normalizeSettings, 
 import { BUILTIN_LIBRARY, LEGACY_SEED_IDS, isBuiltin, withBuiltins } from "@/lib/seeds";
 
 /** One video in the YouTube list: a saved `id`, or null to use the song's automatic pick. setId/idx let "charts follow the music" open the tune. */
-export interface YtQueueItem { key: string; title: string; composer: string; id: string | null; setId?: string; idx?: number }
+export interface YtQueueItem { key: string; title: string; composer: string; id: string | null; performer?: string; setId?: string; idx?: number }
 
 /* ---------------- types ---------------- */
 export type Current =
@@ -155,7 +155,7 @@ interface Ctx {
   setDrawerSlot(el: HTMLElement | null): void;
   playSpotify(uri: string, play: boolean): Promise<void>;
   /** YouTube: play a list of videos in order from `start`; a song with no `id` gets its automatic pick (searched once, ever). */
-  playYoutube(queue: YtQueueItem[], start?: number): Promise<void>;
+  playYoutube(queue: YtQueueItem[], start?: number, setName?: string): Promise<void>;
   ytStep(d: 1 | -1): void;
   ytEmbedRef: React.MutableRefObject<HTMLDivElement | null>;
   /** Which player the Listen tab is showing, and where YouTube is in its list. */
@@ -659,7 +659,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let id = it.id;
       if (!id) {
         setRecStatus("Finding " + it.title + "…");
-        try { id = (await autoPick(it.key, it.title, it.composer))?.id ?? null; }
+        try { id = (await autoPick(it.key, it.title, it.composer, it.performer))?.id ?? null; }
         catch (e) { if (token === ytToken.current) { setRecStatus(""); toast(e instanceof Error ? e.message : "YouTube search failed."); } return; }
         if (token !== ytToken.current) return;
       }
@@ -684,8 +684,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRecStatus(dir > 0 ? "That was the last one." : "");
   }, [openFromSpotify, toast]);
 
-  const playYoutube = useCallback(async (queue: YtQueueItem[], start = 0) => {
+  const playYoutube = useCallback(async (queue: YtQueueItem[], start = 0, setName?: string) => {
     if (!queue.length) return;
+    // a set: one AI call says who it's about, for the songs with no saved video or performer
+    const need = setName ? queue.map((_, i) => i).filter(i => !queue[i].id && !queue[i].performer) : [];
+    if (setName && need.length) {
+      setRecStatus("Finding " + queue[Math.min(start, queue.length - 1)].title + "…");
+      const ps = await performersFor(setName, need.map(i => queue[i]));
+      queue = queue.map((q, i) => { const j = need.indexOf(i); return j >= 0 && ps[j] ? { ...q, performer: ps[j] } : q; });
+    }
     setGig(null); band?.stop();
     playerRef.current?.pause();
     setRecKind("youtube");
