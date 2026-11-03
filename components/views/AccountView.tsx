@@ -52,6 +52,9 @@ function Field({ label, open, busy, onEdit, onSave, onCancel, view, chip, childr
 }
 
 const empty = <span className="hint">Not set</span>;
+const TABS = [["about", "About you"], ["contact", "Contact"], ["files", "Promo files"], ["page", "Public page"], ["help", "Help"]] as const;
+type Tab = typeof TABS[number][0];
+let lastTab: Tab = "about"; // remembered while the app is open
 
 export function AccountView() {
   const { store, ready, setCrumb, setCurrent, toast, setAccountName } = useApp();
@@ -61,6 +64,7 @@ export function AccountView() {
   const [files, setFiles] = useState<Attachment[]>([]);
   const [slugText, setSlugText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<Tab>(lastTab);
   const signedIn = store.kind === "supabase";
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
 
@@ -124,9 +128,13 @@ export function AccountView() {
     <>
       <div className="page-head" data-tour="account"><h1>Account</h1></div>
       <p className="hint">Keep what agents and venues ask for in one place. Each item shows who can see it: only you, your bands, or anyone with your public page.</p>
+      <div className="pl-tabs" role="tablist" aria-label="Account sections">
+        {TABS.map(([id, name]) => (
+          <button key={id} role="tab" type="button" aria-selected={tab === id} className="pl-tab" onClick={() => { setTab(id); lastTab = id; cancel(); }}>{name}</button>
+        ))}
+      </div>
 
-      <section className="acct-sec">
-        <h2>About you</h2>
+      {tab === "about" && <section className="acct-sec" role="tabpanel" aria-label="About you">
         <Field label="Name" {...field("name")} view={p.displayName || empty}>
           <input type="text" aria-label="Name" value={x.displayName} maxLength={80} onChange={e => edit(y => ({ ...y, displayName: e.target.value }))} />
         </Field>
@@ -140,10 +148,9 @@ export function AccountView() {
           <span className="hint" aria-live="polite">{bioWords} {bioWords === 1 ? "word" : "words"} · agents often ask for {HINTS.join(", ")} word versions</span>
           <div className="acct-row"><span className="hint">Who can see it</span><ShareSelect label="your bio" value={x.share.bio} onChange={v => setShare("bio", v)} /></div>
         </Field>
-      </section>
+      </section>}
 
-      <section className="acct-sec">
-        <h2>Contact</h2>
+      {tab === "contact" && <section className="acct-sec" role="tabpanel" aria-label="Contact">
         {CONTACT_FIELDS.map(f => (
           <Field key={f.key} label={f.label} {...field(f.key)} chip={<ShareChip value={p.share[f.key]} />} view={p.contact[f.key]?.trim() || empty}>
             <input type={f.kind} aria-label={f.label} value={x.contact[f.key] || ""} maxLength={300}
@@ -152,10 +159,9 @@ export function AccountView() {
           </Field>
         ))}
         {pay && <div className="qr-box"><Qr text={pay} label="QR code for your payment link" /><span className="hint">Scan to pay: {pay}</span></div>}
-      </section>
+      </section>}
 
-      <section className="acct-sec">
-        <h2>Promo files</h2>
+      {tab === "files" && <section className="acct-sec" role="tabpanel" aria-label="Promo files">
         <p className="hint">Press photos, a one-sheet or EPK PDF, demo recordings.</p>
         <AttachMenu onFiles={fs => uploads.add("profile", fs)} />
         <UploadRows ups={uploads.ups} noteId="profile" retry={uploads.retry} dismiss={uploads.dismiss} />
@@ -176,10 +182,9 @@ export function AccountView() {
           );
         })}
         {!files.length && <p className="hint">No files yet.</p>}
-      </section>
+      </section>}
 
-      <section className="acct-sec">
-        <h2>Public page</h2>
+      {tab === "page" && <section className="acct-sec" role="tabpanel" aria-label="Public page">
         <Field label="Press kit page" {...field("epk")}
           view={p.epkSlug ? <div className="acct-row"><code className="epk-url">{liveUrl}</code><button className="btn small" type="button" onClick={copy}>Copy</button></div> : <span className="hint">Off</span>}>
           <label className="toggle"><input type="checkbox" checked={x.epkSlug !== null} onChange={e => edit(y => ({ ...y, epkSlug: e.target.checked ? slugText : null }))} /> Share a press kit page with anyone who has the link</label>
@@ -192,12 +197,11 @@ export function AccountView() {
             <p className="hint">The page shows your name plus the instruments, bio, contact details and files set to Public.</p>
           </>}
         </Field>
-      </section>
+      </section>}
 
-      <section className="acct-sec">
-        <h2>Help</h2>
+      {tab === "help" && <section className="acct-sec" role="tabpanel" aria-label="Help">
         <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div>
-      </section>
+      </section>}
     </>
   );
 }
