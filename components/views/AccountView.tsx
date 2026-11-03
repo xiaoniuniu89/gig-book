@@ -1,6 +1,7 @@
 "use client";
 // /account: name, bio, contact details and promo files, each with who can see it; plus the public press kit page (R11).
-import { useCallback, useEffect, useState } from "react";
+// Every field reads as plain text; its edit button opens it (value and who can see it), and Save stores just that change.
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
 import { TOUR_EVENT } from "../Tour";
@@ -15,26 +16,51 @@ import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, t
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 const HINTS = [50, 100, 250];
 
-// Who can see each item: a plain label until "Edit permissions" is on, then a picker.
-function ShareSelect({ value, onChange, label, editing }: { value: Share | undefined; onChange: (v: Share) => void; label: string; editing: boolean }) {
+function ShareChip({ value }: { value: Share | undefined }) {
   const v = value || "private";
-  if (!editing) return <span className={"share-chip " + v} aria-label={"Who can see " + label}>{SHARES.find(s => s.value === v)?.label}</span>;
+  return <span className={"share-chip " + v}>{SHARES.find(s => s.value === v)?.label}</span>;
+}
+function ShareSelect({ value, onChange, label }: { value: Share | undefined; onChange: (v: Share) => void; label: string }) {
   return (
-    <select className="share-select" aria-label={"Who can see " + label} value={v} onChange={e => onChange(e.target.value as Share)}>
+    <select className="share-select" aria-label={"Who can see " + label} value={value || "private"} onChange={e => onChange(e.target.value as Share)}>
       {SHARES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
     </select>
   );
 }
 
+// One field: read-only view with an edit button, or the form with Save / Cancel.
+function Field({ label, open, busy, onEdit, onSave, onCancel, view, chip, children }: {
+  label: string; open: boolean; busy: boolean; onEdit: () => void; onSave: () => void; onCancel: () => void;
+  view: ReactNode; chip?: ReactNode; children: ReactNode;
+}) {
+  return (
+    <div className={"acct-field" + (open ? " open" : "")}>
+      <div className="acct-row acct-head">
+        <span className="acct-label">{label}</span>
+        {!open && chip}
+        {!open && <button className="btn icon-btn small" type="button" aria-label={"Edit " + label} title={"Edit " + label} onClick={onEdit}><Icon name="edit" size={16} /></button>}
+      </div>
+      {open ? <>
+        {children}
+        <div className="row-btns">
+          <button className="btn small primary" type="button" disabled={busy} onClick={onSave}>{busy ? "Saving…" : "Save"}</button>
+          <button className="btn small" type="button" disabled={busy} onClick={onCancel}>Cancel</button>
+        </div>
+      </> : <div className="acct-value">{view}</div>}
+    </div>
+  );
+}
+
+const empty = <span className="hint">Not set</span>;
+
 export function AccountView() {
   const { store, ready, setCrumb, setCurrent, toast, setAccountName } = useApp();
-  const [p, setP] = useState<Profile | null>(null);
+  const [p, setP] = useState<Profile | null>(null); // what's saved
+  const [d, setD] = useState<Profile | null>(null); // the open field's draft
+  const [open, setOpen] = useState<string | null>(null);
   const [files, setFiles] = useState<Attachment[]>([]);
-  const [isPublic, setIsPublic] = useState(false);
   const [slugText, setSlugText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const signedIn = store.kind === "supabase";
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
 
@@ -45,7 +71,6 @@ export function AccountView() {
     Promise.all([store.getMyProfile(), store.listProfileFiles()]).then(([pr, fl]) => {
       if (gone) return;
       setP({ ...pr, instruments: canonInstruments(pr.instruments) }); setFiles(fl);
-      setIsPublic(!!pr.epkSlug); setSlugText(pr.epkSlug || "");
     }, e => { if (!gone) err(e, "Couldn't load your profile."); });
     return () => { gone = true; };
   }, [ready, signedIn, store, err]);
@@ -55,83 +80,76 @@ export function AccountView() {
     <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div></>;
   if (!p) return <><div className="page-head"><h1>Account</h1></div><p className="hint" role="status">Loading…</p></>;
 
-  const edit = (f: (x: Profile) => Profile) => { setP(f(p)); setDirty(true); };
+  const x = open && d ? d : p;
+  const edit = (f: (x: Profile) => Profile) => setD(cur => f(cur || p));
   const setShare = (key: string, v: Share) => edit(x => ({ ...x, share: { ...x.share, [key]: v } }));
-  const turnOn = (on: boolean) => {
-    setIsPublic(on); setDirty(true);
-    if (on && !slugText) { const s = slug(p.displayName); setSlugText((s === "set" ? "my-press-kit" : s).slice(0, 40)); }
+  const begin = (key: string) => {
+    setOpen(key); setD(p);
+    if (key === "epk") setSlugText(p.epkSlug || (() => { const s = slug(p.displayName); return (s === "set" ? "my-press-kit" : s).slice(0, 40); })());
   };
-  const slugOk = SLUG_RE.test(slugText);
-  const bioWords = words(p.bio);
-  const pay = p.contact.payment?.trim();
-  const url = typeof window !== "undefined" && slugOk ? location.origin + "/epk/" + slugText : "";
-
-  const save = async () => {
-    if (isPublic && !slugOk) { toast("Page address: 3–40 letters, numbers or dashes."); return; }
+  const cancel = () => { setOpen(null); setD(null); };
+  const persist = async (next: Profile) => {
     setBusy(true);
     try {
-      const contact = Object.fromEntries(Object.entries(p.contact).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
-      const next = { ...p, contact, instruments: canonInstruments(p.instruments), epkSlug: isPublic ? slugText : null };
-      await store.updateMyProfile(next);
-      setP(next); setDirty(false); setAccountName(next.displayName);
+      const contact = Object.fromEntries(Object.entries(next.contact).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
+      const clean = { ...next, contact, instruments: canonInstruments(next.instruments) };
+      await store.updateMyProfile(clean);
+      setP(clean); setAccountName(clean.displayName); setOpen(null); setD(null);
       toast("Saved.");
     } catch (e) { err(e, "Couldn't save your profile."); }
     setBusy(false);
   };
+  const slugOk = SLUG_RE.test(slugText);
+  const saveOpen = () => {
+    if (!d) return;
+    if (open === "epk" && d.epkSlug !== null) {
+      if (!slugOk) { toast("Page address: 3–40 letters, numbers or dashes."); return; }
+      void persist({ ...d, epkSlug: slugText });
+    } else void persist(d);
+  };
+  const field = (key: string) => ({ open: open === key, busy, onEdit: () => begin(key), onSave: saveOpen, onCancel: cancel });
+
+  const bioWords = words(x.bio);
+  const pay = p.contact.payment?.trim();
+  const liveUrl = typeof window !== "undefined" && p.epkSlug ? location.origin + "/epk/" + p.epkSlug : "";
   const removeFile = async (a: Attachment) => {
-    try { await store.deleteAttachment(a); setFiles(l => l.filter(x => x.id !== a.id)); }
+    try { await store.deleteAttachment(a); setFiles(l => l.filter(f => f.id !== a.id)); }
     catch (e) { err(e, "Couldn't delete that file."); }
   };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(url); toast("Link copied."); } catch { toast("Couldn't copy. Select the link and copy it."); }
+    try { await navigator.clipboard.writeText(liveUrl); toast("Link copied."); } catch { toast("Couldn't copy. Select the link and copy it."); }
   };
 
   return (
     <>
-      <div className="page-head" data-tour="account">
-        <h1>Account</h1>
-        <button className="btn primary" type="button" disabled={busy || !dirty} onClick={save}>{busy ? "Saving…" : "Save"}</button>
-      </div>
+      <div className="page-head" data-tour="account"><h1>Account</h1></div>
       <p className="hint">Keep what agents and venues ask for in one place. Each item shows who can see it: only you, your bands, or anyone with your public page.</p>
-      <div className="row-btns">
-        <button className={"btn small" + (sharing ? " primary" : "")} type="button" aria-pressed={sharing} onClick={() => setSharing(x => !x)}>
-          <Icon name="edit" size={16} /> {sharing ? "Done editing permissions" : "Edit permissions"}
-        </button>
-      </div>
 
       <section className="acct-sec">
         <h2>About you</h2>
-        <label className="acct-field"><span>Name</span>
-          <input type="text" value={p.displayName} maxLength={80} onChange={e => edit(x => ({ ...x, displayName: e.target.value }))} />
-        </label>
-        <div className="acct-field">
-          <div className="acct-row">
-            <span id="acct-instr">Instruments</span>
-            <ShareSelect label="your instruments" value={p.share.instruments} onChange={v => setShare("instruments", v)} editing={sharing} />
-          </div>
-          <InstrumentPicker label="Instruments" value={p.instruments} onChange={v => edit(x => ({ ...x, instruments: v }))} />
-        </div>
-        <div className="acct-field">
-          <label htmlFor="acct-bio">Bio</label>
-          <textarea id="acct-bio" rows={7} value={p.bio} maxLength={5000} onChange={e => edit(x => ({ ...x, bio: e.target.value }))} />
-          <div className="acct-row">
-            <span className="hint" aria-live="polite">{bioWords} {bioWords === 1 ? "word" : "words"} · agents often ask for {HINTS.join(", ")} word versions</span>
-            <ShareSelect label="your bio" value={p.share.bio} onChange={v => setShare("bio", v)} editing={sharing} />
-          </div>
-        </div>
+        <Field label="Name" {...field("name")} view={p.displayName || empty}>
+          <input type="text" aria-label="Name" value={x.displayName} maxLength={80} onChange={e => edit(y => ({ ...y, displayName: e.target.value }))} />
+        </Field>
+        <Field label="Instruments" {...field("instruments")} chip={<ShareChip value={p.share.instruments} />}
+          view={p.instruments.length ? p.instruments.join(", ") : empty}>
+          <InstrumentPicker label="Instruments" value={x.instruments} onChange={v => edit(y => ({ ...y, instruments: v }))} />
+          <div className="acct-row"><span className="hint">Who can see it</span><ShareSelect label="your instruments" value={x.share.instruments} onChange={v => setShare("instruments", v)} /></div>
+        </Field>
+        <Field label="Bio" {...field("bio")} chip={<ShareChip value={p.share.bio} />} view={p.bio.trim() ? <p className="acct-bio">{p.bio}</p> : empty}>
+          <textarea aria-label="Bio" rows={7} value={x.bio} maxLength={5000} onChange={e => edit(y => ({ ...y, bio: e.target.value }))} />
+          <span className="hint" aria-live="polite">{bioWords} {bioWords === 1 ? "word" : "words"} · agents often ask for {HINTS.join(", ")} word versions</span>
+          <div className="acct-row"><span className="hint">Who can see it</span><ShareSelect label="your bio" value={x.share.bio} onChange={v => setShare("bio", v)} /></div>
+        </Field>
       </section>
 
       <section className="acct-sec">
         <h2>Contact</h2>
         {CONTACT_FIELDS.map(f => (
-          <div className="acct-field" key={f.key}>
-            <label htmlFor={"acct-" + f.key}>{f.label}</label>
-            <div className="acct-row">
-              <input id={"acct-" + f.key} type={f.kind} value={p.contact[f.key] || ""} maxLength={300}
-                onChange={e => edit(x => ({ ...x, contact: { ...x.contact, [f.key]: e.target.value } }))} />
-              <ShareSelect label={f.label} value={p.share[f.key]} onChange={v => setShare(f.key, v)} editing={sharing} />
-            </div>
-          </div>
+          <Field key={f.key} label={f.label} {...field(f.key)} chip={<ShareChip value={p.share[f.key]} />} view={p.contact[f.key]?.trim() || empty}>
+            <input type={f.kind} aria-label={f.label} value={x.contact[f.key] || ""} maxLength={300}
+              onChange={e => edit(y => ({ ...y, contact: { ...y.contact, [f.key]: e.target.value } }))} />
+            <div className="acct-row"><span className="hint">Who can see it</span><ShareSelect label={f.label} value={x.share[f.key]} onChange={v => setShare(f.key, v)} /></div>
+          </Field>
         ))}
         {pay && <div className="qr-box"><Qr text={pay} label="QR code for your payment link" /><span className="hint">Scan to pay: {pay}</span></div>}
       </section>
@@ -141,29 +159,39 @@ export function AccountView() {
         <p className="hint">Press photos, a one-sheet or EPK PDF, demo recordings.</p>
         <AttachMenu onFiles={fs => uploads.add("profile", fs)} />
         <UploadRows ups={uploads.ups} noteId="profile" retry={uploads.retry} dismiss={uploads.dismiss} />
-        {files.map(a => (
-          <div className="acct-file" key={a.id}>
-            <AttachmentList store={store} items={[a]} canDelete={() => true} onDelete={removeFile} />
-            <ShareSelect label={a.name} value={p.share[fileShareKey(a.id)]} onChange={v => setShare(fileShareKey(a.id), v)} editing={sharing} />
-          </div>
-        ))}
+        {files.map(a => {
+          const k = fileShareKey(a.id);
+          return (
+            <div className="acct-file" key={a.id}>
+              <AttachmentList store={store} items={[a]} canDelete={() => true} onDelete={removeFile} />
+              {open === k ? <div className="acct-row">
+                <ShareSelect label={a.name} value={x.share[k]} onChange={v => setShare(k, v)} />
+                <button className="btn small primary" type="button" disabled={busy} onClick={saveOpen}>{busy ? "Saving…" : "Save"}</button>
+                <button className="btn small" type="button" disabled={busy} onClick={cancel}>Cancel</button>
+              </div> : <div className="acct-row">
+                <ShareChip value={p.share[k]} />
+                <button className="btn icon-btn small" type="button" aria-label={"Edit who can see " + a.name} title="Edit who can see it" onClick={() => begin(k)}><Icon name="edit" size={16} /></button>
+              </div>}
+            </div>
+          );
+        })}
         {!files.length && <p className="hint">No files yet.</p>}
       </section>
 
       <section className="acct-sec">
         <h2>Public page</h2>
-        <label className="toggle"><input type="checkbox" checked={isPublic} onChange={e => turnOn(e.target.checked)} /> Share a press kit page with anyone who has the link</label>
-        {isPublic && <>
-          <label className="acct-field"><span>Page address</span>
+        <Field label="Press kit page" {...field("epk")}
+          view={p.epkSlug ? <div className="acct-row"><code className="epk-url">{liveUrl}</code><button className="btn small" type="button" onClick={copy}>Copy</button></div> : <span className="hint">Off</span>}>
+          <label className="toggle"><input type="checkbox" checked={x.epkSlug !== null} onChange={e => edit(y => ({ ...y, epkSlug: e.target.checked ? slugText : null }))} /> Share a press kit page with anyone who has the link</label>
+          {x.epkSlug !== null && <>
             <div className="acct-row"><span className="hint">/epk/</span>
-              <input type="text" value={slugText} maxLength={40} aria-invalid={!slugOk} autoCapitalize="none" spellCheck={false}
-                onChange={e => { setSlugText(e.target.value.toLowerCase()); setDirty(true); }} />
+              <input type="text" aria-label="Page address" value={slugText} maxLength={40} aria-invalid={!slugOk} autoCapitalize="none" spellCheck={false}
+                onChange={e => setSlugText(e.target.value.toLowerCase())} />
             </div>
-          </label>
-          {!slugOk && <p className="hint">3–40 lowercase letters, numbers or dashes.</p>}
-          {url && <div className="acct-row"><code className="epk-url">{url}</code><button className="btn small" type="button" onClick={copy}>Copy</button></div>}
-          <p className="hint">The page shows your name plus the instruments, bio, contact details and files set to Public. Save to publish.</p>
-        </>}
+            {!slugOk && <p className="hint">3–40 lowercase letters, numbers or dashes.</p>}
+            <p className="hint">The page shows your name plus the instruments, bio, contact details and files set to Public.</p>
+          </>}
+        </Field>
       </section>
 
       <section className="acct-sec">
