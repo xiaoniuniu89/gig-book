@@ -6,7 +6,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
 - Vercel: project `niu-real-book` (GitHub-connected, production branch `main`, env vars set, live site uses the live Supabase). This folder is linked (`.vercel/`).
 - Dev Supabase: migrations up to `0022` applied, fake musicians seeded.
-- Live Supabase: up to `0021` (released 2026-11-03). `0022_charts` goes to live with the next release. Live site: https://www.niurealbook.com.
+- Live Supabase: up to `0022` (released 2026-11-03, chart tabs included). Live site: https://www.niurealbook.com.
 - Released 2026-11-03:
   - **Make Spotify playlist** on a setlist (#45): `lib/spotify/user.ts`, `components/SpotifyPlaylist.tsx`, migration 0019.
   - **Recent collaborators** in Share and band invites (#46): migration 0018.
@@ -25,8 +25,8 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 2. ~~Supabase live URLs, Spotify redirect URI~~ done 2026-11-03.
 3. ~~#47 Resend SMTP~~ set up 2026-11-03 (`login@mail.niurealbook.com`, Namecheap DNS). Confirmed: invite and sign-in emails arrive.
 4. ~~Release~~ done 2026-11-03.
-5. **OpenRouter**: set a monthly credit limit on the API key.
-6. **#50 Test with a real lead sheet** on the live site.
+5. ~~OpenRouter monthly credit limit~~ $20/month, set 2026-11-03.
+6. ~~#50 lead sheet test~~ done on localhost; it led to chart tabs (released).
 7. Add testers' Spotify emails in the Spotify dashboard (5 max), then invite them in Supabase (Auth, Users, Invite).
 
 ## Before a public launch
