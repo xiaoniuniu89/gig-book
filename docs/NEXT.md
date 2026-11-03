@@ -14,6 +14,9 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
   - **Niu AI** card and page (`/ai`): the AI setlist draft moved out of the New setlist dialog.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 
+## Pending: landing page + Request access (#54)
+- The signed-out screen is now a landing page with Sign in and Request access cards (`components/SignIn.tsx`). Requests go through `request_access()` into `access_requests` (migration **0023**, not yet applied to dev or live: `npm run db:dev`; live with the next release). Dan reads requests in the Supabase table editor. Access tests: `tests/access/access-requests.test.ts`.
+
 ## Smoke test (Dan, on localhost)
 1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
 2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.

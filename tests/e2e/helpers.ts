@@ -28,7 +28,7 @@ export async function signIn(page: Page, who: Who) {
   const email = USERS[who].email;
   const started = Date.now();
   await go(page, "/");
-  await page.getByLabel("Email").fill(email);
+  await page.locator("#signin-email").fill(email);
   await page.getByRole("button", { name: "Email me a link" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
   await page.goto(await magicLink(email, started));
