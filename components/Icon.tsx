@@ -13,6 +13,7 @@ const PATHS = {
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10",
   chat: "M4 5h16v11H9l-5 4V5z",
   help: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17v.01",
+  info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 11v6M12 7.5v.01",
   tools: "M8 21h8l-2.5-17h-3L8 21zM12 16l4-8M6 21h12",
 } as const;
 export type IconName = keyof typeof PATHS;

@@ -2,6 +2,7 @@
 // The player drawer on the right: Band (built-in backing band), Record (Spotify embed) and the page's side panels.
 // Collapsed, it shrinks to a slim rail (a floating button on phones) so the chart gets the whole screen. Rendered once in the root layout.
 import { useApp, sectionRanges } from "./AppProvider";
+import { Info } from "./Info";
 import type { Instrument } from "@/lib/band/engine";
 
 const INSTRUMENTS: { id: Instrument; label: string }[] = [
@@ -117,6 +118,7 @@ export function Dock() {
           <div className="pane-record">
             <div className="rec-head">
               <b id="rec-title">{app.recTitle}</b>
+              <Info label="About playing recordings here">Not signed in to Spotify in this browser? You&apos;ll hear 30-second previews. Sign in at spotify.com, or use Open in Spotify, to hear whole tracks.</Info>
               {/* only on a setlist tune whose setlist has a playlist; elsewhere there's no "this setlist" */}
               {current?.kind === "set" && app.setlistById(current.setId)?.spotify &&
                 <button className="btn small" id="rec-load" onClick={recLoad}>Load this setlist&apos;s playlist</button>}

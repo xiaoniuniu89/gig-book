@@ -768,3 +768,12 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .tour-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule); border-top-color: var(--brass); animation: tour-spin .8s linear infinite; }
 @keyframes tour-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } .tour-dot { animation: none; } }
+
+/* (i) explanations */
+.info { position: relative; display: inline-flex; vertical-align: middle; }
+.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 50%;
+  background: none; color: var(--muted); cursor: pointer; padding: 0; }
+.info-btn:hover, .info-btn[aria-expanded="true"] { color: var(--brass); }
+.info-pop { position: absolute; top: calc(100% + 4px); left: -8px; z-index: 30; width: min(260px, 80vw); padding: 10px 12px; border-radius: 10px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--rule); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); font-size: 13px; line-height: 1.4; font-weight: 400; }
+@media (pointer: coarse) { .info-btn { width: 44px; height: 44px; } }
