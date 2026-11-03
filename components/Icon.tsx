@@ -17,6 +17,7 @@ const PATHS = {
   info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 11v6M12 7.5v.01",
   youtube: "M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8zM10 9.5v5l4.5-2.5-4.5-2.5z",
   spotify: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM7 9.5c3.5-1 7-.7 10 1M7.5 12.7c3-.8 6-.5 8.5 1M8 15.7c2.4-.6 4.6-.4 6.5.8",
+  sparkle: "M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6zM19 3v4M17 5h4",
   tools:"M8 21h8l-2.5-17h-3L8 21zM12 16l4-8M6 21h12",
 } as const;
 export type IconName = keyof typeof PATHS;

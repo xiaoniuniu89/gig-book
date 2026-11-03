@@ -26,6 +26,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Code: `lib/youtube/` (ids/links, `client.ts` search + once-ever pick cache, `embed.ts` IFrame API, `queue.ts`), `app/api/youtube/search`, `playYoutube`/`ytStep` in `AppProvider`, Dock Record tab, Recordings panel in `SongView.tsx` (YouTube/Spotify switch, pasted links, `youtube:<id>` versions), Music section in Settings, setlist Listen panel (Play uses the chosen player; Save to Spotify is separate).
 - Smoke test: switch the player in Settings; Play a setlist (videos in order, next/previous, chart follows); Find versions on YouTube, save, remove; paste a youtube.com/youtu.be/open.spotify.com link; signed out (pick cached in the browser). Add a "YouTube" line to `lib/whatsNew.ts` at release.
 
+## Pending: fill your profile from a bio or CV with AI (#60)
+- Built by the bot, **typecheck and lint not run** (no installed dependencies): run `npm run typecheck && npm run lint` first. No migration: it reuses `ai_claim()` (0021). Needs `OPENROUTER_API_KEY`.
+- Code: `app/api/ai/profile/route.ts`, `lib/ai/profile.ts` (prompt + validation), `lib/ai/profileClient.ts`, `components/ProfileAi.tsx` (modal + review), `.callout.warn` in `globals.css`. Requirement is **R11.8** (R11.6 was already the public page).
+- PDFs go to the model as an OpenRouter `file` part (no new dependency). Check that the default model accepts PDFs; if not, set `AI_MODEL`.
+- Smoke test: About you tab > Fill from my bio or CV; paste text, then a PDF and a .txt; tick/untick, switch bio length, Apply; share settings unchanged. No tests added (the suite has no AI tokens); `validate()` in `lib/ai/profile.ts` is the thing to unit test if wanted.
+
 ## Smoke test (Dan, on localhost)
 1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
 2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.

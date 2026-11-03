@@ -11,6 +11,7 @@ import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachmen
 import { Qr } from "../Qr";
 import { Modal } from "../Modal";
 import { InstrumentPicker } from "../Instruments";
+import { ProfileAi } from "../ProfileAi";
 import { canonInstruments } from "@/lib/instruments";
 import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, type Profile, type Share } from "@/lib/data/types";
 
@@ -152,6 +153,7 @@ export function AccountView() {
       </div>
 
       {tab === "about" && <section className="acct-sec" role="tabpanel" aria-label="About you">
+        <ProfileAi p={p} busy={busy} guard={leave} onApply={persist} />
         <Field label="Name" {...field("name")} view={p.displayName || empty}>
           <input type="text" aria-label="Name" value={x.displayName} maxLength={80} onChange={e => edit(y => ({ ...y, displayName: e.target.value }))} />
         </Field>
