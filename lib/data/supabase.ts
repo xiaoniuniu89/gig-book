@@ -421,6 +421,17 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (error) fail("save your profile", error);
     },
 
+    async getTourSeen() {
+      const { data, error } = await sb.rpc("my_profile");
+      if (error) fail("check the tour", error);
+      return !!((data || []) as { tour_seen: boolean | null }[])[0]?.tour_seen;
+    },
+
+    async setTourSeen() {
+      const { error } = await sb.from("profiles").update({ tour_seen: true }).eq("id", userId);
+      if (error) fail("save that you've seen the tour", error);
+    },
+
     async listProfileFiles() {
       const { data, error } = await sb.from("attachments").select(ATT_COLS).eq("profile_id", userId).order("created_at");
       if (error) fail("load your files", error);

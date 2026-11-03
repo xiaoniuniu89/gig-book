@@ -35,7 +35,7 @@ export function Feedback() {
 
   return (
     <>
-      <button className="btn small feedback-btn" onClick={() => setOpen(true)} title="Send feedback"><Icon name="chat" size={18} /><span>Feedback</span></button>
+      <button className="btn small feedback-btn" data-tour="feedback" onClick={() => setOpen(true)} title="Send feedback"><Icon name="chat" size={18} /><span>Feedback</span></button>
       <Modal open={open} title="Send feedback" onClose={() => setOpen(false)}>
         <form className="feedback-form" onSubmit={e => { e.preventDefault(); void send(); }}>
           <textarea aria-label="Your feedback" rows={6} maxLength={5000} autoFocus value={text} onChange={e => setText(e.target.value)}

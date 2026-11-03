@@ -79,8 +79,10 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   );
 }
 
-export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, chart }: {
+export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, chart, tour }: {
   title: string;
+  /** Marks the panel for the first-run tour. */
+  tour?: string;
   hint?: string;
   home: NoteHome;
   /** The setlist this thread belongs to (its owner can delete anyone's note). */
@@ -222,7 +224,7 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
       </div>;
 
   return (
-    <section className="panel notes" aria-label={title}>
+    <section className="panel notes" aria-label={title} data-tour={tour}>
       <div className="panel-head">
         <h2>{title}</h2>
         {!readOnly && <button className="btn small" onClick={() => setComposing(true)}><Icon name="plus" size={16} /> Add note</button>}

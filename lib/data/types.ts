@@ -319,6 +319,9 @@ export interface DataStore {
   /** Your profile and press kit (accounts only). */
   getMyProfile(): Promise<Profile>;
   updateMyProfile(p: Profile): Promise<void>;
+  /** Whether you've finished or skipped the first-run tour (local mode: remembered in this browser). */
+  getTourSeen(): Promise<boolean>;
+  setTourSeen(): Promise<void>;
   /** Promo files, oldest first. */
   listProfileFiles(): Promise<Attachment[]>;
   uploadProfileFile(file: File, onProgress?: (p: number) => void): Promise<Attachment>;

@@ -130,7 +130,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
           {nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>}
         </div>
       </div>
-      <section className="panel" aria-label="Chord chart">
+      <section className="panel" aria-label="Chord chart" data-tour="chart">
         <div className="panel-head">
           <span className="seg" role="group" aria-label="Approach">
             <button data-mode="trad" aria-pressed={prefs.mode === "trad"} onClick={() => updatePrefs({ mode: "trad" })}>Chord scales</button>
@@ -156,7 +156,7 @@ function SongBody({ cur, setlist }: { cur: TuneCurrent; setlist?: Setlist }) {
       <Licks key={"my-licks:" + songKey(sg.raw)} title="My licks on this song" hint="Private to you. They show on this song in every setlist and in the library."
         home={{ kind: "song", songKey: songKey(sg.raw) }} />
       <MyResources key={"my-res:" + songKey(sg.raw)} songKey={songKey(sg.raw)} />
-      <Notes key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
+      <Notes tour="notes" key={"mine:" + songKey(sg.raw)} title="My notes on this song" hint="Private to you. They show on this song in every setlist and in the library."
         home={{ kind: "song", songKey: songKey(sg.raw) }} itemRaw={sg.raw} chart={chart} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>

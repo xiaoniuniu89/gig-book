@@ -5,6 +5,7 @@ import { useApp } from "./AppProvider";
 import { SignIn } from "./SignIn";
 import { TopBar } from "./TopBar";
 import { Dock } from "./Dock";
+import { Tour } from "./Tour";
 import { supabaseConfigured } from "@/lib/supabase/client";
 
 export function Gate({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export function Gate({ children }: { children: React.ReactNode }) {
       <TopBar />
       <main><div className="wrap" id="view">{children}</div></main>
       <Dock />
+      <Tour />
     </>
   );
 }

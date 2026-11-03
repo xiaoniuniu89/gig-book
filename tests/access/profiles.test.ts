@@ -38,6 +38,14 @@ describe("plain selects", () => {
     expect(data?.bio).toBe(USERS.ava.bio);
   });
 
+  it("the tour flag is yours to set, and only yours", async () => {
+    expect(await M.eli.store.getTourSeen()).toBe(false);
+    await M.eli.store.setTourSeen();
+    expect(await M.eli.store.getTourSeen()).toBe(true);
+    expect(await M.ben.store.getTourSeen()).toBe(false);
+    await admin().from("profiles").update({ tour_seen: false }).eq("id", USERS.eli.id);
+  });
+
   it("my_profile returns your own full profile only", async () => {
     const r = await M.ava.store.getMyProfile();
     expect(r.contact.phone).toBe(USERS.ava.contact.phone);

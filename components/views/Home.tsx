@@ -16,7 +16,7 @@ export function Home() {
     <>
       <h1>{app.account?.name ? `Welcome back, ${app.account.name}` : "Welcome back"}</h1>
       {!ready ? <p className="hint">Loading…</p> : (
-        <div className="shelf">
+        <div className="shelf" data-tour="home">
           <Link className="book" href="/setlists">
             <span className="t">Setlists</span>
             <span className="m">{setlists.length ? `${setlists.length} · ${names(setlists)}` : "Make your first setlist"}</span>

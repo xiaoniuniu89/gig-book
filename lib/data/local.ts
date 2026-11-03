@@ -120,6 +120,8 @@ export const localStore: DataStore = {
   // the profile needs an account (the UI hides it in local mode)
   getMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
   updateMyProfile: () => Promise.reject(new Error("The profile needs an account.")),
+  getTourSeen: async () => { try { return localStorage.getItem("gigbook-tour") === "1"; } catch { return true; } },
+  setTourSeen: async () => { try { localStorage.setItem("gigbook-tour", "1"); } catch { /* private mode */ } },
   listProfileFiles: async () => [],
   uploadProfileFile: () => Promise.reject(new Error("The profile needs an account.")),
   // licks need an account (the UI hides them in local mode)

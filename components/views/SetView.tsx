@@ -184,15 +184,15 @@ function SetBody({ s }: { s: Setlist }) {
         <div className="row-btns">
           {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}>Add tunes</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
-          <button className="btn primary" data-gig="all" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
+          <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
           <button className="btn" data-gig="1" onClick={() => app.startGig(s, "1")}>Set 1</button>
           <button className="btn" data-gig="2" onClick={() => app.startGig(s, "2")}>Set 2</button>
-          {!builtin && app.store.kind === "supabase" && <button className="btn" id="share-set" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button>}
-          {!builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0 && <button className="btn" id="make-pl" onClick={() => setMaking(true)}><Icon name="music" size={18} /> Make Spotify playlist</button>}
+          {!builtin && app.store.kind === "supabase" && <button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button>}
+          {!builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0 && <button className="btn" id="make-pl" data-tour="playlist" onClick={() => setMaking(true)}><Icon name="music" size={18} /> Make Spotify playlist</button>}
           {s.spotify && <button className="btn" id="play-pl" onClick={() => app.playSpotify(s.spotify as string, true)}>▶ Play the Spotify playlist</button>}
         </div>
       </div>
-      <div className="sets">
+      <div className="sets" data-tour="tunes">
         {[1, 2].map(n => (
           <section className={"set" + (drag?.set === n ? " drop" : "")} aria-label={`Set ${n}`} key={n} data-set={canEdit ? n : undefined}>
             <div className="set-title"><h2>Set {n}</h2><span className="dur">{sets[n - 1].length} tunes · about {mins(sets[n - 1])} min</span></div>
