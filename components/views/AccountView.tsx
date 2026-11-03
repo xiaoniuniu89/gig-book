@@ -2,6 +2,8 @@
 // /account: name, bio, contact details and promo files, each with who can see it; plus the public press kit page (R11).
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
+import { Icon } from "../Icon";
+import { TOUR_EVENT } from "../Tour";
 import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachments";
 import { Qr } from "../Qr";
 import { InstrumentPicker } from "../Instruments";
@@ -11,9 +13,12 @@ import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, t
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 const HINTS = [50, 100, 250];
 
-function ShareSelect({ value, onChange, label }: { value: Share | undefined; onChange: (v: Share) => void; label: string }) {
+// Who can see each item: a plain label until "Change who sees what" is on, then a picker.
+function ShareSelect({ value, onChange, label, editing }: { value: Share | undefined; onChange: (v: Share) => void; label: string; editing: boolean }) {
+  const v = value || "private";
+  if (!editing) return <span className={"share-chip " + v} aria-label={"Who can see " + label}>{SHARES.find(s => s.value === v)?.label}</span>;
   return (
-    <select className="share-select" aria-label={"Who can see " + label} value={value || "private"} onChange={e => onChange(e.target.value as Share)}>
+    <select className="share-select" aria-label={"Who can see " + label} value={v} onChange={e => onChange(e.target.value as Share)}>
       {SHARES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
     </select>
   );
@@ -27,6 +32,7 @@ export function AccountView() {
   const [slugText, setSlugText] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const signedIn = store.kind === "supabase";
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
 
@@ -43,7 +49,8 @@ export function AccountView() {
   }, [ready, signedIn, store, err]);
   const uploads = useUploads(store, "profile", useCallback((a: Attachment) => setFiles(l => l.concat(a)), []));
 
-  if (!signedIn) return <><div className="page-head"><h1>Account</h1></div><p className="hint">Sign in to set up your profile.</p></>;
+  if (!signedIn) return <><div className="page-head"><h1>Account</h1></div><p className="hint">Sign in to set up your profile.</p>
+    <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button></div></>;
   if (!p) return <><div className="page-head"><h1>Account</h1></div><p className="hint" role="status">Loading…</p></>;
 
   const edit = (f: (x: Profile) => Profile) => { setP(f(p)); setDirty(true); };
@@ -83,7 +90,12 @@ export function AccountView() {
         <h1>Account</h1>
         <button className="btn primary" type="button" disabled={busy || !dirty} onClick={save}>{busy ? "Saving…" : "Save"}</button>
       </div>
-      <p className="hint">Keep what agents and venues ask for in one place. Each item has its own setting: only you, your bands, or anyone with your public page.</p>
+      <p className="hint">Keep what agents and venues ask for in one place. Each item shows who can see it: only you, your bands, or anyone with your public page.</p>
+      <div className="row-btns">
+        <button className={"btn small" + (sharing ? " primary" : "")} type="button" aria-pressed={sharing} onClick={() => setSharing(x => !x)}>
+          <Icon name="edit" size={16} /> {sharing ? "Done changing who sees what" : "Change who sees what"}
+        </button>
+      </div>
 
       <section className="acct-sec">
         <h2>About you</h2>
@@ -93,7 +105,7 @@ export function AccountView() {
         <div className="acct-field">
           <div className="acct-row">
             <span id="acct-instr">Instruments</span>
-            <ShareSelect label="your instruments" value={p.share.instruments} onChange={v => setShare("instruments", v)} />
+            <ShareSelect label="your instruments" value={p.share.instruments} onChange={v => setShare("instruments", v)} editing={sharing} />
           </div>
           <InstrumentPicker label="Instruments" value={p.instruments} onChange={v => edit(x => ({ ...x, instruments: v }))} />
         </div>
@@ -102,7 +114,7 @@ export function AccountView() {
           <textarea id="acct-bio" rows={7} value={p.bio} maxLength={5000} onChange={e => edit(x => ({ ...x, bio: e.target.value }))} />
           <div className="acct-row">
             <span className="hint" aria-live="polite">{bioWords} {bioWords === 1 ? "word" : "words"} · agents often ask for {HINTS.join(", ")} word versions</span>
-            <ShareSelect label="your bio" value={p.share.bio} onChange={v => setShare("bio", v)} />
+            <ShareSelect label="your bio" value={p.share.bio} onChange={v => setShare("bio", v)} editing={sharing} />
           </div>
         </div>
       </section>
@@ -115,7 +127,7 @@ export function AccountView() {
             <div className="acct-row">
               <input id={"acct-" + f.key} type={f.kind} value={p.contact[f.key] || ""} maxLength={300}
                 onChange={e => edit(x => ({ ...x, contact: { ...x.contact, [f.key]: e.target.value } }))} />
-              <ShareSelect label={f.label} value={p.share[f.key]} onChange={v => setShare(f.key, v)} />
+              <ShareSelect label={f.label} value={p.share[f.key]} onChange={v => setShare(f.key, v)} editing={sharing} />
             </div>
           </div>
         ))}
@@ -130,7 +142,7 @@ export function AccountView() {
         {files.map(a => (
           <div className="acct-file" key={a.id}>
             <AttachmentList store={store} items={[a]} canDelete={() => true} onDelete={removeFile} />
-            <ShareSelect label={a.name} value={p.share[fileShareKey(a.id)]} onChange={v => setShare(fileShareKey(a.id), v)} />
+            <ShareSelect label={a.name} value={p.share[fileShareKey(a.id)]} onChange={v => setShare(fileShareKey(a.id), v)} editing={sharing} />
           </div>
         ))}
         {!files.length && <p className="hint">No files yet.</p>}
@@ -150,6 +162,11 @@ export function AccountView() {
           {url && <div className="acct-row"><code className="epk-url">{url}</code><button className="btn small" type="button" onClick={copy}>Copy</button></div>}
           <p className="hint">The page shows your name plus the instruments, bio, contact details and files set to Public. Save to publish.</p>
         </>}
+      </section>
+
+      <section className="acct-sec">
+        <h2>Help</h2>
+        <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button></div>
       </section>
     </>
   );

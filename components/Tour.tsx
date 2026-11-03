@@ -1,6 +1,6 @@
 "use client";
 // First-run tour: a spotlight on the real page, a short line of text, Back / Next / Skip.
-// Starts once (the "seen" flag lives in the data store) and again on the "Take the tour" button, which fires TOUR_EVENT.
+// Starts once (the "seen" flag lives in the data store) and again on the "Take the tour" button (Account page), which fires TOUR_EVENT.
 // Each step names a page and the [data-tour] elements to point at; a step whose element isn't on screen is skipped.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ const STEPS: Step[] = [
   { title: "Notes and files", path: "song", targets: ["notes"],
     body: "Keep your own notes on any tune. With an account you can also attach lead sheets and PDFs, and use one as the chart." },
   { title: "Tell us what's broken", path: "any", targets: ["feedback"],
-    body: "Something not working, or missing? Send a quick message with the Feedback button. You can replay this tour any time with the ? button at the top." },
+    body: "Something not working, or missing? Send a quick message with the Feedback button. You can take this tour again from your Account page." },
 ];
 
 const same = (a: string, b: string) => { try { return decodeURIComponent(a) === decodeURIComponent(b); } catch { return a === b; } };
@@ -137,7 +137,17 @@ export function Tour() {
   }, [i, finish]);
 
   if (i === null) return null;
-  if (!rect) return <div className="tour-block" aria-hidden="true" />;
+  // between steps (a page is loading, or the next element is being found): say so, and keep the page from taking clicks
+  if (!rect) return (
+    <>
+      <div className="tour-block wait" aria-hidden="true" />
+      <div className="tour-card tour-wait" role="status">
+        <span className="tour-count">Step {i + 1} of {STEPS.length}</span>
+        <span className="tour-loading"><span className="tour-dot" aria-hidden="true" /> Loading…</span>
+        <button className="btn small" onClick={finish}>Skip</button>
+      </div>
+    </>
+  );
   const s = STEPS[i];
   const last = i === STEPS.length - 1;
   const pad = 6;

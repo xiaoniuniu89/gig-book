@@ -610,6 +610,9 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .acct-field input[type="tel"], .acct-field input[type="email"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; }
 .acct-field textarea { width: 100%; }
 .share-select { flex: none; }
+.share-chip { flex: none; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); white-space: nowrap; }
+.share-chip.bands { color: var(--ink); }
+.share-chip.public { color: var(--ink); border-color: var(--brass); }
 .acct-file { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; border-top: 1px solid var(--rule); padding-top: 8px; }
 .qr-box { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .qr { width: 160px; height: 160px; border: 1px solid var(--rule); border-radius: 8px; }
@@ -741,4 +744,10 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .tour-count { font-size: 12px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
 .tour-btns { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .tour-nav { display: inline-flex; gap: 8px; }
-@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+.tour-block.wait { background: rgba(8, 10, 14, .66); } /* same shade as the spotlight, so steps don't flicker */
+.tour-wait { left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(340px, calc(100vw - 24px));
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tour-loading { display: inline-flex; align-items: center; gap: 8px; flex: 1; }
+.tour-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule); border-top-color: var(--brass); animation: tour-spin .8s linear infinite; }
+@keyframes tour-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } .tour-dot { animation: none; } }

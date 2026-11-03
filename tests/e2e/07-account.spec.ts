@@ -12,6 +12,7 @@ test("7. changing who sees a phone number on the Account page changes the public
   const setPhone = async (who: "Public" | "Only me") => {
     await go(ava.page, "/account");
     await expect(ava.page.getByLabel("Phone", { exact: true })).toHaveValue(phone);
+    await ava.page.getByRole("button", { name: "Change who sees what" }).click();
     await ava.page.getByLabel("Who can see Phone").selectOption({ label: who });
     await ava.page.getByRole("button", { name: "Save" }).click();
     await expect(ava.page.getByRole("button", { name: "Save" })).toBeDisabled(); // saved
@@ -36,6 +37,7 @@ test("7. changing who sees a phone number on the Account page changes the public
   } finally {
     // leave Ava as the seed made her, whatever happened above
     await go(ava.page, "/account");
+    await ava.page.getByRole("button", { name: "Change who sees what" }).click();
     const sel = ava.page.getByLabel("Who can see Phone");
     if ((await sel.inputValue()) !== "private") { await sel.selectOption("private"); await ava.page.getByRole("button", { name: "Save" }).click(); }
   }

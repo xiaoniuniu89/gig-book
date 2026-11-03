@@ -33,7 +33,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Apply to Spotify for extended quota. Development mode is capped at 5 users.
 
 ## Built, to verify
-- **#49 First-run tour**: `components/Tour.tsx`; migration 0020 is on dev; local mode remembers it in `gigbook-tour`. Smoke test: a fresh sign-in starts it; Skip, Escape and Done stop it for good; the ? button in the top bar replays it; try a phone and dark mode.
+- **#49 First-run tour**: `components/Tour.tsx`; migration 0020 is on dev; local mode remembers it in `gigbook-tour`. Smoke test: a fresh sign-in starts it; Skip, Escape and Done stop it for good; "Take the tour" on the Account page replays it; try a phone and dark mode.
 
 ## Later
 - #46 extras: collaborator picks for licks and resources; hide someone from the list on the account page.

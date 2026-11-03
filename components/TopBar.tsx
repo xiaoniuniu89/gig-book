@@ -4,7 +4,6 @@ import { useApp } from "./AppProvider";
 import { Bell } from "./Bell";
 import { Icon } from "./Icon";
 import { Feedback } from "./Feedback";
-import { TOUR_EVENT } from "./Tour";
 import { useEffect, useState } from "react";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 
@@ -17,7 +16,6 @@ export function TopBar() {
         <div className="crumb" id="crumb">{crumb}</div>
         <span className="acct">
           {supabaseConfigured && <Feedback />}
-          <button className="btn small icon-btn" aria-label="Take the tour" title="Take the tour" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={18} /></button>
           <ThemeToggle />
           {supabaseConfigured && <Bell />}
           {supabaseConfigured && <Account />}
