@@ -36,6 +36,8 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - **#49 First-run tour**: `components/Tour.tsx`; migration 0020 is on dev; local mode remembers it in `gigbook-tour`. Smoke test: a fresh sign-in starts it; Skip, Escape and Done stop it for good; "Take the tour" on the Account page replays it; try a phone and dark mode.
 
 ## Later
+- #52 Import an existing press kit with Niu AI, plus 3 to 5 press photos per person (needs grooming).
+- #53 Gig posters from templates on the band page (parked: Dan is collecting real posters as templates).
 - #46 extras: collaborator picks for licks and resources; hide someone from the list on the account page.
 - #51 extras: a tuner (microphone), ear training.
 
