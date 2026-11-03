@@ -22,7 +22,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 4. **Add note** with a file; **Band chat** link; a MusicXML file on a lick.
 
 ## Before inviting testers (in this order)
-1. **Own domain on Vercel**: add Dan's new domain to the `niu-real-book` project (apex plus `www` redirecting to it), add the DNS records Vercel shows at the registrar, wait for "Valid Configuration". The app uses `window.location.origin`, so no code changes.
+1. ~~Own domain on Vercel~~ Done 2026-11-03: **`https://www.niurealbook.com`** (Namecheap DNS; the bare domain redirects to www). `YOUR_SITE` below means that.
 2. **Point everything at the new address** (`YOUR_SITE` below):
    - Supabase live (#48): Site URL `YOUR_SITE`; redirect URLs `YOUR_SITE/auth/callback` and `https://niu-real-book.vercel.app/auth/callback`. Dev: Site URL `http://localhost:3000`, redirect `http://localhost:3000/auth/callback`.
    - Spotify dashboard, Redirect URIs: add `YOUR_SITE/api/spotify/callback` (keep the 127.0.0.1 one for dev).
