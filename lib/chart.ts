@@ -1,6 +1,7 @@
 // Chord chart rendering with the scale band, guide tones, Barry Harris families and harmony brackets.
 // Framework-free: returns an HTML string (every piece of text is escaped). Typed port of js/chart.js.
 import type { Chord, Song } from "./ireal";
+import { stopAt, barHits, defaultFeel, FEELS, validateHits, type Hit, type Feels } from "./hits";
 import { analyse, functionGroups, tradType, PARENT, bhLabel, guideTones, chordPcs, kind, pcOf, prettyQ, spell, prefersSharps, mod12 } from "./theory";
 
 export const esc = (s: unknown): string => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] as string));
@@ -20,7 +21,18 @@ export interface ChartOpts {
   tn?: boolean;
   fn?: boolean;
   extraClass?: string;
+  /** R3.6: this setlist tune's hits, stops and fermatas, drawn above the bars. */
+  hits?: Hit[];
+  /** Drummer view: form, bar numbers, feel per section, hits; chords small. */
+  drummer?: boolean;
+  feels?: Feels;
+  /** Hit editor: the bar picked for editing, and whether bars can be tapped. */
+  sel?: number | null;
+  editHits?: boolean;
 }
+
+const HIT_TITLE = { hit: "Hit", push: "Push", fermata: "Fermata", stop: "Stop" } as const;
+const slotLeft = (e: number) => 6.25 + e * 12.5; // % across the bar
 
 interface Group { label: string; single: string; keys: string[] }
 interface Info { group: Group; tones: { n: string; keep: boolean }[]; fam: string }
@@ -75,6 +87,18 @@ export function chartHTML(song: Song, opts: ChartOpts): string {
     row.bars.push({ b, bi });
   });
   const lastIdx = song.bars.length - 1;
+  const hits = validateHits(opts.hits || [], song.bars.length);
+  const dFeel = defaultFeel(song.style);
+  const feelTag = (sec: string) => `<span class="feel" data-feel="${esc(sec)}">${FEELS[opts.feels?.[sec] || dFeel]}</span>`;
+  const hitHTML = (bi: number) => {
+    const st = stopAt(hits, bi);
+    const parts: string[] = [];
+    if (st) parts.push(`<span class="hstop${st.bar === bi ? " first" : ""}">${st.bar === bi ? "Stop" : ""}</span>`);
+    for (const h of barHits(hits, bi)) {
+      parts.push(`<span class="hm ${h.kind}" style="left:${slotLeft(h.eighth)}%" title="${HIT_TITLE[h.kind]}">${h.kind === "fermata" ? "𝄐" : "▼"}</span>`);
+    }
+    return parts.length ? `<div class="hits">${parts.join("")}</div>` : "";
+  };
   const html = rows.map(r => {
     const cells = r.bars.map(({ b, bi }, i) => {
       const cls = ["mbar"];
@@ -109,10 +133,13 @@ export function chartHTML(song: Song, opts: ChartOpts): string {
         b.coda ? `<span class="sign" title="Coda">𝄌</span>` : "",
         b.comment ? `<span class="cmt">${esc(b.comment)}</span>` : ""
       ].join("");
-      return `<div class="${cls.join(" ")}" data-bar="${bi}">${marks}<div class="cells">${inner}</div></div>`;
+      if (opts.sel === bi) cls.push("hsel");
+      const bn = opts.drummer ? `<span class="bn">${bi + 1}</span>` : "";
+      return `<div class="${cls.join(" ")}" data-bar="${bi}">${bn}${hitHTML(bi)}${marks}<div class="cells">${inner}</div></div>`;
     }).join("");
-    return `<div class="row"><div class="mark">${r.mark ? `<span>${esc(r.mark)}</span>` : ""}</div>${cells}</div>`;
+    const sec = r.mark || (r.bars[0].bi === 0 ? "" : null);
+    return `<div class="row"><div class="mark">${r.mark ? `<span>${esc(r.mark)}</span>` : ""}${opts.drummer && sec !== null ? feelTag(sec) : ""}</div>${cells}</div>`;
   }).join("");
-  const flags = [opts.extraClass || "", opts.fn === false ? "no-rn" : "", opts.sc === false ? "no-sc" : "", opts.tn === false ? "no-tn" : ""].join(" ");
+  const flags = [opts.extraClass || "", opts.fn === false ? "no-rn" : "", opts.sc === false ? "no-sc" : "", opts.tn === false ? "no-tn" : "", opts.drummer ? "drummer" : "", opts.editHits ? "hedit" : ""].join(" ");
   return `<div class="chart ${flags}" aria-label="Chord chart">${html}</div>`;
 }

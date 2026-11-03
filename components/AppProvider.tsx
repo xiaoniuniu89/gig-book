@@ -37,6 +37,8 @@ export interface Prefs {
   sc: boolean;
   tn: boolean;
   fn: boolean;
+  /** Drummer view on the chart (R3.6). */
+  drummer?: boolean;
   choruses: number;
   countIn: boolean;
   dock: "band" | "record";
@@ -508,10 +510,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBandKeyShift(0);
     try {
       await band.play({ song: cur.song, shift: shiftOf(cur), tempo: fromGig ? tempoFor(cur.song) : tempo || tempoFor(cur.song), choruses: p.choruses || 2, countIn: p.countIn, loop: range,
-        keyChange: !fromGig && p.keyStep ? { step: p.keyStep, every: p.keyEvery } : null });
+        keyChange: !fromGig && p.keyStep ? { step: p.keyStep, every: p.keyEvery } : null, hits: itemOf(cur)?.hits });
       setBandPlaying(band.playing);
     } catch (e) { toast("The band couldn't start: " + (e instanceof Error ? e.message : String(e))); }
-  }, [band, loop, tempo, shiftOf, tempoFor, toast, setDockTab]);
+  }, [band, loop, tempo, shiftOf, tempoFor, itemOf, toast, setDockTab]);
 
   const stopBand = useCallback(() => { setGig(null); band?.stop(); }, [band]);
 

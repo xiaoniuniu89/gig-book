@@ -12,6 +12,7 @@ import { song } from "@/lib/songs";
 import { STARTER_LICKS } from "@/lib/starterLicks";
 import { irealShift, keyLabel } from "@/lib/theory";
 import type { Lick, SetlistItem } from "@/lib/data/types";
+import type { Hit } from "@/lib/hits";
 
 type Mode = "tune" | "lick" | "setlist" | "blank";
 const MODES: { id: Mode; label: string }[] = [{ id: "tune", label: "Tune" }, { id: "lick", label: "Lick" }, { id: "setlist", label: "Setlist" }, { id: "blank", label: "Blank manuscript" }];
@@ -44,10 +45,10 @@ interface Page { id: string; title: string; sub: string; key: string; html: stri
 
 const plain = { mode: "trad" as const, sc: false, tn: false, fn: false };
 
-function tunePage(id: string, raw: string, shift: number | null): Page {
+function tunePage(id: string, raw: string, shift: number | null, hits?: Hit[]): Page {
   const s = song(raw), sh = shift ?? irealShift(s);
   const bits = [s.composer, s.style, s.tempo ? `${s.tempo} bpm` : ""].filter(Boolean);
-  return { id, title: s.title, sub: bits.join(" · "), key: keyLabel(s, sh), html: chartHTML(s, { ...plain, shift: sh }) };
+  return { id, title: s.title, sub: bits.join(" · "), key: keyLabel(s, sh), html: chartHTML(s, { ...plain, shift: sh, hits }) };
 }
 
 function lickPage(l: Lick): Page {
@@ -93,7 +94,7 @@ export function PrintView() {
       if (mode === "tune") { const t = tunes[Math.min(tuneIdx, tunes.length - 1)]; return t ? [tunePage(t.raw, t.raw, null)] : []; }
       if (mode === "lick") { const l = licks.find(x => x.id === lickId) ?? licks[0]; return l ? [lickPage(l)] : []; }
       const order = (it: SetlistItem) => it.set || 1;
-      return sel ? [...sel.items].sort((a, b) => order(a) - order(b)).map(it => tunePage(it.id, it.raw, it.shift)) : [];
+      return sel ? [...sel.items].sort((a, b) => order(a) - order(b)).map(it => tunePage(it.id, it.raw, it.shift, it.hits)) : [];
     } catch { return []; }
   }, [mode, tunes, tuneIdx, licks, lickId, sel]);
 

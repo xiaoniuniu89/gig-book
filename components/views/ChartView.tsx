@@ -11,6 +11,7 @@ import { keyLabel } from "@/lib/theory";
 import { song, songKey } from "@/lib/songs";
 import { isBuiltin } from "@/lib/seeds";
 import { FileChart } from "../Attachments";
+import { Icon } from "../Icon";
 import { ChartAudio, useCharts } from "../Charts";
 import { useVersions } from "../Versions";
 import type { Attachment } from "@/lib/data/types";
@@ -110,8 +111,9 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
 
   const sg = cur?.song;
   const shift = cur ? app.shiftOf(cur) : 0;
-  const html = useMemo(() => sg ? chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn }) : "",
-    [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn]);
+  const item = cur ? app.itemOf(cur) : undefined; // hits and feels belong to a setlist tune
+  const html = useMemo(() => sg ? chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn, drummer: prefs.drummer, hits: item?.hits, feels: item?.feels }) : "",
+    [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, item?.hits, item?.feels]);
   const file = ch.shown?.file ?? null;
   const source: ChartSource = file ? { kind: "file", att: file } : { kind: "ireal" };
 
@@ -155,6 +157,7 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
             {ch.charts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         )}
+        <button className="btn icon-btn" aria-label="Drummer view" aria-pressed={!!prefs.drummer} title="Drummer view" onClick={() => app.updatePrefs({ drummer: !prefs.drummer })}><Icon name="drum" size={18} /></button>
         <button className="btn icon-btn" aria-label={playing ? "Stop the band" : "Play with the band"} disabled={!app.band}
           onClick={() => playing ? app.stopBand() : app.startBand(cur)}>{playing ? "■" : "▶"}</button>
         {fs !== "no" && <button className="btn icon-btn" aria-label={fs === "on" ? "Leave full screen" : "Full screen"}

@@ -924,3 +924,27 @@ html[data-text="larger"] { font-size: 125%; }
 .version-menu summary { list-style: none; cursor: pointer; }
 .version-menu summary::-webkit-details-marker { display: none; }
 .version-menu-list { position: absolute; right: 0; z-index: 5; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 8px; background: var(--surface); border: 1.5px solid var(--rule); border-radius: 8px; white-space: nowrap; }
+
+/* Hits, stops, fermatas and the drummer view (R3.6) */
+.hits { position: absolute; left: 0; right: 0; top: -12px; height: 14px; pointer-events: none; z-index: 1; }
+.hm { position: absolute; transform: translateX(-50%); font-size: 12px; line-height: 14px; color: var(--brass); font-weight: 700; }
+.hm.fermata { font-size: 16px; }
+.hm.push::before { content: ">"; font-size: 9px; margin-right: 1px; vertical-align: 2px; }
+.hstop { position: absolute; left: 0; right: 0; top: 6px; border-top: 2px solid var(--brass); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brass); line-height: 12px; padding-left: 4px; }
+.hstop.first { border-left: 2px solid var(--brass); }
+.chart.hedit .mbar { cursor: pointer; }
+.mbar.hsel { background: var(--now); outline: 2px solid var(--brass); outline-offset: -2px; }
+.bn { position: absolute; top: 1px; right: 4px; font-size: 10px; color: var(--muted); }
+.mark .feel { display: block; margin-left: 4px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; align-self: center; max-width: 60px; }
+.chart.drummer .brk, .chart.drummer .tn, .chart.drummer .fam { display: none; }
+.chart.drummer .ch { font-size: min(13px, var(--fit, 99px)); color: var(--muted); font-weight: 400; }
+.chart.drummer .mbar { min-height: 64px; }
+.focus .chart.drummer .ch { font-size: min(clamp(13px, 2.4vw, 20px), var(--fit, 99px)); }
+.hit-bar, .feel-row, .hit-editor-head, .hit-editor-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.feel-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--muted); }
+.feel-pick input[type="number"] { width: 4.5em; }
+.hit-editor { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); min-width: 0; }
+.hit-slots { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.hit-slot { flex: 0 0 auto; min-width: 44px; min-height: 44px; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--surface); font-weight: 700; font-size: 1rem; cursor: pointer; color: var(--ink); }
+.hit-slot.off { color: var(--muted); font-weight: 400; }
+.hit-slot.on { background: var(--brass); border-color: var(--brass); color: #fff; }

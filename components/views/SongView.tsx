@@ -17,6 +17,8 @@ import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
 import { VersionBar, useVersions } from "../Versions";
+import { HitBar, HitEditor } from "../Hits";
+import { validateHits } from "@/lib/hits";
 import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
 import { searchVideos, videoInfo, type VideoResult } from "@/lib/youtube/client";
@@ -100,8 +102,16 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const isOverride = cur.kind === "lib" ? (sg.title + "|" + sg.composer) in prefs.libShift : item?.shift !== null && item?.shift !== undefined;
   const gigLine = gig && cur.kind === "set" && gig.setId === cur.setId ? <span className="pill">Practice gig · {gig.pos + 1} of {gig.order.length}</span> : null;
 
-  const html = useMemo(() => chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn }),
-    [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn]);
+  // R3.6: hits live on the setlist tune only; the library chart has none
+  const [editHits, setEditHits] = useState(false);
+  const [selBar, setSelBar] = useState<number | null>(null);
+  const hitItem = s && item && !isBuiltin(s.id) ? item : undefined;
+  const canHits = !!hitItem && canEdit;
+  const editing = canHits && editHits;
+  const saveItem = (fn: (it: SetlistItem) => SetlistItem) => { if (cur.kind === "set" && s) app.updateItem(s.id, cur.itemIdx, fn); };
+  const html = useMemo(() => chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn, drummer: prefs.drummer,
+    hits: item?.hits, feels: item?.feels, sel: editing ? selBar : null, editHits: editing }),
+    [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, item?.hits, item?.feels, editing, selBar]);
 
   const tr = (d: number) => {
     app.setShift(cur, (((app.shiftOf(cur) + d) % 12) + 18) % 12 - 6);
@@ -148,7 +158,11 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
             <label className="toggle"><input type="checkbox" id="opt-fn" checked={prefs.fn} onChange={e => updatePrefs({ fn: e.target.checked })} /> Harmony</label>
           </div>
         </div>
-        <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />
+        <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={item?.feels}
+          setFeel={(sec, f) => saveItem(it => ({ ...it, feels: { ...it.feels, [sec]: f } }))} />
+        <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} onBar={editing ? setSelBar : undefined} />
+        {editing && <HitEditor bars={sg.bars.length} sel={selBar} hits={validateHits(item?.hits, sg.bars.length)}
+          onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
       </section>
       {cur.kind === "set" && s && item && !isBuiltin(s.id) && (
@@ -180,7 +194,7 @@ const MIN_FIT = 0.45;
  * chartHTML escapes every piece of text it outputs.
  */
 // `fit` scales the chart down (never up) to fill the parent's height without scrolling, stopping at MIN_FIT.
-export function ChartHost({ html, live, fit }: { html: string; live: boolean; fit?: boolean }) {
+export function ChartHost({ html, live, fit, onBar }: { html: string; live: boolean; fit?: boolean; onBar?: (bar: number) => void }) {
   const app = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const markRef = useRef(app.markBar); markRef.current = app.markBar;
@@ -212,7 +226,11 @@ export function ChartHost({ html, live, fit }: { html: string; live: boolean; fi
     document.fonts?.ready.then(run).catch(() => {});
     return () => { ro.disconnect(); el.style.zoom = ""; };
   }, [fit, html]);
-  return <div id="chart-wrap" ref={ref} />;
+  const pick = onBar && ((e: React.MouseEvent) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-bar]");
+    if (b) onBar(Number(b.dataset.bar));
+  });
+  return <div id="chart-wrap" ref={ref} onClick={pick} />;
 }
 
 const PER = 25, MAX_PAGES = 4; // "Find more" goes up to 100 results per search

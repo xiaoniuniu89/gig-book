@@ -2,6 +2,7 @@
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
+import type { Hit, Feels } from "../hits";
 import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
@@ -21,6 +22,8 @@ interface ItemRow {
   song: string;
   shift: number | null;
   versions: Version[] | null;
+  hits: Hit[] | null;
+  feels: Feels | null;
 }
 interface NoteRow {
   id: string;
@@ -98,7 +101,7 @@ const toResource = (r: ResourceRow): Resource => ({
 });
 const resCols = (f: ResourceFields) => ({ kind: f.kind, title: f.title, url: f.kind === "link" ? f.url : null, tags: f.tags, note: f.note });
 const BUCKET = "attachments";
-const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, band_id, bands(name), setlist_items(id, position, set_no, song, shift, versions)";
+const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, band_id, bands(name), setlist_items(id, position, set_no, song, shift, versions, hits, feels)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
 function fail(what: string, error: { message: string } | null): never {
@@ -109,7 +112,7 @@ function toSetlist(r: SetlistRow, role: Role): Setlist {
   const items: SetlistItem[] = (r.setlist_items || [])
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map(it => ({ id: it.id, raw: it.song, set: it.set_no || 1, shift: it.shift, versions: it.versions || [] }));
+    .map(it => ({ id: it.id, raw: it.song, set: it.set_no || 1, shift: it.shift, versions: it.versions || [], hits: it.hits || [], feels: it.feels || {} }));
   return { id: r.id, name: r.name, spotify: r.spotify_uri, visibility: r.visibility, role, items, band: r.band_id && r.bands ? { id: r.band_id, name: r.bands.name } : null };
 }
 
@@ -291,7 +294,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
         if (ins.error) fail("create the setlist", ins.error);
       }
       const items = s.items.map((it, position) => ({
-        id: itemUuid(s.id, it.id), position, set_no: it.set || 1, song: it.raw, shift: it.shift ?? null, versions: it.versions || [],
+        id: itemUuid(s.id, it.id), position, set_no: it.set || 1, song: it.raw, shift: it.shift ?? null, versions: it.versions || [], hits: it.hits || [], feels: it.feels || {},
       }));
       const { error } = await sb.rpc("replace_setlist_items", { p_setlist_id: s.id, p_items: items });
       if (error) fail("save the tunes in the setlist", error);

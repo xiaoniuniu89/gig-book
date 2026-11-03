@@ -1,5 +1,6 @@
 // The app's data model and the one interface both storage adapters implement.
 import type { Settings } from "../settings";
+import type { Hit, Feels } from "../hits";
 
 export interface Version { uri: string; name: string; artists: string }
 
@@ -12,6 +13,10 @@ export interface SetlistItem {
   /** Semitones from the chart's written key; null = use iReal's own transpose setting. */
   shift: number | null;
   versions: Version[];
+  /** Rhythmic hits, stops and fermatas for this gig or band (R3.6). Never on the shared library chart. */
+  hits?: Hit[];
+  /** Drummer-view feel per section letter; missing = the iReal style's own. */
+  feels?: Feels;
   /** Legacy single note; notes now live in the notes table (R5). Read only, never written. */
   note?: string | null;
 }

@@ -2,6 +2,8 @@
 import { loadSampler, loadDrums, pickSample, DRUM_MAKEUP, type Sampler, type DrumKit, type DrumName } from "./sounds";
 import { Generator, feelOf, defaultTempo, type Feel } from "./gen";
 import { unroll, type Song } from "../ireal";
+import { validateHits, type Hit } from "../hits";
+import { shapeBar } from "./hitplay";
 import { detectTonic, hasRoot, type ChordLike } from "../theory";
 import { audioContext, claimAudio, releaseAudio } from "../audio";
 
@@ -28,6 +30,8 @@ export interface PlayOpts {
   loop?: [number, number] | null;
   /** Move the band up `step` semitones every `every` bars, or every time round the tune/loop when `every` is 0. */
   keyChange?: { step: number; every: number } | null;
+  /** Hits, pushes and stops from the setlist tune: the band accents or drops out on them. */
+  hits?: Hit[];
 }
 
 interface Item { idx?: number; chorus?: number; k?: number; countIn?: boolean; ending?: boolean; beats?: number; round?: number }
@@ -49,6 +53,7 @@ export class Band {
   private roundRobin: Partial<Record<DrumName, number>> = {};
   private song!: Song;
   private shift = 0;
+  private hits: Hit[] = [];
   feel: Feel = "swing";
   tempo = 140;
   private gen!: Generator;
@@ -148,6 +153,7 @@ export class Band {
     claimAudio("band", () => this.stop());
     const song = opts.song;
     this.song = song; this.shift = opts.shift || 0;
+    this.hits = validateHits(opts.hits || [], song.bars.length);
     this.keyChange = opts.keyChange && opts.keyChange.step ? opts.keyChange : null;
     this.barsPlayed = 0;
     this.feel = feelOf(song.style);
@@ -238,7 +244,7 @@ export class Band {
         const bar = this.song.bars[item.idx as number];
         beats = bar.beats;
         this.gen.twoFeel = this.twoFeelHead && item.chorus === 1;
-        events = this.gen.bar(bar, this.peekChord(), shift, item.k as number);
+        events = shapeBar(this.gen.bar(bar, this.peekChord(), shift, item.k as number), item.idx as number, bar, this.hits, this.gen, shift);
       }
       const start = this.nextBeat;
       // In swing the bass sits on top of the beat and the piano lays back a touch (less so at fast tempos).
