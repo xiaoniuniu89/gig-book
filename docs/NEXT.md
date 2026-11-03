@@ -5,17 +5,14 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
 - Vercel: project `niu-real-book` (GitHub-connected, production branch `main`, env vars set, live site uses the live Supabase). This folder is linked (`.vercel/`).
-- Dev Supabase: migrations up to `0019` applied, fake musicians seeded.
-- Live Supabase: up to `0015`. Migrations 0016 to 0019 (and 0020 once the tour lands) go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
+- Dev Supabase: migrations up to `0020` applied, fake musicians seeded.
+- Live Supabase: up to `0015`. Migrations 0016 to 0020 go to live with the release (`npx supabase db push --linked`, see CLAUDE.md).
 - New on develop (not released):
   - **Make Spotify playlist** on a setlist (#45): `lib/spotify/user.ts`, `components/SpotifyPlaylist.tsx`, migration 0019.
   - **Recent collaborators** in Share and band invites (#46): migration 0018.
   - **Tools** card: metronome, drone, print (#51): `lib/tools/`, one shared audio context in `lib/audio.ts`.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 - Access tests for 0018 and 0019 haven't run yet (no Docker on Dan's Mac). They run in CI on the release.
-
-## In progress
-- **#49 First-run tour**: cloud build (migration 0020). When it lands: run typecheck and lint (no warnings), apply 0020 to dev (`npm run db:dev`), check it on a phone.
 
 ## Waiting on Dan
 1. **Spotify dashboard → Redirect URIs**: add `http://127.0.0.1:3000/api/spotify/callback` and `https://niu-real-book.vercel.app/api/spotify/callback`.
@@ -37,7 +34,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Apply to Spotify for extended quota. Development mode is capped at 5 users.
 
 ## Built, to verify
-- **#49 First-run tour**: `components/Tour.tsx`; migration `0020_tour_seen.sql` is not yet applied to dev or live; local mode remembers it in `gigbook-tour`. Smoke test: a fresh sign-in starts it; Skip, Escape and Done stop it for good; the ? button in the top bar replays it; try a phone and dark mode.
+- **#49 First-run tour**: `components/Tour.tsx`; migration 0020 is on dev; local mode remembers it in `gigbook-tour`. Smoke test: a fresh sign-in starts it; Skip, Escape and Done stop it for good; the ? button in the top bar replays it; try a phone and dark mode.
 
 ## Later
 - #46 extras: collaborator picks for licks and resources; hide someone from the list on the account page.
