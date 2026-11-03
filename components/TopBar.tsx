@@ -16,12 +16,25 @@ export function TopBar() {
         <span className="bar-gap" />
         <span className="acct">
           {supabaseConfigured && <Feedback />}
+          <PlayerButton />
           <ThemeToggle />
           {supabaseConfigured && <Bell />}
           {supabaseConfigured && <Account />}
         </span>
       </div>
     </header>
+  );
+}
+
+// Phones and tablets: the player drawer opens from here instead of a floating button over the page (hidden on desktop, which has the rail).
+function PlayerButton() {
+  const { prefs, setDockSize, bandPlaying } = useApp();
+  const open = prefs.dockSize !== "hidden";
+  return (
+    <button className="btn small icon-btn player-btn" aria-label={bandPlaying ? "Player (the band is playing)" : "Player"} title="Play along or listen"
+      aria-expanded={open} onClick={() => setDockSize(open ? "hidden" : "full")}>
+      <Icon name="music" size={18} />{bandPlaying && <span className="player-dot" aria-hidden="true" />}
+    </button>
   );
 }
 

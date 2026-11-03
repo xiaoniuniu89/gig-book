@@ -360,10 +360,11 @@ body[data-docksize="hidden"] { --dw: var(--rail); }
   .dock-scrim { display: block; position: fixed; inset: 0; border: 0; padding: 0; background: rgba(0,0,0,.35); cursor: pointer; }
   .dock-scrim[hidden] { display: none; }
   .dock-inner { width: min(var(--drawer), 100vw); }
-  .dock-rail { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); right: max(16px, env(safe-area-inset-right, 0px)); width: auto;
-    flex-direction: row; padding: 6px; border: 1px solid var(--rule); border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
-  main { padding-bottom: 100px; }
+  .dock-rail { display: none; } /* the top bar's player button opens it */
 }
+.player-btn { position: relative; }
+.player-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 2px var(--surface); }
+@media (min-width: 901px) { .player-btn { display: none; } }
 .tune.t3 { grid-template-columns: 1fr auto auto; }
 
 /* ---- additions for the Next.js app ---- */
