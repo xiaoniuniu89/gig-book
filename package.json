@@ -11,6 +11,7 @@
     "seed": "tsx scripts/seed.ts",
     "seed:dev": "tsx --env-file=.env.development.local scripts/seed.ts",
     "db:dev": "node --env-file=.env.development.local scripts/db-dev.mjs",
+    "spotify:token": "node --env-file=.env.local scripts/spotify-service-token.mjs --vercel",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

@@ -1,4 +1,5 @@
 // One-time setup: sign in as the Spotify account the site makes playlists in, and save its refresh token.
+//   npm run spotify:token   (every ~6 months: Spotify refresh tokens expire 6 months after sign-in)
 //   node --env-file=.env.local scripts/spotify-service-token.mjs            saves it to .env.local
 //   node --env-file=.env.local scripts/spotify-service-token.mjs --vercel   also adds it to Vercel (production)
 // First add http://127.0.0.1:8888/callback as a Redirect URI on the Spotify app (developer.spotify.com > your app > Settings).
