@@ -28,8 +28,9 @@ export function BandsView() {
   }, [ready, signedIn, store, toast]);
 
   const create = async () => {
+    if (busy) return;
     const n = name.trim().slice(0, 200);
-    if (!n || busy) return;
+    if (!n) { toast("Give the band a name."); return; }
     setBusy(true);
     try {
       const b = await store.createBand(n, perms);
@@ -59,11 +60,14 @@ export function BandsView() {
       )}
       <Modal open={adding} title="New band" onClose={() => setAdding(false)}>
         <form className="new-band" onSubmit={e => { e.preventDefault(); void create(); }}>
-          <input aria-label="Band name" autoFocus maxLength={200} placeholder="Band name" value={name} onChange={e => setName(e.target.value)} />
+          <label className="field">
+            <span className="field-label">Band name <span className="req" aria-hidden="true">*</span></span>
+            <input aria-label="Band name" autoFocus maxLength={200} placeholder="e.g. Ava Trio" value={name} onChange={e => setName(e.target.value)} />
+          </label>
           <h3 className="modal-sub">What new members can do</h3>
           <PermSwitches value={perms} onChange={setPerms} />
           <p className="hint">You&apos;re the admin and can do everything. You can change these later, or set them for one person.</p>
-          <button className="btn primary" type="submit" disabled={!name.trim() || busy}>Create band</button>
+          <button className="btn primary" type="submit" disabled={busy}>{busy ? "Creating…" : "Create band"}</button>
         </form>
       </Modal>
     </>

@@ -1,16 +1,18 @@
 # Next steps
 
-What's left to do, in order. Last updated 2026-11-02. Update it at the end of each session.
+What's left to do, in order. Last updated 2026-11-03. Update it at the end of each session.
 
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
-- The dev Supabase project is set up: all migrations are applied and the fake musicians are seeded. On localhost, `npm run dev` shows the "Sign in as a test musician" buttons.
+- The dev Supabase project is set up: all migrations (up to `0017`) are applied and the fake musicians are seeded. On localhost, `npm run dev` shows the "Sign in as a test musician" buttons.
 - Latest on develop:
+  - MusicXML (`.musicxml`, `.mxl`, `.xml`) upload, responsive score rendering (`opensheetmusicdisplay`), live key transposition, and hover previews on licks.
+  - Form UX cleanup: explicit field labels, validation messages instead of disabled submit buttons, 1-click `Upload file` button, visual chord bar builder (`+ Bar |`), and 4-bar starter licks.
   - Share and Add note now open in modals.
   - Band chat link.
   - 20 MB file cap.
   - Feedback is triaged by the AI.
-- Not released to `main` yet. Migration 0015 is already applied to live.
+- Not released to `main` yet. Migration 0015 is applied to live; migrations 0016 (`0016_musicxml_attachments.sql`) and 0017 (`0017_licks_select_owner.sql`) are applied to dev and will need `npm run db:live` when releasing `develop` to `main`.
 
 ## Smoke test first (Dan, on localhost)
 1. Sign in as Ava. Open a setlist and use **Share**: the band picker, add by email, and change a role.

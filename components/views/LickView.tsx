@@ -71,7 +71,7 @@ export function LickView() {
   );
 
   const shift = steps(base, shown);
-  const sheet = files.atts.find(a => a.kind === "image" || a.kind === "pdf");
+  const sheet = files.atts.find(a => a.kind === "musicxml" || a.kind === "image" || a.kind === "pdf");
 
   const save = async (f: LickFields) => {
     try { await store.updateLick(lick.id, f); setLick({ ...lick, ...f, updatedAt: new Date().toISOString() }); setEditing(false); }
@@ -110,13 +110,13 @@ export function LickView() {
       ) : <>
         <section className="panel lick-sheet">
           <div className="sheet-tools">
-            {(lick.notation || cur) && <label>Key <select value={shown} onChange={e => setKey(e.target.value)}>
+            {(lick.notation || cur || sheet?.kind === "musicxml") && <label>Key <select value={shown} onChange={e => setKey(e.target.value)}>
               {LICK_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
             </select></label>}
           </div>
           {lick.notation ? <Notation abc={lick.notation} transpose={shift} play />
-            : sheet ? <div className="lick-file"><FileChart store={store} a={sheet} /></div>
-            : <p className="hint">No notation yet.{lick.mine ? " Edit the lick to write it out, or upload a photo or PDF of it." : ""}</p>}
+            : sheet ? <div className="lick-file"><FileChart store={store} a={sheet} transpose={shift} /></div>
+            : <p className="hint">No notation yet.{lick.mine ? " Edit the lick to write it out, or upload a MusicXML score, photo or PDF of it." : ""}</p>}
         </section>
 
         {cur && <section className="panel lick-chords" aria-label="Chords">

@@ -23,7 +23,7 @@ export function ResourceForm({ kind, initial, cta, onSubmit, onCancel }: {
     if (busy) return;
     const u = kind === "link" ? cleanUrl(url) : "";
     if (kind === "link" && !u) { setBad("Enter a web address, like https://example.com."); return; }
-    if (needFile && !file) { setBad("Choose a PDF or image."); return; }
+    if (needFile && !file) { setBad("Choose a PDF, image or MusicXML score."); return; }
     const t = title.trim() || (kind === "link" ? hostOf(u) : file?.name.replace(/\.[^.]+$/, "") || "");
     if (!t) { setBad("Give it a title."); return; }
     setBad("");
@@ -33,16 +33,35 @@ export function ResourceForm({ kind, initial, cta, onSubmit, onCancel }: {
     setBusy(false);
   };
   return (
-    <form className="res-form" onSubmit={e => { e.preventDefault(); void submit(); }}>
-      {kind === "link" && <input type="url" aria-label="Link address" placeholder="https://…" maxLength={2000} autoFocus value={url} onChange={e => { setUrl(e.target.value); setBad(""); }} />}
-      {needFile && <input type="file" aria-label="File" accept="application/pdf,image/*" onChange={e => { setFile(e.target.files?.[0] ?? null); setBad(""); }} />}
-      <input type="text" aria-label="Title" placeholder={kind === "link" ? "Title (optional)" : "Title"} maxLength={200} value={title} onChange={e => setTitle(e.target.value)} />
-      <input type="text" aria-label="Tags" placeholder="Tags, comma separated: method book, bebop" value={tags} onChange={e => setTags(e.target.value)} />
-      <textarea aria-label="Note" rows={3} maxLength={5000} placeholder="Note (optional)" value={note} onChange={e => setNote(e.target.value)} />
-      {bad && <p className="hint" role="alert">{bad}</p>}
+    <form className="res-form" noValidate onSubmit={e => { e.preventDefault(); void submit(); }}>
+      {kind === "link" && (
+        <label className="field">
+          <span className="field-label">Link address <span className="req" aria-hidden="true">*</span></span>
+          <input type="url" aria-label="Link address" placeholder="https://…" maxLength={2000} autoFocus value={url} onChange={e => { setUrl(e.target.value); setBad(""); }} />
+        </label>
+      )}
+      {needFile && (
+        <label className="field">
+          <span className="field-label">File <span className="req" aria-hidden="true">*</span></span>
+          <input type="file" aria-label="File" onChange={e => { setFile(e.target.files?.[0] ?? null); setBad(""); }} />
+        </label>
+      )}
+      <label className="field">
+        <span className="field-label">Title {kind !== "link" && !needFile ? <span className="req" aria-hidden="true">*</span> : <span className="field-opt">(optional — uses site or file name if blank)</span>}</span>
+        <input type="text" aria-label="Title" placeholder="e.g. Mark Levine Jazz Piano Book" maxLength={200} value={title} onChange={e => { setTitle(e.target.value); setBad(""); }} />
+      </label>
+      <label className="field">
+        <span className="field-label">Tags <span className="field-opt">(optional, comma-separated)</span></span>
+        <input type="text" aria-label="Tags" placeholder="method book, bebop" value={tags} onChange={e => setTags(e.target.value)} />
+      </label>
+      <label className="field">
+        <span className="field-label">Note <span className="field-opt">(optional)</span></span>
+        <textarea aria-label="Note" rows={3} maxLength={5000} placeholder="Why it's useful or page numbers…" value={note} onChange={e => setNote(e.target.value)} />
+      </label>
+      {bad && <p className="field-err" role="alert">{bad}</p>}
       <div className="compose-row">
         <button className="btn" type="button" onClick={onCancel}>Cancel</button>
-        <button className="btn primary" type="submit" disabled={busy}>{cta}</button>
+        <button className="btn primary" type="submit" disabled={busy}>{busy ? "Saving…" : cta}</button>
       </div>
     </form>
   );

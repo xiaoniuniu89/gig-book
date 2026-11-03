@@ -1,9 +1,11 @@
 "use client";
 // Attachments on notes (R6): attach menu (photo / record / file), upload queue, list with viewers, "use as chart" (R3.4).
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useApp } from "./AppProvider";
 import { MAX_FILE_MB, attachmentKind, type Attachment, type DataStore, type NoteHome } from "@/lib/data/types";
+import { MusicXml } from "./MusicXml";
 
-export const ACCEPT = "application/pdf,image/*,audio/*";
+export const ACCEPT = "application/pdf,image/*,audio/*,.musicxml,.mxl,.xml,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,text/xml,application/xml";
 
 /** Only files we can show; anything else is dropped. */
 export const attachable = (files: Iterable<File>): File[] => [...files].filter(f => attachmentKind(f.type, f.name));
@@ -77,32 +79,35 @@ function Recorder({ onDone, onCancel }: { onDone: (f: File) => void; onCancel: (
   );
 }
 
-/** "Attach" button with: Take photo, Record audio (unless `noAudio`), Choose file. */
+/** Direct Upload file button (1 click), plus Record audio (unless `noAudio`) and Take photo on touch devices. */
 export function AttachMenu({ onFiles, noAudio }: { onFiles: (f: File[]) => void; noAudio?: boolean }) {
-  const [open, setOpen] = useState(false);
+  const { toast } = useApp();
   const [recording, setRecording] = useState(false);
+  const [touch, setTouch] = useState(false);
   const photo = useRef<HTMLInputElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const canRecord = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
+  useEffect(() => { setTouch(window.matchMedia("(pointer: coarse)").matches); }, []);
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = attachable(e.target.files || []);
+    const raw = [...(e.target.files || [])];
+    const f = attachable(raw);
     e.target.value = "";
-    setOpen(false);
+    if (raw.length && !f.length) toast("Choose a MusicXML (.musicxml, .mxl), PDF, image or audio file.");
     if (f.length) onFiles(f);
   };
   return (
     <div className="attach-menu">
-      <button className="btn small" type="button" aria-expanded={open} onClick={() => { setOpen(o => !o); setRecording(false); }}>Attach</button>
       <input ref={photo} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
-      <input ref={file} type="file" accept={ACCEPT} multiple hidden onChange={pick} />
-      {open && !recording && (
+      <input ref={file} type="file" multiple hidden onChange={pick} />
+      {!recording ? (
         <div className="attach-opts">
-          <button className="btn small" type="button" onClick={() => photo.current?.click()}>Take photo</button>
+          <button className="btn small" type="button" onClick={() => file.current?.click()}>Upload file</button>
+          {touch && <button className="btn small" type="button" onClick={() => photo.current?.click()}>Take photo</button>}
           {canRecord && !noAudio && <button className="btn small" type="button" onClick={() => setRecording(true)}>Record audio</button>}
-          <button className="btn small" type="button" onClick={() => file.current?.click()}>Choose file</button>
         </div>
+      ) : (
+        <Recorder onCancel={() => setRecording(false)} onDone={f => { setRecording(false); onFiles([f]); }} />
       )}
-      {open && recording && <Recorder onCancel={() => setRecording(false)} onDone={f => { setOpen(false); setRecording(false); onFiles([f]); }} />}
     </div>
   );
 }
@@ -162,7 +167,7 @@ export function UploadRows({ ups, noteId, retry, dismiss }: { ups: Upload[]; not
   ))}</>;
 }
 
-/** Full-screen image or PDF. Images scroll and pinch-zoom natively. */
+/** Full-screen image, PDF or MusicXML score. Images scroll and pinch-zoom natively. */
 function Viewer({ a, url, onClose }: { a: Attachment; url: string; onClose: () => void }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -176,17 +181,20 @@ function Viewer({ a, url, onClose }: { a: Attachment; url: string; onClose: () =
         {a.kind === "image"
           // eslint-disable-next-line @next/next/no-img-element -- a signed URL, not a static asset
           ? <img src={url} alt={a.name} />
+          : a.kind === "musicxml"
+          ? <div className="file-chart"><MusicXml src={url} name={a.name} controls /></div>
           : <object data={url} type="application/pdf" aria-label={a.name}><a className="btn" href={url} target="_blank" rel="noopener noreferrer">Open PDF</a></object>}
       </div>
     </div>
   );
 }
 
-/** The file contents for the chart view: image or PDF, full size. */
-export function FileChart({ store, a }: { store: DataStore; a: Attachment }) {
+/** The file contents for the chart view: image, PDF or transposable MusicXML score, full size. */
+export function FileChart({ store, a, transpose }: { store: DataStore; a: Attachment; transpose?: number }) {
   const url = useSignedUrl(store, a);
   if (url === undefined) return <p className="hint">Loading…</p>;
   if (url === null) return <p className="hint">Couldn&apos;t open that file.</p>;
+  if (a.kind === "musicxml") return <div className="file-chart"><MusicXml src={url} name={a.name} transpose={transpose} controls={transpose === undefined} /></div>;
   return a.kind === "image"
     // eslint-disable-next-line @next/next/no-img-element -- a signed URL, not a static asset
     ? <div className="file-chart"><img src={url} alt={a.name} /></div>
@@ -199,7 +207,7 @@ function One({ store, a, canDelete, onDelete, chart }: {
 }) {
   const [show, setShow] = useState(false);
   const [armed, setArmed] = useState(false);
-  const url = useSignedUrl(store, a, a.kind !== "pdf" || show);
+  const url = useSignedUrl(store, a, (a.kind !== "pdf" && a.kind !== "musicxml") || show);
   const isChart = chart?.current === a.id;
   return (
     <div className={"attachment " + a.kind}>
@@ -214,6 +222,7 @@ function One({ store, a, canDelete, onDelete, chart }: {
           </button>
         : <span className="hint">{url === null ? "Couldn't load " + a.name : "Loading…"}</span>)}
       {a.kind === "pdf" && <button className="btn small" type="button" onClick={() => setShow(true)}>PDF: {a.name}</button>}
+      {a.kind === "musicxml" && <button className="btn small" type="button" onClick={() => setShow(true)}>Score: {a.name}</button>}
       {show && url && <Viewer a={a} url={url} onClose={() => setShow(false)} />}
       {show && url === null && <p className="hint">Couldn&apos;t open that file.</p>}
       <div className="note-actions">

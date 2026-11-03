@@ -1,15 +1,16 @@
 "use client";
 // Lick library (R8): the lick form and card (shared with /licks) and the "Licks" section on a tune page.
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useApp } from "./AppProvider";
-import { AttachMenu, dropProps, useUploads } from "./Attachments";
+import { AttachMenu, FileChart, dropProps, useUploads } from "./Attachments";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { STARTER_LICKS } from "@/lib/starterLicks";
 import { Notation } from "./Notation";
+import { MusicXml } from "./MusicXml";
 import { LICK_KEYS, parseProgression } from "@/lib/irealExport";
-import { parseTags, type Attachment, type DataStore, type Lick, type LickFields, type LickHome, type LickLink, type Setlist } from "@/lib/data/types";
+import { attachmentKind, parseTags, type Attachment, type DataStore, type Lick, type LickFields, type LickHome, type LickLink, type Setlist } from "@/lib/data/types";
 
 /** Files of the given licks, plus the upload queue and delete. One query for the whole list. */
 export function useLickFiles(store: DataStore, ids: string[]) {
@@ -42,17 +43,44 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
   const [prog, setProg] = useState(initial?.progression ?? "");
   const [key, setKey] = useState(initial?.key ?? "");
   const [abc, setAbc] = useState(initial?.notation ?? "");
+  const [titleErr, setTitleErr] = useState("");
   const [bad, setBad] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLFormElement>(null);
-  const submit = async () => {
-    const t = title.trim();
-    if (!t || busy) return;
+  const titleRef = useRef<HTMLInputElement>(null);
+  const progRef = useRef<HTMLInputElement>(null);
+
+  const parsedBars = useMemo(() => {
     const pr = prog.trim();
-    if (pr) {
-      try { parseProgression(pr); } catch (e) { setBad(e instanceof Error ? e.message : "Can't read that progression."); return; }
+    if (!pr) return { bars: null as string[][] | null, err: "" };
+    try { return { bars: parseProgression(pr), err: "" }; }
+    catch (e) { return { bars: null, err: e instanceof Error ? e.message : "Can't read that progression." }; }
+  }, [prog]);
+
+  const addBarPipe = () => {
+    setProg(p => {
+      const trimmed = p.replace(/\s+$/, "");
+      return !trimmed ? "" : trimmed.endsWith("|") ? trimmed + " " : trimmed + " | ";
+    });
+    progRef.current?.focus();
+  };
+
+  const submit = async () => {
+    if (busy) return;
+    const t = title.trim();
+    if (!t) {
+      setTitleErr("Give this lick a title.");
+      titleRef.current?.focus();
+      return;
     }
+    const pr = prog.trim();
+    if (pr && parsedBars.err) {
+      setBad(parsedBars.err);
+      progRef.current?.focus();
+      return;
+    }
+    setTitleErr("");
     setBad("");
     setBusy(true);
     try {
@@ -62,25 +90,64 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
     setBusy(false);
   };
   return (
-    <form className="lick-form" ref={ref} onSubmit={e => { e.preventDefault(); void submit(); }}
+    <form className="lick-form" ref={ref} noValidate onSubmit={e => { e.preventDefault(); void submit(); }}
       {...(newFiles ? dropProps(f => setFiles(l => l.concat(f))) : {})}>
-      <input type="text" aria-label="Lick title" placeholder="Title, e.g. ii–V in F, enclosure on the 3rd" maxLength={200} value={title}
-        onChange={e => setTitle(e.target.value)} />
-      <textarea aria-label="Lick notes" rows={3} maxLength={10000} placeholder="Notes (optional)" value={body} onChange={e => setBody(e.target.value)}
-        onFocus={() => setTimeout(() => ref.current?.scrollIntoView({ block: "nearest" }), 250)} />
-      <input type="text" aria-label="Tags" placeholder="Tags, comma separated: ii–V, F, bebop" value={tags} onChange={e => setTags(e.target.value)} />
-      <div className="prog-row">
-        <input type="text" aria-label="Chord progression" placeholder="Chords, e.g. Dm7 G7 | Cmaj7" maxLength={400} value={prog}
-          onChange={e => { setProg(e.target.value); setBad(""); }} />
-        <select aria-label="Key the chords are in" value={key} onChange={e => setKey(e.target.value)} disabled={!prog.trim()}>
-          <option value="">Key: C</option>
-          {LICK_KEYS.slice(1).map(k => <option key={k} value={k}>Key: {k}</option>)}
-        </select>
+      <label className="field">
+        <span className="field-label">Title <span className="req" aria-hidden="true">*</span></span>
+        <input ref={titleRef} type="text" aria-label="Lick title" required aria-invalid={!!titleErr}
+          placeholder="e.g. Basie ending in F" maxLength={200} value={title}
+          onChange={e => { setTitle(e.target.value); if (titleErr) setTitleErr(""); }} />
+        {titleErr && <span className="field-err" role="alert">{titleErr}</span>}
+      </label>
+
+      <label className="field">
+        <span className="field-label">Chord progression <span className="field-opt">(optional — loops with the backing band)</span></span>
+        <span className="field-hint">Separate bars with <code>|</code> and chords inside the same bar with spaces.</span>
+        <div className="prog-row">
+          <input ref={progRef} type="text" aria-label="Chord progression" aria-invalid={!!bad}
+            placeholder="Dm7 G7 | Cmaj7" maxLength={400} value={prog}
+            onChange={e => { setProg(e.target.value); setBad(""); }} />
+          <button type="button" className="btn small" onClick={addBarPipe} title="Insert a bar line (|)">+ Bar |</button>
+          <select aria-label="Key the chords are in" value={key} onChange={e => setKey(e.target.value)} disabled={!prog.trim()}>
+            <option value="">Key: C</option>
+            {LICK_KEYS.slice(1).map(k => <option key={k} value={k}>Key: {k}</option>)}
+          </select>
+        </div>
+        {(bad || (prog.trim() && parsedBars.err)) && <span className="field-err" role="alert">{bad || parsedBars.err}</span>}
+        {parsedBars.bars && (
+          <div className="prog-bars" aria-label="Bar preview">
+            {parsedBars.bars.map((bar, bi) => (
+              <span className="prog-bar" key={bi}>
+                <span className="prog-bar-num">{bi + 1}</span>
+                {bar.map((ch, ci) => <b key={ci}>{ch}</b>)}
+              </span>
+            ))}
+          </div>
+        )}
+      </label>
+
+      <div className="field-grid">
+        <label className="field">
+          <span className="field-label">Tags <span className="field-opt">(optional, comma-separated)</span></span>
+          <input type="text" aria-label="Tags" placeholder="ii–V, ending, bebop" value={tags} onChange={e => setTags(e.target.value)} />
+        </label>
+        <label className="field">
+          <span className="field-label">Notes <span className="field-opt">(optional)</span></span>
+          <textarea aria-label="Lick notes" rows={2} maxLength={10000} placeholder="Playing tips or fingering…" value={body} onChange={e => setBody(e.target.value)}
+            onFocus={() => setTimeout(() => ref.current?.scrollIntoView({ block: "nearest" }), 250)} />
+        </label>
       </div>
-      {bad && <p className="hint" role="alert">{bad}</p>}
-      <textarea className="abc-in" aria-label="Notation in ABC" rows={4} maxLength={20000} spellCheck={false} value={abc} onChange={e => setAbc(e.target.value)}
-        placeholder={'Notation in ABC (optional), e.g.\nK:F\n"Gm7"z B d f a g f d | "C7"c =B _B A G E F ^G | "Fmaj7"A6 z2 |]'} />
+
+      <details className="abc-details" open={!!abc.trim()}>
+        <summary>Write ABC notation by hand <span className="field-opt">(optional — or use Upload file below for MusicXML / PDF / photo)</span></summary>
+        <textarea className="abc-in" aria-label="Notation in ABC" rows={3} maxLength={20000} spellCheck={false} value={abc} onChange={e => setAbc(e.target.value)}
+          placeholder={'K:F\n"Gm7"z B d f a g f d | "C7"c =B _B A G E F ^G | "Fmaj7"A6 z2 |]'} />
+      </details>
+
       {abc.trim() && <Notation abc={abc} compact />}
+      {files.filter(f => attachmentKind(f.type, f.name) === "musicxml").map((f, i) => (
+        <MusicXml key={"mxl-" + i} src={f} name={f.name} controls />
+      ))}
       {files.length > 0 && (
         <div className="pending-files">
           {files.map((f, i) => (
@@ -93,20 +160,22 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
       <div className="compose-row">
         {newFiles && <AttachMenu noAudio onFiles={f => setFiles(l => l.concat(f))} />}
         {onCancel && <button className="btn" type="button" onClick={onCancel}>Cancel</button>}
-        <button className="btn primary" type="submit" disabled={busy || !title.trim()}>{cta}</button>
+        <button className="btn primary" type="submit" disabled={busy}>{busy ? "Saving…" : cta}</button>
       </div>
     </form>
   );
 }
 
-/** One lick in a list: a compact row that opens the lick page. With a mouse, resting on it pops up the notation. */
-export function LickCard({ lick, actions }: { lick: Lick; actions?: ReactNode }) {
+/** One lick in a list: a compact row that opens the lick page. With a mouse, resting on it pops up the notation or uploaded score/image. */
+export function LickCard({ lick, sheet, actions }: { lick: Lick; sheet?: Attachment; actions?: ReactNode }) {
+  const { store } = useApp();
   const meta = [lick.progression, ...lick.tags].filter(Boolean).join(" · ");
   const [peek, setPeek] = useState<{ x: number; y: number } | null>(null);
   const at = useRef({ x: 0, y: 0 });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPreview = !!(lick.notation || (sheet && (sheet.kind === "musicxml" || sheet.kind === "image")));
   const enter = () => {
-    if (!lick.notation || !window.matchMedia("(hover: hover)").matches) return;
+    if (!hasPreview || !window.matchMedia("(hover: hover)").matches) return;
     timer.current = setTimeout(() => setPeek({ ...at.current }), 250);
   };
   const leave = () => { if (timer.current) clearTimeout(timer.current); setPeek(null); };
@@ -125,7 +194,12 @@ export function LickCard({ lick, actions }: { lick: Lick; actions?: ReactNode })
         {(meta || (!lick.mine && lick.ownerName)) && <span className="hint">{!lick.mine && lick.ownerName ? lick.ownerName + (meta ? " · " : "") : ""}{meta}</span>}
       </Link>
       {actions && <div className="row-btns">{actions}</div>}
-      {peek && <div className="lick-peek" aria-hidden="true" style={{ left, top: Math.max(130, peek.y - 14), width: W }}><Notation abc={lick.notation} compact /></div>}
+      {peek && (
+        <div className="lick-peek" aria-hidden="true" style={{ left, top: Math.max(130, peek.y - 14), width: W }}>
+          {lick.notation ? <Notation abc={lick.notation} compact />
+            : sheet ? <FileChart store={store} a={sheet} transpose={0} /> : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -219,7 +293,9 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
       {links === null ? <p className="hint">Loading…</p> : !links.length ? <p className="hint">No licks here yet.</p> : (
         <div className="thread-list">
           {links.map(k => (
-            <LickCard key={k.id} lick={k.lick} actions={<>
+            <LickCard key={k.id} lick={k.lick}
+              sheet={files.atts.find(a => a.lickId === k.lick.id && (a.kind === "musicxml" || a.kind === "image"))}
+              actions={<>
               {(k.createdBy === app.account?.id || isOwner) && <button className="btn small" onClick={() => void unlink(k)}>{armed === k.id ? "Remove?" : "Remove from here"}</button>}
               {!k.lick.mine && <button className="btn small" onClick={() => void copy(k.lick)}>Save to my licks</button>}
             </>} />

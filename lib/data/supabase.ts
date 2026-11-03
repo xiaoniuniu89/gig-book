@@ -186,7 +186,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   /** Uploads `file` under `dir` and records it as an attachment with `parent` ({ note_id } or { lick_id }). */
   const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string } | { band_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
     const kind = attachmentKind(file.type, file.name);
-    if (!kind) throw new Error("Only PDF, image and audio files can be attached.");
+    if (!kind) throw new Error("Only PDF, image, audio and MusicXML files can be attached.");
     const mime = (file.type || "application/octet-stream").split(";")[0].trim();
     const path = `${dir}/${newUuid()}-${safeName(file.name)}`;
     const { data: sess } = await sb.auth.getSession();

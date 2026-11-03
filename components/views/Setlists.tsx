@@ -54,8 +54,8 @@ export function Setlists() {
       )}
       <Modal open={adding} title="New setlist" onClose={() => setAdding(false)}>
         <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
-          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Name it, e.g. Friday at Dolan's" value={newName} onChange={e => setNewName(e.target.value)} />
-          <button className="btn primary" type="submit" disabled={!newName.trim()}>Create</button>
+          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
+          <button className="btn primary" type="submit">Create</button>
         </form>
         <AiDraft />
         <h3 className="modal-sub">From iReal Pro</h3>

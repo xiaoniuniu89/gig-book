@@ -36,21 +36,25 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   const [body, setBody] = useState(initial?.body ?? "");
   const [tag, setTag] = useState<NoteTag | "">(initial?.tag ?? "");
   const [files, setFiles] = useState<File[]>([]);
+  const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLFormElement>(null);
   const submit = async () => {
+    if (busy) return;
     const v = body.trim();
-    if (!v || busy) return;
+    if (!v) { setErr("Write a note first."); return; }
+    setErr("");
     setBusy(true);
     try { await onSubmit(v, tag || null, files); if (!initial) { setBody(""); setTag(""); setFiles([]); } } catch { /* the caller toasts */ }
     setBusy(false);
   };
   return (
-    <form className="compose" ref={ref} onSubmit={e => { e.preventDefault(); void submit(); }}
+    <form className="compose" ref={ref} noValidate onSubmit={e => { e.preventDefault(); void submit(); }}
       {...(attach ? dropProps(f => setFiles(l => l.concat(f))) : {})}>
-      <textarea aria-label={label} rows={rows} maxLength={10000} placeholder={placeholder} autoFocus={autoFocus} value={body}
-        onChange={e => setBody(e.target.value)}
+      <textarea aria-label={label} aria-invalid={!!err} rows={rows} maxLength={10000} placeholder={placeholder} autoFocus={autoFocus} value={body}
+        onChange={e => { setBody(e.target.value); if (err) setErr(""); }}
         onFocus={() => setTimeout(() => ref.current?.scrollIntoView({ block: "nearest" }), 250)} />
+      {err && <span className="field-err" role="alert">{err}</span>}
       {files.length > 0 && (
         <div className="pending-files">
           {files.map((f, i) => (
@@ -69,7 +73,7 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
           </select>
         )}
         {onCancel && <button className="btn" type="button" onClick={onCancel}>Cancel</button>}
-        <button className="btn primary" type="submit" disabled={busy || !body.trim()}>{cta}</button>
+        <button className="btn primary" type="submit" disabled={busy}>{busy ? "Saving…" : cta}</button>
       </div>
     </form>
   );

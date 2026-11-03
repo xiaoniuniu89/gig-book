@@ -335,7 +335,7 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
   };
   const fresh = async () => {
     const n = name.trim().slice(0, 200);
-    if (!n) return;
+    if (!n) { app.toast("Give the new setlist a name."); return; }
     const s: Setlist = { id: app.store.newId(n, id => !!app.setlistById(id)), name: n, spotify: null, items: [item()], visibility: "private", role: "owner" };
     await app.addSetlist(s);
     app.toast(`Added to ${n}.`); setOpen(false); setName("");
@@ -350,8 +350,8 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
       ))}</div>}
       <h3 className="modal-sub">New setlist</h3>
       <form className="new-set" onSubmit={e => { e.preventDefault(); void fresh(); }}>
-        <input aria-label="New setlist name" maxLength={200} placeholder="Name it" value={name} onChange={e => setName(e.target.value)} />
-        <button className="btn primary" type="submit" disabled={!name.trim()}>Create and add</button>
+        <input aria-label="New setlist name" maxLength={200} placeholder="Setlist name (required)" value={name} onChange={e => setName(e.target.value)} />
+        <button className="btn primary" type="submit">Create and add</button>
       </form>
     </Modal>
   </>;

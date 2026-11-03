@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1">
+  <work>
+    <work-title>Basie Tag Ending in F</work-title>
+  </work>
+  <part-list>
+    <score-part id="P1">
+      <part-name>Lead</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions>
+        <key><fifths>-1</fifths><mode>major</mode></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <harmony>
+        <root><root-step>G</root-step></root>
+        <kind text="m7">minor-seventh</kind>
+      </harmony>
+      <note><rest/><duration>1</duration><type>eighth</type></note>
+      <note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">begin</beam></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">continue</beam></note>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">end</beam></note>
+      <harmony>
+        <root><root-step>C</root-step></root>
+        <kind text="7">dominant</kind>
+      </harmony>
+      <note><pitch><step>A</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">begin</beam></note>
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">continue</beam></note>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">continue</beam></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">end</beam></note>
+    </measure>
+    <measure number="2">
+      <harmony>
+        <root><root-step>F</root-step></root>
+        <kind text="6">major-sixth</kind>
+      </harmony>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>2</duration><type>quarter</type></note>
+      <harmony>
+        <root><root-step>F</root-step><root-alter>1</root-alter></root>
+        <kind text="dim7">diminished-seventh</kind>
+      </harmony>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">begin</beam></note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">end</beam></note>
+      <harmony>
+        <root><root-step>G</root-step></root>
+        <kind text="m7">minor-seventh</kind>
+      </harmony>
+      <note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>2</duration><type>quarter</type></note>
+      <harmony>
+        <root><root-step>C</root-step></root>
+        <kind text="7b9">dominant</kind>
+      </harmony>
+      <note><pitch><step>D</step><alter>-1</alter><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">begin</beam></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">end</beam></note>
+    </measure>
+    <measure number="3">
+      <harmony>
+        <root><root-step>F</root-step></root>
+        <kind text="6">major-sixth</kind>
+      </harmony>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>2</duration><type>quarter</type></note>
+      <note><rest/><duration>2</duration><type>quarter</type></note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">begin</beam></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">end</beam></note>
+      <note><pitch><step>E</step><alter>-1</alter><octave>5</octave></pitch><duration>2</duration><type>quarter</type></note>
+    </measure>
+    <measure number="4">
+      <harmony>
+        <root><root-step>F</root-step></root>
+        <kind text="13">dominant-13th</kind>
+      </harmony>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>6</duration><type>half</type><dot/></note>
+      <note><rest/><duration>2</duration><type>quarter</type></note>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+</score-partwise>

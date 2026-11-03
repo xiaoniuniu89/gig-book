@@ -80,7 +80,7 @@ export interface AppNotification {
   createdAt: string;
 }
 
-export type AttachmentKind = "pdf" | "image" | "audio";
+export type AttachmentKind = "pdf" | "image" | "audio" | "musicxml";
 
 /** A file on a note (R6). Accounts only; local mode has no attachments. */
 export interface Attachment {
@@ -102,13 +102,14 @@ export interface Attachment {
   createdAt: string;
 }
 
-/** pdf / image / audio from the mime type, falling back to the file extension; null for anything else. */
+/** pdf / image / audio / musicxml from the mime type, falling back to the file extension; null for anything else. */
 export function attachmentKind(mime: string, name: string): AttachmentKind | null {
   const m = mime.toLowerCase();
+  const ext = name.toLowerCase().split(".").pop() || "";
+  if (["musicxml", "mxl", "xml"].includes(ext) || m.includes("musicxml")) return "musicxml";
   if (m === "application/pdf") return "pdf";
   if (m.startsWith("image/")) return "image";
   if (m.startsWith("audio/")) return "audio";
-  const ext = name.toLowerCase().split(".").pop() || "";
   if (ext === "pdf") return "pdf";
   if (["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"].includes(ext)) return "image";
   if (["mp3", "m4a", "wav", "webm", "aac", "ogg", "oga", "caf"].includes(ext)) return "audio";

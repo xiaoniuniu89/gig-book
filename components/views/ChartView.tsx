@@ -148,7 +148,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
         </span>
         {pick.att && (
           <button className="btn" aria-pressed={!!file} aria-label={file ? "Show the iReal chart" : "Show the attached " + pick.att.kind}
-            onClick={() => setShowIreal(v => !v)}>{file ? "iReal" : pick.att.kind === "pdf" ? "PDF" : "Image"}</button>
+            onClick={() => setShowIreal(v => !v)}>{file ? "iReal" : pick.att.kind === "pdf" ? "PDF" : pick.att.kind === "musicxml" ? "Score" : "Image"}</button>
         )}
         <button className="btn icon-btn" aria-label={playing ? "Stop the band" : "Play with the band"} disabled={!app.band}
           onClick={() => playing ? app.stopBand() : app.startBand(cur)}>{playing ? "■" : "▶"}</button>
@@ -157,7 +157,7 @@ function Focus({ cur, back, prev, next, missing, tune }: {
       </div>
       <div className="focus-body" onPointerDown={e => { start.current = file ? null : { x: e.clientX, y: e.clientY }; }}
         onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
-        {source.kind === "ireal" ? <ChartHost html={html} live={playing} fit /> : <FileChart store={app.store} a={source.att} />}
+        {source.kind === "ireal" ? <ChartHost html={html} live={playing} fit /> : <FileChart store={app.store} a={source.att} transpose={shift} />}
       </div>
     </div>
   );

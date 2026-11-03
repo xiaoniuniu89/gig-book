@@ -73,6 +73,7 @@ export function LicksView() {
           <div className="thread-list">
             {shown.map(l => (
               <LickCard key={l.id} lick={l}
+                sheet={files.atts.find(a => a.lickId === l.id && (a.kind === "musicxml" || a.kind === "image"))}
                 actions={l.mine ? <button className="btn small" onClick={() => void remove(l)}>{armed === l.id ? "Delete?" : "Delete"}</button> : undefined} />
             ))}
           </div>
