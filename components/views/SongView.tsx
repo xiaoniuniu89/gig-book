@@ -12,6 +12,7 @@ import { Notes } from "../Notes";
 import { Licks } from "../Licks";
 import { MyResources } from "../Resources";
 import { Icon } from "../Icon";
+import { More } from "../More";
 import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
@@ -153,9 +154,11 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
             <button data-mode="bh" aria-pressed={prefs.mode === "bh"} onClick={() => updatePrefs({ mode: "bh" })}>Sixth diminished</button>
           </span>
           <div className="toggles">
-            <label className="toggle"><input type="checkbox" id="opt-sc" checked={prefs.sc} onChange={e => updatePrefs({ sc: e.target.checked })} /> Scales</label>
-            <label className="toggle"><input type="checkbox" id="opt-tn" checked={prefs.tn} onChange={e => updatePrefs({ tn: e.target.checked })} /> Chord tones</label>
-            <label className="toggle"><input type="checkbox" id="opt-fn" checked={prefs.fn} onChange={e => updatePrefs({ fn: e.target.checked })} /> Harmony</label>
+            <More>
+              <label className="toggle"><input type="checkbox" id="opt-sc" checked={prefs.sc} onChange={e => updatePrefs({ sc: e.target.checked })} /> Scales</label>
+              <label className="toggle"><input type="checkbox" id="opt-tn" checked={prefs.tn} onChange={e => updatePrefs({ tn: e.target.checked })} /> Chord tones</label>
+              <label className="toggle"><input type="checkbox" id="opt-fn" checked={prefs.fn} onChange={e => updatePrefs({ fn: e.target.checked })} /> Harmony</label>
+            </More>
           </div>
         </div>
         <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={item?.feels}

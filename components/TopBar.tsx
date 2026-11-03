@@ -5,6 +5,8 @@ import { useApp } from "./AppProvider";
 import { Bell } from "./Bell";
 import { Icon } from "./Icon";
 import { Feedback } from "./Feedback";
+import { CalmStatus } from "./Toast";
+import { WHATS_NEW_EVENT, useWhatsNew } from "./WhatsNew";
 import { useEffect, useRef, useState } from "react";
 import { resolveTheme } from "@/lib/settings";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
@@ -23,6 +25,7 @@ export function TopBar() {
           <Account />
         </span>
       </div>
+      <CalmStatus />
     </header>
   );
 }
@@ -46,6 +49,7 @@ function Account() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
+  const fresh = useWhatsNew();
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
@@ -58,11 +62,14 @@ function Account() {
   const signedIn = !!account && store.kind === "supabase";
   return (
     <span className="acct-wrap" ref={wrap}>
-      <button className="btn small icon-btn" aria-label="Your menu" aria-haspopup="menu" aria-expanded={open} title={account?.email || "Your menu"} onClick={() => setOpen(o => !o)}><Icon name="user" size={18} /></button>
+      <button className="btn small icon-btn" aria-label={fresh ? "Your menu (something is new)" : "Your menu"} aria-haspopup="menu" aria-expanded={open} title={account?.email || "Your menu"} onClick={() => setOpen(o => !o)}><Icon name="user" size={18} />{fresh && <span className="player-dot" aria-hidden="true" />}</button>
       {open && (
         <div className="user-menu" role="menu">
           {signedIn && <Link role="menuitem" className="user-menu-item" href="/account"><Icon name="user" size={18} /> Account</Link>}
           <Link role="menuitem" className="user-menu-item" href="/settings"><Icon name="settings" size={18} /> Settings</Link>
+          <button role="menuitem" className="user-menu-item" onClick={() => { setOpen(false); window.dispatchEvent(new Event(WHATS_NEW_EVENT)); }}>
+            <Icon name="chat" size={18} /> What&apos;s new{fresh && <span className="new-dot" aria-label="new" />}
+          </button>
           {signedIn && <button role="menuitem" className="user-menu-item" onClick={async () => {
             setOpen(false);
             stopBand();

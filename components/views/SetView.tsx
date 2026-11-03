@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type PointerEvent } from "react";
 import { Icon } from "../Icon";
+import { More } from "../More";
 import { useApp, songHref } from "../AppProvider";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { feelOf } from "@/lib/band/gen";
@@ -201,7 +202,7 @@ function SetBody({ s }: { s: Setlist }) {
           {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}>Add tunes</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
-          {!builtin && app.store.kind === "supabase" && <button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button>}
+          {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button></More>}
         </div>
       </div>
       <div className="sets" data-tour="tunes">

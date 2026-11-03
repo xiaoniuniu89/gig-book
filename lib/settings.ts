@@ -9,6 +9,8 @@ export interface Settings {
   textSize: TextSize;
   /** What plays recordings in the Listen tab. */
   player: PlayerChoice;
+  /** Calm mode: no decorative motion, softer colours, fewer buttons, quiet notifications. */
+  calm: boolean;
   [key: string]: unknown;
 }
 
@@ -17,7 +19,8 @@ export const TEXT_SIZES: { value: TextSize; label: string }[] = [{ value: "norma
 
 export const PLAYERS: { value: PlayerChoice; label: string }[] = [{ value: "youtube", label: "YouTube" }, { value: "spotify", label: "Spotify" }];
 
-export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube" };
+export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube", calm: false };
+export const CALM_KEY = "gigbook-calm"; // "1" when calm mode is on; the pre-paint script reads it
 export const THEME_KEY = "gigbook-theme-v2"; // v2: the Real Book look starts everyone on light. Holds light, dark or system; the layout's pre-paint script reads it.
 export const TEXT_KEY = "gigbook-text"; // same idea for the text size
 export const SETTINGS_KEY = "gigbook-settings"; // signed out: the whole object lives here
@@ -28,7 +31,7 @@ export function normalizeSettings(raw: unknown): Settings {
   const theme = THEMES.some(t => t.value === o.theme) ? o.theme as ThemeChoice : DEFAULT_SETTINGS.theme;
   const textSize = TEXT_SIZES.some(t => t.value === o.textSize) ? o.textSize as TextSize : DEFAULT_SETTINGS.textSize;
   const player = PLAYERS.some(t => t.value === o.player) ? o.player as PlayerChoice : DEFAULT_SETTINGS.player;
-  return { ...o, theme, textSize, player };
+  return { ...o, theme, textSize, player, calm: o.calm === true };
 }
 
 export const prefersDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
@@ -39,7 +42,8 @@ export function applySettings(s: Settings) {
   const root = document.documentElement;
   root.dataset.theme = resolveTheme(s.theme);
   root.dataset.text = s.textSize;
-  try { localStorage.setItem(THEME_KEY, s.theme); localStorage.setItem(TEXT_KEY, s.textSize); } catch { /* private mode */ }
+  if (s.calm) root.dataset.calm = "1"; else delete root.dataset.calm;
+  try { localStorage.setItem(THEME_KEY, s.theme); localStorage.setItem(TEXT_KEY, s.textSize); localStorage.setItem(CALM_KEY, s.calm ? "1" : ""); } catch { /* private mode */ }
 }
 
 /** This browser's settings. Before the settings page existed only the theme was saved, as "light" or "dark". */
@@ -48,7 +52,8 @@ export function loadLocalSettings(): Settings {
     const j = localStorage.getItem(SETTINGS_KEY);
     const saved = j ? JSON.parse(j) : {};
     // the mirror keys are what's showing on this device (also while signed in), so they win
-    return normalizeSettings({ ...saved, theme: localStorage.getItem(THEME_KEY) ?? saved.theme, textSize: localStorage.getItem(TEXT_KEY) ?? saved.textSize });
+    const calm = localStorage.getItem(CALM_KEY);
+    return normalizeSettings({ ...saved, theme: localStorage.getItem(THEME_KEY) ?? saved.theme, textSize: localStorage.getItem(TEXT_KEY) ?? saved.textSize, calm: calm === null ? saved.calm : calm === "1" });
   } catch { return { ...DEFAULT_SETTINGS }; }
 }
 export function saveLocalSettings(s: Settings) {
@@ -59,4 +64,5 @@ export function saveLocalSettings(s: Settings) {
 export const PREPAINT =
   "try{var d=document.documentElement,t=localStorage.getItem('gigbook-theme-v2'),x=localStorage.getItem('gigbook-text');" +
   "if(location.pathname!=='/'&&(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)))d.dataset.theme='dark';" +
-  "if(x==='large'||x==='larger')d.dataset.text=x}catch(e){}";
+  "if(x==='large'||x==='larger')d.dataset.text=x;" +
+  "if(localStorage.getItem('gigbook-calm')==='1')d.dataset.calm='1'}catch(e){}";

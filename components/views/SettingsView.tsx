@@ -35,6 +35,16 @@ export function SettingsView() {
           <span>Text size</span>
           <Choice label="Text size" options={TEXT_SIZES} value={settings.textSize} onPick={textSize => updateSettings({ textSize })} />
         </div>
+        <div className="acct-field">
+          <span>Calm mode</span>
+          <div className="set-opt" role="group" aria-label="Calm mode">
+            <div className="seg">
+              <button type="button" aria-pressed={!settings.calm} onClick={() => updateSettings({ calm: false })}>Off</button>
+              <button type="button" aria-pressed={settings.calm} onClick={() => updateSettings({ calm: true })}>On</button>
+            </div>
+            <Info label="About calm mode">For when busy screens are hard. Decorative motion stops (the spinner, the playing bar, the metronome and the tour keep moving), colours are softer, a few extra buttons go under &quot;More&quot;, and notifications are quiet: no pop-ups, a dot on the bell instead of a count. The layout doesn&apos;t change.</Info>
+          </div>
+        </div>
       </section>
 
       <section className="acct-sec">

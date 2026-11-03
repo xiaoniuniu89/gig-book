@@ -245,7 +245,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastMsg(null), 3500);
+    toastTimer.current = setTimeout(() => setToastMsg(null), settingsRef.current.calm ? 8000 : 3500); // calm: a still line, left a little longer
   }, []);
 
   /* ---- setlist saves: one at a time per setlist, bursts collapse to the latest state ---- */

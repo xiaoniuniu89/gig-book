@@ -18,7 +18,7 @@ const ago = (iso: string) => {
 
 // Notifications bell (R7.1). Accounts only; polls on focus and every minute.
 export function Bell() {
-  const { store, account, ensureSetlist, toast } = useApp();
+  const { store, account, ensureSetlist, toast, settings } = useApp();
   const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
@@ -81,7 +81,7 @@ export function Bell() {
       <button className="btn small icon-btn bell" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} aria-expanded={open}
         onClick={() => { setOpen(o => !o); if (!open) load(); }}>
         <Icon name="bell" size={18} />
-        {unread > 0 && <span className="bell-count">{unread > 99 ? "99+" : unread}</span>}
+        {unread > 0 && (settings.calm ? <span className="player-dot" aria-hidden="true" /> : <span className="bell-count">{unread > 99 ? "99+" : unread}</span>)}
       </button>
       {open && <>
         <div className="bell-scrim" onClick={() => setOpen(false)} />
