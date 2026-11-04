@@ -3,7 +3,7 @@ import { loadSampler, loadDrums, pickSample, DRUM_MAKEUP, type Sampler, type Dru
 import { Generator, feelOf, defaultTempo, type Feel } from "./gen";
 import { unroll, type Song } from "../ireal";
 import { validateHits, type Hit } from "../hits";
-import { shapeBar } from "./hitplay";
+import { shapeBar, hasFermata } from "./hitplay";
 import { detectTonic, hasRoot, type ChordLike } from "../theory";
 import { audioContext, claimAudio, releaseAudio } from "../audio";
 
@@ -35,7 +35,7 @@ export interface PlayOpts {
 }
 
 interface Item { idx?: number; chorus?: number; k?: number; countIn?: boolean; ending?: boolean; beats?: number; round?: number }
-interface Visual { time: number; idx?: number; chorus?: number; countIn?: boolean; end?: boolean; keyShift?: number }
+interface Visual { time: number; beat?: number; beats?: number; idx?: number; chorus?: number; countIn?: boolean; end?: boolean; keyShift?: number }
 
 export class Band {
   ctx: AudioContext | null = null;
@@ -70,6 +70,7 @@ export class Band {
   private anchorBeat = 0;
   private nextBeat = 0;
   private visual: Visual[] = [];
+  private shown: { idx: number; beat: number } | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private raf: number | null = null;
 
@@ -109,6 +110,15 @@ export class Band {
     const beatNow = this.anchorBeat + (now - this.anchorTime) * this.tempo / 60;
     this.anchorBeat = beatNow; this.anchorTime = now; this.tempo = bpm;
     this.gen.setTempo(bpm);
+  }
+  /** Hits changed while playing (tap along): bars not yet scheduled use them. */
+  setHits(hits: Hit[]) { if (this.song) this.hits = validateHits(hits, this.song.bars.length); }
+  /** The bar being heard now and the nearest eighth in it, for tap along. */
+  where(): { idx: number; eighth: number } | null {
+    const w = this.shown;
+    if (!this.playing || !this.ctx || !w) return null;
+    const beat = this.anchorBeat + (this.ctx.currentTime - this.anchorTime) * this.tempo / 60 - w.beat;
+    return { idx: w.idx, eighth: Math.max(0, Math.min(7, Math.round(beat * 2))) };
   }
   private timeOf(beat: number) { return this.anchorTime + (beat - this.anchorBeat) * 60 / this.tempo; }
 
@@ -180,7 +190,7 @@ export class Band {
     this.playing = true;
     this.anchorTime = ctx.currentTime + 0.12; this.anchorBeat = 0;
     this.nextBeat = 0;
-    this.visual = [];
+    this.visual = []; this.shown = null;
     this.timer = setInterval(() => this.schedule(), TICK);
     this.schedule();
     const frame = () => {
@@ -189,6 +199,7 @@ export class Band {
       while (this.visual.length && this.visual[0].time <= now) {
         const v = this.visual.shift() as Visual;
         if (v.end) { this.finish(); return; }
+        this.shown = v.idx !== undefined && v.beat !== undefined ? { idx: v.idx, beat: v.beat } : null;
         this.emit({ type: "bar", idx: v.idx, chorus: v.chorus, countIn: !!v.countIn, keyShift: v.keyShift });
       }
       this.raf = requestAnimationFrame(frame);
@@ -242,15 +253,15 @@ export class Band {
         events = this.gen.ending(tonic, shift); beats = item.beats as number;
       } else {
         const bar = this.song.bars[item.idx as number];
-        beats = bar.beats;
+        beats = hasFermata(this.hits, item.idx as number) ? bar.beats * 2 : bar.beats; // a fermata holds for an extra bar
         this.gen.twoFeel = this.twoFeelHead && item.chorus === 1;
-        events = shapeBar(this.gen.bar(bar, this.peekChord(), shift, item.k as number), item.idx as number, bar, this.hits, this.gen, shift);
+        events = shapeBar(this.gen.bar(bar, this.peekChord(), shift, item.k as number), item.idx as number, bar, this.hits, this.gen, shift, beats);
       }
       const start = this.nextBeat;
       // In swing the bass sits on top of the beat and the piano lays back a touch (less so at fast tempos).
       const lay = this.feel === "swing" || this.feel === "waltz" || this.feel === "ballad" ? Math.min(1, 160 / this.tempo) : 0;
       const feelOffset: Record<Instrument, number> = { bass: -0.008 * lay, piano: 0.012 * lay, drums: 0 };
-      this.visual.push({ time: this.timeOf(start), idx: item.idx, chorus: item.chorus, countIn: !!item.countIn, keyShift });
+      this.visual.push({ time: this.timeOf(start), beat: start, idx: item.idx, chorus: item.chorus, countIn: !!item.countIn, keyShift });
       for (const e of events) {
         const jitter = e.inst === "drums" ? (Math.random() - 0.5) * 0.006 : (Math.random() - 0.5) * 0.012;
         const t = this.timeOf(start + e.beat) + jitter + feelOffset[e.inst];

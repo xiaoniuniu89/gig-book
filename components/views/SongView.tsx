@@ -18,7 +18,7 @@ import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
 import { VersionBar, useVersions } from "../Versions";
-import { HitBar, HitEditor } from "../Hits";
+import { HitBar, HitEditor, TapAlong } from "../Hits";
 import { validateHits } from "@/lib/hits";
 import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
@@ -141,6 +141,10 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
     hits: item?.hits, feels: item?.feels, sel: editing ? selBar : null, editHits: editing }),
     [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, item?.hits, item?.feels, editing, selBar]);
 
+  // hits edited while the band plays reach the bars it hasn't scheduled yet
+  const liveBand = app.bandPlaying && app.bandFor === sg ? app.band : null;
+  useEffect(() => { if (liveBand) liveBand.setHits(item?.hits || []); }, [liveBand, item?.hits]);
+
   const tr = (d: number) => {
     app.setShift(cur, (((app.shiftOf(cur) + d) % 12) + 18) % 12 - 6);
     if (app.band && app.band.playing && app.bandFor === sg) setTimeout(() => app.startBand(cur), 0);
@@ -194,6 +198,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={item?.feels}
           setFeel={(sec, f) => saveItem(it => ({ ...it, feels: { ...it.feels, [sec]: f } }))} />
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} onBar={editing ? setSelBar : undefined} />
+        {editing && <TapAlong sg={sg} hits={validateHits(item?.hits, sg.bars.length)} onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         {editing && <HitEditor bars={sg.bars.length} sel={selBar} hits={validateHits(item?.hits, sg.bars.length)}
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
