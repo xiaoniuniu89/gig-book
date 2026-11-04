@@ -1,6 +1,16 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-05",
+    items: [
+      "Arrangements now keep your hits and the feel for each section, and bring them along when you add one to a setlist.",
+      "Tap along: while the band plays, tap the space bar to drop hits where you hear them.",
+      "The band now holds fermatas.",
+      "Import your press kit from a Word file, PDF or pasted text, and add up to 5 press photos.",
+      "Make a gig poster from your band's page, ready for print or Instagram.",
+    ],
+  },
+  {
     date: "2026-11-04",
     items: [
       "Hits for drummers: mark hits, stops and fermatas on a setlist tune, set the feel for each section, and turn on Drummer view. The band plays the hits too.",
