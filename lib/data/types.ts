@@ -32,6 +32,9 @@ export interface Arrangement {
   shift: number | null;
   /** Saved recordings, as on a setlist tune. */
   versions: Version[];
+  /** Hits and feels, as on a setlist tune (R3.6). */
+  hits?: Hit[];
+  feels?: Feels;
   createdAt: string;
 }
 

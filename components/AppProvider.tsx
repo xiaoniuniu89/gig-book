@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import type { Song } from "@/lib/ireal";
 import { irealShift } from "@/lib/theory";
+import type { Hit, Feels } from "@/lib/hits";
 import { Band, type Instrument } from "@/lib/band/engine";
 import { defaultTempo } from "@/lib/band/gen";
 import { Player, type PlayerEvent } from "@/lib/spotify/embed";
@@ -113,6 +114,8 @@ interface Ctx {
   /** Save any pending edits to a setlist now (notes on a brand-new tune need the tune saved first). */
   flushSetlist(id: string): Promise<void>;
   itemOf(c: Current): SetlistItem | undefined;
+  /** Hits and feels of a setlist tune or an arrangement (R3.6); the library has none. */
+  hitsOf(c: Current): { hits?: Hit[]; feels?: Feels };
   addSetlist(s: Setlist): Promise<void>;
   removeSetlist(s: Setlist): Promise<void>;
   leaveSetlist(s: Setlist): Promise<boolean>;
@@ -404,6 +407,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const itemOf = useCallback((c: Current) => c.kind === "set" ? setlistsRef.current.find(s => s.id === c.setId)?.items[c.itemIdx] : undefined, []);
 
+  const hitsOf = useCallback((c: Current): { hits?: Hit[]; feels?: Feels } => (c.kind === "arr" ? arrRef.current.find(a => a.id === c.arrId) : itemOf(c)) || {}, [itemOf]);
+
   const addSetlist = useCallback(async (s: Setlist) => {
     const n: Setlist = { ...s, role: s.role || "owner" };
     applySetlists(prev => prev.concat(n));
@@ -550,10 +555,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBandKeyShift(0);
     try {
       await band.play({ song: cur.song, shift: shiftOf(cur), tempo: fromGig ? tempoFor(cur.song) : tempo || tempoFor(cur.song), choruses: p.choruses || 2, countIn: p.countIn, loop: range,
-        keyChange: !fromGig && p.keyStep ? { step: p.keyStep, every: p.keyEvery } : null, hits: itemOf(cur)?.hits });
+        keyChange: !fromGig && p.keyStep ? { step: p.keyStep, every: p.keyEvery } : null, hits: hitsOf(cur).hits });
       setBandPlaying(band.playing);
     } catch (e) { toast("The band couldn't start: " + (e instanceof Error ? e.message : String(e))); }
-  }, [band, loop, tempo, shiftOf, tempoFor, itemOf, toast, setDockTab]);
+  }, [band, loop, tempo, shiftOf, tempoFor, hitsOf, toast, setDockTab]);
 
   const stopBand = useCallback(() => { setGig(null); band?.stop(); }, [band]);
 
@@ -782,7 +787,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: Ctx = {
-    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, arrangements, addArrangement, updateArrangement, removeArrangement, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, addSetlist, removeSetlist, leaveSetlist,
+    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, arrangements, addArrangement, updateArrangement, removeArrangement, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, hitsOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     settings, updateSettings, prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,

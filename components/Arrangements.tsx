@@ -42,7 +42,7 @@ export function ArrangementActions({ arr }: { arr: Arrangement }) {
 
   // a copy: its own item id, and its own list of recordings
   const into = (id: string, label: string) => {
-    app.updateSetlist(id, x => ({ ...x, items: [...x.items, { id: newItemId(), raw: arr.raw, set: 1, shift: arr.shift, versions: arr.versions.map(v => ({ ...v })) }] }));
+    app.updateSetlist(id, x => ({ ...x, items: [...x.items, { id: newItemId(), raw: arr.raw, set: 1, shift: arr.shift, versions: arr.versions.map(v => ({ ...v })), hits: (arr.hits || []).map(h => ({ ...h })), feels: { ...arr.feels } }] }));
     app.toast(`Added to ${label}.`); setAdding(false);
   };
   const rename = () => {

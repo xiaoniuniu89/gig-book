@@ -120,7 +120,7 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
 
   const sg = cur?.song;
   const shift = cur ? app.shiftOf(cur) : 0;
-  const item = cur ? app.itemOf(cur) : undefined; // hits and feels belong to a setlist tune
+  const item = cur ? app.hitsOf(cur) : undefined; // hits and feels belong to a setlist tune or an arrangement
   const html = useMemo(() => sg ? chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn, drummer: prefs.drummer, hits: item?.hits, feels: item?.feels }) : "",
     [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, item?.hits, item?.feels]);
   const file = ch.shown?.file ?? null;

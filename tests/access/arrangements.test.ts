@@ -48,6 +48,17 @@ describe("arrangements", () => {
     expect(far.error).toBeTruthy();
   });
 
+  it("keeps hits and feels, and refuses malformed ones", async () => {
+    const id = newId();
+    const hits = [{ bar: 1, eighth: 0, kind: "hit" as const }];
+    await M.ava.store.saveArrangement({ id, name: "Hits", raw: RAW, shift: null, versions: [], hits, feels: { A: "latin" } as never, createdAt: "" });
+    const mine = (await M.ava.store.listArrangements()).find(a => a.id === id);
+    expect(mine?.hits).toEqual(hits);
+    expect(mine?.feels).toEqual({ A: "latin" });
+    const bad = await M.ava.sb.from("arrangements").update({ hits: { not: "an array" } }).eq("id", id);
+    expect(bad.error).toBeTruthy();
+  });
+
   it("is closed to signed-out visitors", async () => {
     const r = await anon().from("arrangements").select("id");
     expect(r.error || (r.data ?? []).length === 0).toBeTruthy();
