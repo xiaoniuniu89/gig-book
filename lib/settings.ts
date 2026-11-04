@@ -11,6 +11,10 @@ export interface Settings {
   player: PlayerChoice;
   /** Calm mode: no decorative motion, softer colours, fewer buttons, quiet notifications. */
   calm: boolean;
+  /** Email me when someone adds me to a setlist (default on). */
+  emailAdded: boolean;
+  /** Email me when someone replies to my note (default off). */
+  emailReplies: boolean;
   [key: string]: unknown;
 }
 
@@ -19,7 +23,7 @@ export const TEXT_SIZES: { value: TextSize; label: string }[] = [{ value: "norma
 
 export const PLAYERS: { value: PlayerChoice; label: string }[] = [{ value: "youtube", label: "YouTube" }, { value: "spotify", label: "Spotify" }];
 
-export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube", calm: false };
+export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube", calm: false, emailAdded: true, emailReplies: false };
 export const CALM_KEY = "gigbook-calm"; // "1" when calm mode is on; the pre-paint script reads it
 export const THEME_KEY = "gigbook-theme-v2"; // v2: the Real Book look starts everyone on light. Holds light, dark or system; the layout's pre-paint script reads it.
 export const TEXT_KEY = "gigbook-text"; // same idea for the text size
@@ -31,7 +35,7 @@ export function normalizeSettings(raw: unknown): Settings {
   const theme = THEMES.some(t => t.value === o.theme) ? o.theme as ThemeChoice : DEFAULT_SETTINGS.theme;
   const textSize = TEXT_SIZES.some(t => t.value === o.textSize) ? o.textSize as TextSize : DEFAULT_SETTINGS.textSize;
   const player = PLAYERS.some(t => t.value === o.player) ? o.player as PlayerChoice : DEFAULT_SETTINGS.player;
-  return { ...o, theme, textSize, player, calm: o.calm === true };
+  return { ...o, theme, textSize, player, calm: o.calm === true, emailAdded: o.emailAdded !== false, emailReplies: o.emailReplies === true };
 }
 
 export const prefersDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
