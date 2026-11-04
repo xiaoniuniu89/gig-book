@@ -1,6 +1,15 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-04",
+    items: [
+      "Hits for drummers: mark hits, stops and fermatas on a setlist tune, set the feel for each section, and turn on Drummer view. The band plays the hits too.",
+      "Arrangements: keep your own working copy of a tune, with your key, recordings and notes, then add it to any setlist.",
+      "Calm mode in Settings: softer colours, no decorative motion, quieter notifications, and fewer buttons on busy screens.",
+      "What's new now shows as a small dot on your menu instead of popping up.",
+    ],
+  },
+  {
     date: "2026-11-03",
     items: [
       "On phones, the player now opens from the music button at the top.",
