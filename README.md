@@ -81,6 +81,14 @@ Supabase's built-in email sender only sends a few sign-in emails per hour. That 
    - `AI_MODEL` (optional; default `anthropic/claude-haiku-5.5`)
 3. Redeploy. Without the key, "Help me pick" on **New setlist** says AI drafts aren't set up. It only shows for signed-in users (Part 3) and needs migration 0009. Only tune title, composer, style and key are sent to the model.
 
+### Part 5: Email notifications (optional)
+Emails when someone adds you to a setlist (and, if you turn it on in Settings, replies to your notes).
+1. Run [`supabase/migrations/0035_notification_email.sql`](supabase/migrations/0035_notification_email.sql) in the SQL editor (needs 0006 first).
+2. Create a key at https://resend.com and verify your sending domain. In Vercel add (all environments): `RESEND_API_KEY`, `EMAIL_FROM` (e.g. `Niu Real Book <notify@mail.niurealbook.com>`), `EMAIL_WEBHOOK_SECRET` (any long random string) and `SUPABASE_SERVICE_ROLE_KEY` (Part 3, step 14b). Optional: `NEXT_PUBLIC_SITE_URL` for the links. Redeploy.
+3. In Supabase: **Database → Webhooks → Create**: table `notifications`, event **Insert**, type HTTP Request, `POST https://YOUR_SITE/api/email/notify`, header `Authorization: Bearer <the same secret>`.
+
+Without `RESEND_API_KEY` the route does nothing. Each notification is emailed at most once, never to the person who caused it. People choose what they get under **Settings → Email me when…**.
+
 ### Using the CLI instead of the SQL editor (optional)
 ```bash
 npx supabase login

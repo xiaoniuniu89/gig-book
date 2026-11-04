@@ -7,6 +7,8 @@ import { Info } from "../Info";
 import { ConnectPremium } from "../YoutubePremium";
 import { PLAYERS, TEXT_SIZES, THEMES } from "@/lib/settings";
 
+const ONOFF = [{ value: "on", label: "On" }, { value: "off", label: "Off" }];
+
 function Choice<T extends string>({ label, options, value, onPick }: { label: string; options: { value: T; label: string }[]; value: T; onPick: (v: T) => void }) {
   return (
     <div className="set-opt" role="group" aria-label={label}>
@@ -46,6 +48,20 @@ export function SettingsView() {
           </div>
         </div>
       </section>
+
+      {store.kind === "supabase" && (
+        <section className="acct-sec">
+          <h2>Email me when…</h2>
+          <div className="acct-field">
+            <span>Someone adds me to a setlist</span>
+            <Choice label="Email when added to a setlist" options={ONOFF} value={settings.emailAdded ? "on" : "off"} onPick={v => updateSettings({ emailAdded: v === "on" })} />
+          </div>
+          <div className="acct-field">
+            <span>Someone replies to my note</span>
+            <Choice label="Email when someone replies to my note" options={ONOFF} value={settings.emailReplies ? "on" : "off"} onPick={v => updateSettings({ emailReplies: v === "on" })} />
+          </div>
+        </section>
+      )}
 
       <section className="acct-sec">
         <h2>Music</h2>
