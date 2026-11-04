@@ -1,5 +1,6 @@
 // Browser side of the profile fill route: sends the pasted text or the PDF with the signed-in token.
 import { getSupabase } from "../supabase/client";
+import { docxText } from "./docx";
 import type { ProfileSuggestion } from "./profile";
 
 export type { ProfileSuggestion };
@@ -17,7 +18,12 @@ export async function readSource(file: File): Promise<ProfileSource> {
   if (file.size > MAX_FILE) throw new Error("That file is too big. The limit is 2 MB.");
   if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") return { pdf: toBase64(await file.arrayBuffer()), name: file.name };
   if (/\.txt$/i.test(file.name) || file.type === "text/plain") return { text: await file.text() };
-  throw new Error("Choose a PDF or a .txt file.");
+  if (/\.docx$/i.test(file.name)) {
+    const text = (await docxText(await file.arrayBuffer())).slice(0, 60_000);
+    if (!text) throw new Error("That Word file has no text in it.");
+    return { text };
+  }
+  throw new Error("Choose a PDF, a Word (.docx) or a .txt file.");
 }
 
 export async function requestProfile(src: ProfileSource): Promise<ProfileSuggestion> {
