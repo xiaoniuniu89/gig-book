@@ -962,7 +962,6 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .hit-preview { display: block; padding: 18px 0 0; }
 .hit-preview .rhy { margin: 0; height: 40px; }
 .hit-how { margin: 0; }
-.tabs-label { align-self: center; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-right: 4px; }
 .hstop { position: absolute; left: 0; right: 0; top: 6px; border-top: 2px solid var(--brass); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brass); line-height: 12px; padding-left: 4px; }
 .hstop.first { border-left: 2px solid var(--brass); }
 .chart.hedit .mbar { cursor: pointer; }

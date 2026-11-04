@@ -203,7 +203,7 @@ function SetBody({ s }: { s: Setlist }) {
           {canEdit && count < MAX_SETS && <button className="btn" onClick={() => setShown(count + 1)}><Icon name="plus" size={18} /> Add set</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
-          {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Share" : "Who's on it"}</button></More>}
+          {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Share" : "Members"}</button></More>}
         </div>
       </div>
       <div className="sets" data-tour="tunes">
@@ -275,7 +275,7 @@ function SetBody({ s }: { s: Setlist }) {
       <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
       </Modal>
-      <Modal open={sharing} title={(isOwner ? "Share " : "Who's on ") + s.name} onClose={() => setSharing(false)}>
+      <Modal open={sharing} title={(isOwner ? "Share " : "Members of ") + s.name} onClose={() => setSharing(false)}>
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />
       </Modal>

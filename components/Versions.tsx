@@ -72,7 +72,7 @@ function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneV
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const n = cleanName(name);
-    if (canName && !n) { toast("Name it: a player, a recording, or My changes."); return; }
+    if (canName && !n) { toast("Name it: a player, a recording, or My reharm."); return; }
     if (err) { toast(err); return; }
     setBusy(true);
     try {
@@ -90,11 +90,11 @@ function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneV
   return (
     <form className="chart-form" onSubmit={save}>
       {canName && <label className="field"><span className="field-label">Name</span>
-        <input type="text" maxLength={MAX_NAME} value={name} onChange={e => setName(e.target.value)} placeholder="Player · Recording, or My changes" />
+        <input type="text" maxLength={MAX_NAME} value={name} onChange={e => setName(e.target.value)} placeholder="Player · Recording, or My reharm" />
       </label>}
       {!edit && <label className="field"><span className="field-label">Start from</span>
         <select value={from} onChange={e => start(e.target.value)}>
-          <option value="">Standard changes</option>
+          <option value="">iReal chords</option>
           {vs.versions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
         </select>
       </label>}
@@ -111,12 +111,11 @@ function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneV
   );
 }
 
-/** The tab row and the picked version's details. Shown above the iReal chart, signed-in only. */
+/** The picked reharm's details (who added or checked it, edit, report). Shown above the iReal chart, signed-in only. */
 export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
   const { store, toast } = useApp();
   const page = usePathname();
-  const [editor, setEditor] = useState<"add" | "edit" | null>(null);
-  const [finding, setFinding] = useState(false);
+  const [editor, setEditor] = useState<"edit" | null>(null);
   const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState(false);
   useEffect(() => { setArmed(false); }, [vs.pick]);
@@ -124,23 +123,6 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
   const v = vs.shown;
   const replace = (n: TuneVersion) => vs.setData(d => ({ ...d, versions: d.versions.map(x => x.id === n.id ? n : x) }));
 
-  const find = async () => {
-    setFinding(true);
-    try {
-      const { data } = (await getSupabase()?.auth.getSession()) ?? { data: null };
-      const res = await fetch("/api/ai/versions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + (data?.session?.access_token || "") },
-        body: JSON.stringify({ raw: sg.raw }),
-      });
-      const j = await res.json().catch(() => null);
-      if (!res.ok && res.status !== 409) throw new Error(j?.error || "Couldn't look those up (" + res.status + ").");
-      const d = await store.listTuneVersions(vs.key);
-      vs.setData(d);
-      if (res.ok && !d.versions.some(x => x.source === "ai")) toast("No famous reharmonisations of this tune turned up.");
-    } catch (e) { toast(msg(e, "Couldn't look those up.")); }
-    setFinding(false);
-  };
   const act = async (fn: () => Promise<void>, fail: string) => { setBusy(true); try { await fn(); } catch (e) { toast(msg(e, fail)); } setBusy(false); };
   const del = () => {
     if (!v) return;
@@ -150,20 +132,6 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
 
   return (
     <div className="version-bar">
-      <div className="chart-tabs-row">
-        {vs.versions.length > 0 && <div className="pl-tabs chart-tabs" role="tablist" aria-label="Chord changes">
-          <span className="tabs-label">Changes</span>
-          <button role="tab" className="pl-tab" aria-selected={!v} onClick={() => vs.setPick("")}>Standard</button>
-          {vs.versions.map(x => <button key={x.id} role="tab" className="pl-tab" aria-selected={vs.pick === x.id} onClick={() => vs.setPick(x.id)}>{x.name}</button>)}
-        </div>}
-        <div className="row-btns">
-          {!vs.aiDone && <>
-            <button className="btn small accent" disabled={finding} onClick={find}><Icon name="sparkle" size={16} /> {finding ? "Looking…" : "Find famous reharmonisations"}</button>
-            <Info label="About famous reharmonisations">Looks up well-known recordings that play different chords on this tune and adds each one as its own set of changes you can switch to. AI can make mistakes, so each one says whether a player has checked it.</Info>
-          </>}
-          <button className="btn small" onClick={() => setEditor("add")}><Icon name="plus" size={16} /> Add your own changes</button>
-        </div>
-      </div>
       {v && (
         <div className="version-note">
           {v.source === "ai" && !v.checked && <span className="ver-tag">AI can make mistakes</span>}
@@ -187,9 +155,46 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
           </span>
         </div>
       )}
-      <Modal open={editor !== null} title={editor === "edit" && v ? "Edit " + v.name : "Add your own changes"} onClose={() => setEditor(null)}>
-        {editor && <Editor sg={sg} vs={vs} edit={editor === "edit" ? v : null} onClose={() => setEditor(null)} />}
+      <Modal open={editor !== null && !!v} title={v ? "Edit " + v.name : ""} onClose={() => setEditor(null)}>
+        {editor && v && <Editor sg={sg} vs={vs} edit={v} onClose={() => setEditor(null)} />}
       </Modal>
     </div>
+  );
+}
+
+/** Find famous reharms (once per tune) and Add a reharm: buttons for the chart tab row. Signed-in only. */
+export function ReharmButtons({ sg, vs }: { sg: Song; vs: Versions }) {
+  const { store, toast } = useApp();
+  const [adding, setAdding] = useState(false);
+  const [finding, setFinding] = useState(false);
+  if (!vs.on) return null;
+  const find = async () => {
+    setFinding(true);
+    try {
+      const { data } = (await getSupabase()?.auth.getSession()) ?? { data: null };
+      const res = await fetch("/api/ai/versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + (data?.session?.access_token || "") },
+        body: JSON.stringify({ raw: sg.raw }),
+      });
+      const j = await res.json().catch(() => null);
+      if (!res.ok && res.status !== 409) throw new Error(j?.error || "Couldn't look those up (" + res.status + ").");
+      const d = await store.listTuneVersions(vs.key);
+      vs.setData(d);
+      if (res.ok && !d.versions.some(x => x.source === "ai")) toast("No famous reharms of this tune turned up.");
+    } catch (e) { toast(msg(e, "Couldn't look those up.")); }
+    setFinding(false);
+  };
+  return (
+    <>
+      {!vs.aiDone && <>
+        <button className="btn small" disabled={finding} onClick={find}><Icon name="sparkle" size={16} /> {finding ? "Looking…" : "Find famous reharms"}</button>
+        <Info label="About famous reharms">Looks up well-known recordings that play different chords on this tune and adds each one as a reharm tab. AI can make mistakes, so each one says whether a player has checked it.</Info>
+      </>}
+      <button className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Add a reharm</button>
+      <Modal open={adding} title="Add a reharm" onClose={() => setAdding(false)}>
+        {adding && <Editor sg={sg} vs={vs} edit={null} onClose={() => setAdding(false)} />}
+      </Modal>
+    </>
   );
 }

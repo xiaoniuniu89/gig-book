@@ -3,6 +3,7 @@
 // an optional recording. Your own charts follow the song everywhere; a chart shared with a setlist shows there for
 // everyone in it. The tab you last picked for a song is remembered on this device.
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Versions } from "./Versions";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
@@ -181,23 +182,34 @@ function EditChart({ c, setlist, canDelete, onSaved, onDeleted }: {
   );
 }
 
-/** The tab row: iReal, each chart, and Upload chart. */
-export function ChartTabs({ songKey, setlist, ch }: { songKey: string; setlist?: Setlist; ch: ReturnType<typeof useCharts> }) {
+/** The one tab row: iReal, its reharms, each uploaded chart; then Upload chart and whatever buttons the page adds (`children`). */
+export function ChartTabs({ songKey, setlist, ch, vs, children }: {
+  songKey: string; setlist?: Setlist; ch: ReturnType<typeof useCharts>; vs?: Versions; children?: React.ReactNode;
+}) {
   const { store } = useApp();
   const [adding, setAdding] = useState(false);
   if (store.kind !== "supabase" && !ch.charts.length) return null;
+  const reharms = vs?.versions ?? [];
+  const onIreal = ch.tab === "ireal";
   return (
     <div className="chart-tabs-row">
-      {ch.charts.length > 0 && <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
-        <span className="tabs-label">Chart</span>
-        <button role="tab" className="pl-tab" aria-selected={ch.tab === "ireal"} onClick={() => ch.setTab("ireal")}>iReal</button>
+      {(ch.charts.length > 0 || reharms.length > 0) && <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
+        <button role="tab" className="pl-tab" aria-selected={onIreal && !vs?.pick} onClick={() => { ch.setTab("ireal"); vs?.setPick(""); }}>iReal</button>
+        {reharms.map(x => (
+          <button key={x.id} role="tab" className="pl-tab" aria-selected={onIreal && vs?.pick === x.id} onClick={() => { ch.setTab("ireal"); vs?.setPick(x.id); }}>
+            {x.name}<span>reharm</span>
+          </button>
+        ))}
         {ch.charts.map(c => (
           <button key={c.id} role="tab" className="pl-tab" aria-selected={ch.tab === c.id} onClick={() => ch.setTab(c.id)}>
             {c.name}{c.audio && <span aria-label="has a recording">♪</span>}{c.setlistId && <span>band</span>}
           </button>
         ))}
       </div>}
-      {store.kind === "supabase" && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
+      <div className="row-btns">
+        {store.kind === "supabase" && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
+        {children}
+      </div>
       <Modal open={adding} title="Upload a chart" onClose={() => setAdding(false)}>
         <AddChart songKey={songKey} setlist={setlist} taken={ch.charts.map(c => c.name)}
           onDone={c => { ch.setCharts(l => l.concat(c)); ch.setTab(c.id); setAdding(false); }} />

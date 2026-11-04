@@ -17,7 +17,7 @@ import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
-import { VersionBar, useVersions } from "../Versions";
+import { ReharmButtons, VersionBar, useVersions } from "../Versions";
 import { HitBar, HitEditor, TapAlong } from "../Hits";
 import { validateHits } from "@/lib/hits";
 import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/client";
@@ -185,7 +185,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         </div>
       </div>
       <section className="panel" aria-label="Chord chart" data-tour="chart">
-        <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} />
+        <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} vs={vs}><ReharmButtons sg={cur0.song} vs={vs} /></ChartTabs>
         {ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
         <VersionBar sg={cur0.song} vs={vs} />
         <div className="panel-head">
