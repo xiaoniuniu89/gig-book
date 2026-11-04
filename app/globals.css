@@ -753,6 +753,9 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 /* Tools: metronome, drone, print */
 .tool-panel { gap: 16px; }
 /* Transcribe */
+.tr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.tr-head h1 { margin: 0; }
+.stamp.wip { font-size: 1rem; }
 .tr-tracks { display: grid; gap: 8px; }
 .tr-tracks > .btn { justify-self: start; }
 .tr-video { width: 100%; }

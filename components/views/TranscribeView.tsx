@@ -159,7 +159,11 @@ export function TranscribeView() {
 
   return (
     <>
-      <h1>Transcribe</h1>
+      <div className="tr-head">
+        <h1>Transcribe</h1>
+        <span className="stamp wip">Work in progress</span>
+        <Info label="About this tool">This tool is new and still being tested, so expect the odd bug. If something goes wrong, tell us with Bugs &amp; ideas.</Info>
+      </div>
       <section className="panel tool-panel" aria-label="Choose a recording">
         <form className="inline-form" onSubmit={e => { e.preventDefault(); void openYoutube(); }}>
           <input type="url" aria-label="YouTube link" placeholder="Paste a YouTube link" value={link} onChange={e => setLink(e.target.value)} />

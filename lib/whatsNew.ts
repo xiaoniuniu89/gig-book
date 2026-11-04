@@ -1,6 +1,16 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-06",
+    items: [
+      "New in Tools: Transcribe (work in progress). Slow down and loop a YouTube video or a recording you upload, to learn it by ear.",
+      "Rhythm view (was Drummer view) writes each bar like a drum part: time slashes, with the band's hits as accented notes. Tap a bar to add hits.",
+      "One row of chart tabs: iReal, its reharms and your uploaded charts.",
+      "The Listen tab has Play, Pause and Restart for the tune that's loaded, and you can save the recording that's playing.",
+      "Setlists: Add set is up top, and if you don't own a setlist, Members shows who's on it.",
+    ],
+  },
+  {
     date: "2026-11-05",
     items: [
       "Arrangements now keep your hits and the feel for each section, and bring them along when you add one to a setlist.",
