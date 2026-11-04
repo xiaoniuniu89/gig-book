@@ -1,5 +1,5 @@
-// Transcribe recordings (0036): your own rows and files only, at most 3 each, and a file can only be uploaded
-// to a path one of your rows names.
+// Transcribe recordings (0036, 0037): your own rows and files only, at most 3 each and 10 uploads a day, and a file
+// can only be uploaded to a path one of your rows names.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { USERS, type Who } from "../fixtures";
 import { admin, everyone, must, type Musician } from "./helpers";
@@ -21,6 +21,7 @@ async function clear(who: Who) {
   const paths = (data ?? []).map(r => r.storage_path as string);
   if (paths.length) await a.storage.from("practice").remove(paths);
   await a.from("practice_tracks").delete().eq("owner", USERS[who].id);
+  await a.from("practice_upload_log").delete().eq("owner", USERS[who].id);
 }
 
 beforeAll(async () => { M = await everyone(); await clear("ava"); await clear("ben"); });
@@ -47,6 +48,16 @@ describe("practice tracks", () => {
     expect(fourth.error?.message).toMatch(/3 recordings/);
     // Ben's count is his own
     expect((await track("ben")).error).toBeNull();
+  });
+
+  it("allows 10 uploads a day, even after deleting, and nobody can read or reset the log", async () => {
+    await clear("cleo");
+    must(await admin().from("practice_upload_log").insert(Array.from({ length: 10 }, () => ({ owner: USERS.cleo.id }))), "seed log");
+    expect((await track("cleo")).error?.message).toMatch(/10 uploads/);
+    expect((await M.cleo.sb.from("practice_upload_log").select("owner")).data ?? []).toHaveLength(0);
+    await M.cleo.sb.from("practice_upload_log").delete().eq("owner", USERS.cleo.id);
+    expect((await admin().from("practice_upload_log").select("owner").eq("owner", USERS.cleo.id)).data).toHaveLength(10);
+    await clear("cleo");
   });
 
   it("can't upload a file without a row, or into someone else's folder, or make a row for someone else", async () => {

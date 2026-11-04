@@ -946,7 +946,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.from("practice_tracks").insert({ id, name: file.name.slice(0, 300), storage_path: path, mime: ok, size: file.size })
         .select("id, name, mime, size, created_at").single();
       if (error) {
-        if (/3 recordings/.test(error.message)) throw new Error("You can keep 3 recordings. Delete one first.");
+        if (/3 recordings|10 uploads/.test(error.message)) throw new Error(error.message);
         fail("save that recording", error);
       }
       try { await putFile(PRACTICE_BUCKET, path, file, ok, onProgress); }

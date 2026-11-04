@@ -168,7 +168,7 @@ export function TranscribeView() {
         <div className="tr-tracks">
           <div className="panel-head">
             <h2>Your recordings <span className="hint">{tracks.length} of {MAX_PRACTICE_TRACKS}</span></h2>
-            <Info label="About your recordings">Upload an MP3 or other audio file to slow it down and loop it. You can keep {MAX_PRACTICE_TRACKS}, up to 25 MB each; delete one to make room. {store.kind === "supabase" ? "Only you can hear them." : "Signed out, they stay in this browser only."}</Info>
+            <Info label="About your recordings">Upload an MP3 or other audio file to slow it down and loop it. You can keep {MAX_PRACTICE_TRACKS} at a time, up to 25 MB each; delete one to make room for a new one{store.kind === "supabase" ? " (up to 10 uploads a day)" : ""}. {store.kind === "supabase" ? "Only you can hear them." : "Signed out, they stay in this browser only."}</Info>
           </div>
           {tracks.map(t => (
             <div className="ver" key={t.id}>

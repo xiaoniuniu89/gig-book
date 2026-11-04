@@ -16,7 +16,7 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 
 ## Pending: Transcribe tool (/tools/transcribe)
 - Slow down (speed presets, keep pitch for uploads) and A–B loop a YouTube link or an uploaded recording. Uploads: 3 per person, 25 MB each.
-- Migration **0036** (`practice_tracks` + private `practice` bucket; the row is made first and the upload must match it, so the cap holds). Applied to dev, not live. Tests: `tests/access/practice.test.ts` (not run locally). Local mode keeps the files in IndexedDB.
+- Migrations **0036** + **0037** (10 uploads per 24 hours, logged by the trigger) (`practice_tracks` + private `practice` bucket; the row is made first and the upload must match it, so the cap holds). Applied to dev, not live. Tests: `tests/access/practice.test.ts` (not run locally). Local mode keeps the files in IndexedDB.
 - Code: `components/views/TranscribeView.tsx`, `YtLooper` in `lib/youtube/embed.ts`, `listPracticeTracks/addPracticeTrack/deletePracticeTrack/practiceTrackUrl` in both adapters.
 
 ## Pending: landing page + Request access (#54)
