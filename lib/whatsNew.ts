@@ -8,6 +8,7 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
       "The band now holds fermatas.",
       "Import your press kit from a Word file, PDF or pasted text, and add up to 5 press photos.",
       "Make a gig poster from your band's page, ready for print or Instagram.",
+      "Get an email when someone adds you to a setlist. Turn it off, or turn on emails for replies to your notes, in Settings.",
     ],
   },
   {
