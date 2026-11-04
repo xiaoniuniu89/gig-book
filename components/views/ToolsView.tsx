@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useApp } from "../AppProvider";
 
 const TOOLS = [
+  { href: "/tools/transcribe", name: "Transcribe", about: "Slow down and loop a YouTube video or your own recording, to learn it by ear" },
   { href: "/tools/metronome", name: "Metronome", about: "Tempo 30–300, tap tempo, accents, swing and a count-in" },
   { href: "/tools/drone", name: "Drone", about: "A held root, and a fifth if you like, in any key" },
   { href: "/tools/print", name: "Print sheet music", about: "A tune, a lick, a whole setlist, or blank manuscript paper" },

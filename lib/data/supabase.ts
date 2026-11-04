@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import type { Hit, Feels } from "../hits";
-import { MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MAX_PRACTICE_BYTES, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -73,6 +73,7 @@ interface ChartRow {
 }
 const CHART_COLS = "id, owner, song_key, setlist_id, name, file_path, file_kind, file_name, file_mime, file_size, audio_path, audio_name, audio_mime, audio_size, created_at";
 const CHART_BUCKET = "charts";
+const PRACTICE_BUCKET = "practice";
 interface LickRow {
   id: string;
   owner: string;
@@ -927,6 +928,46 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async deleteArrangement(id) {
       const { error } = await sb.from("arrangements").delete().eq("id", id);
       if (error) fail("remove that arrangement", error);
+    },
+
+    async listPracticeTracks() {
+      const { data, error } = await sb.from("practice_tracks").select("id, name, mime, size, created_at").eq("owner", userId).order("created_at");
+      if (error) fail("load your recordings", error);
+      return ((data || []) as { id: string; name: string; mime: string; size: number; created_at: string }[]).map(r => ({ id: r.id, name: r.name, mime: r.mime, size: r.size, createdAt: r.created_at }));
+    },
+
+    async addPracticeTrack(file, onProgress) {
+      const mime = mimeOf(file);
+      const ok = /^(audio|video)\//.test(mime) ? mime : attachmentKind(file.type, file.name) === "audio" ? "audio/mpeg" : "";
+      if (!ok) throw new Error("That isn't an audio file.");
+      if (file.size > MAX_PRACTICE_BYTES) throw new Error("That file is over 25 MB.");
+      // the row first: the upload is only allowed to a path one of your rows names, so the cap of 3 holds
+      const id = newUuid(), path = `${userId}/${id}/${newUuid()}-${safeName(file.name)}`;
+      const { data, error } = await sb.from("practice_tracks").insert({ id, name: file.name.slice(0, 300), storage_path: path, mime: ok, size: file.size })
+        .select("id, name, mime, size, created_at").single();
+      if (error) {
+        if (/3 recordings/.test(error.message)) throw new Error("You can keep 3 recordings. Delete one first.");
+        fail("save that recording", error);
+      }
+      try { await putFile(PRACTICE_BUCKET, path, file, ok, onProgress); }
+      catch (e) { await sb.from("practice_tracks").delete().eq("id", id); throw e; }
+      const r = data as { id: string; name: string; mime: string; size: number; created_at: string };
+      return { id: r.id, name: r.name, mime: r.mime, size: r.size, createdAt: r.created_at };
+    },
+
+    async deletePracticeTrack(t) {
+      const { data } = await sb.from("practice_tracks").select("storage_path").eq("id", t.id).maybeSingle();
+      const { error } = await sb.from("practice_tracks").delete().eq("id", t.id);
+      if (error) fail("delete that recording", error);
+      if (data?.storage_path) await sb.storage.from(PRACTICE_BUCKET).remove([data.storage_path as string]);
+    },
+
+    async practiceTrackUrl(t) {
+      const { data: row, error: e1 } = await sb.from("practice_tracks").select("storage_path").eq("id", t.id).single();
+      if (e1) fail("find that recording", e1);
+      const { data, error } = await sb.storage.from(PRACTICE_BUCKET).createSignedUrl((row as { storage_path: string }).storage_path, 3600);
+      if (error || !data) fail("open that recording", error);
+      return data.signedUrl;
     },
 
     async listLibrary() {

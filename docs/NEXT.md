@@ -14,6 +14,11 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
   - **Niu AI** card and page (`/ai`): the AI setlist draft moved out of the New setlist dialog.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 
+## Pending: Transcribe tool (/tools/transcribe)
+- Slow down (speed presets, keep pitch for uploads) and A–B loop a YouTube link or an uploaded recording. Uploads: 3 per person, 25 MB each.
+- Migration **0036** (`practice_tracks` + private `practice` bucket; the row is made first and the upload must match it, so the cap holds). Applied to dev, not live. Tests: `tests/access/practice.test.ts` (not run locally). Local mode keeps the files in IndexedDB.
+- Code: `components/views/TranscribeView.tsx`, `YtLooper` in `lib/youtube/embed.ts`, `listPracticeTracks/addPracticeTrack/deletePracticeTrack/practiceTrackUrl` in both adapters.
+
 ## Pending: landing page + Request access (#54)
 - The signed-out screen is now a landing page with Sign in and Request access cards (`components/SignIn.tsx`). Requests go through `request_access()` into `access_requests` (migration **0023**, not yet applied to dev or live: `npm run db:dev`; live with the next release). Dan reads requests in the Supabase table editor. Access tests: `tests/access/access-requests.test.ts`.
 

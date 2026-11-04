@@ -1,7 +1,7 @@
 // Local adapter: a tiny IndexedDB key-value store. Everything lives in this browser only.
 // Same database name, store and keys as the old static app ("setlist:<id>", "library:<id>").
 import { SETTINGS_KEY, loadLocalSettings, saveLocalSettings } from "../settings";
-import { slug, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
+import { MAX_PRACTICE_BYTES, MAX_PRACTICE_TRACKS, slug, type PracticeTrack, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
 
 const DB_NAME = "gig-book", STORE = "kv";
 let dbp: Promise<IDBDatabase> | null = null;
@@ -184,6 +184,23 @@ export const localStore: DataStore = {
   async listArrangements() { return (await all<Arrangement>("arrangement:")).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); },
   saveArrangement: a => set("arrangement:" + a.id, JSON.parse(JSON.stringify(a))),
   deleteArrangement: id => del("arrangement:" + id),
+  // Transcribe recordings: the row under "practice:<id>", the file itself under "practice-file:<id>"
+  async listPracticeTracks() { return (await all<PracticeTrack>("practice:")).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); },
+  async addPracticeTrack(file) {
+    if (!/^(audio|video)\//.test(file.type) && !/\.(mp3|m4a|wav|aac|ogg|oga|flac|webm|mp4|mov)$/i.test(file.name)) throw new Error("That isn't an audio file.");
+    if (file.size > MAX_PRACTICE_BYTES) throw new Error("That file is over 25 MB.");
+    if ((await all<PracticeTrack>("practice:")).length >= MAX_PRACTICE_TRACKS) throw new Error("You can keep 3 recordings. Delete one first.");
+    const t: PracticeTrack = { id: crypto.randomUUID(), name: file.name.slice(0, 300), mime: file.type || "audio/mpeg", size: file.size, createdAt: new Date().toISOString() };
+    await set("practice-file:" + t.id, file);
+    await set("practice:" + t.id, t);
+    return t;
+  },
+  async deletePracticeTrack(t) { await del("practice:" + t.id); await del("practice-file:" + t.id); },
+  async practiceTrackUrl(t) {
+    const f = await get<Blob>("practice-file:" + t.id);
+    if (!f) throw new Error("That recording isn't in this browser any more.");
+    return URL.createObjectURL(f);
+  },
   listLibrary: () => all<LibraryPlaylist>("library:"),
   saveLibraryPlaylist: p => set("library:" + p.id, p),
   deleteLibraryPlaylist: id => del("library:" + id),

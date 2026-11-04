@@ -752,6 +752,21 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 
 /* Tools: metronome, drone, print */
 .tool-panel { gap: 16px; }
+/* Transcribe */
+.tr-tracks { display: grid; gap: 8px; }
+.tr-tracks > .btn { justify-self: start; }
+.tr-video { width: 100%; }
+.tr-video iframe { display: block; width: 100%; border: 0; border-radius: 6px; }
+.tr-name { font-size: 1.125rem; }
+.tr-time { display: grid; gap: 4px; }
+.tr-track { position: relative; height: 18px; }
+.tr-loop { position: absolute; top: 12px; height: 6px; background: var(--cover-yellow); border: 1px solid var(--cover-ink); border-radius: 2px; }
+.tr-mark { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--chord); font-weight: 700; font-size: 11px; line-height: 12px; }
+.tr-clock { justify-self: end; font-variant-numeric: tabular-nums; }
+.tr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tr-row .field-label { min-width: 3.5rem; }
+.tr-row .btn .sub { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 400; }
+.tr-fine { display: inline-flex; gap: 2px; }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px; align-items: start; }
 .tool-panel .seg { justify-self: start; }
 .tool-big { display: grid; justify-items: center; gap: 0; }

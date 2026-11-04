@@ -7,6 +7,12 @@ interface YTPlayerApi {
   playVideo(): void;
   pauseVideo(): void;
   getPlayerState(): number;
+  seekTo?(s: number, allowAhead: boolean): void;
+  getCurrentTime?(): number;
+  getDuration?(): number;
+  setPlaybackRate?(r: number): void;
+  getAvailablePlaybackRates?(): number[];
+  destroy?(): void;
 }
 interface YTApi {
   Player: new (el: HTMLElement, opts: {
@@ -63,4 +69,42 @@ export class YtPlayer {
   }
   resume() { try { this.p?.playVideo(); } catch { /* not ready */ } }
   pause() { try { if (this.p && this.p.getPlayerState() === 1) this.p.pauseVideo(); } catch { /* not ready */ } }
+}
+
+/** A second, separate player for the Transcribe tool: seek, speed and time, for A–B loops. */
+export class YtLooper {
+  private p: YTPlayerApi | null = null;
+  onState: (playing: boolean) => void = () => {};
+  async mount(el: HTMLElement, id: string) {
+    const YT = await loadApi();
+    this.destroy();
+    await new Promise<void>((resolve, reject) => {
+      const target = document.createElement("div");
+      el.innerHTML = ""; el.appendChild(target);
+      this.p = new YT.Player(target, {
+        width: "100%", height: 300, videoId: id,
+        playerVars: { playsinline: 1, rel: 0, autoplay: 0, origin: location.origin },
+        events: {
+          onReady: () => resolve(),
+          onStateChange: e => this.onState(e.data === 1),
+          onError: () => reject(new Error("That video can't be played here.")),
+        },
+      });
+    });
+  }
+  play() { try { this.p?.playVideo(); } catch { /* not ready */ } }
+  pause() { try { this.p?.pauseVideo(); } catch { /* not ready */ } }
+  seek(t: number) { try { this.p?.seekTo?.(t, true); } catch { /* not ready */ } }
+  time() { try { return this.p?.getCurrentTime?.() ?? 0; } catch { return 0; } }
+  duration() { try { return this.p?.getDuration?.() ?? 0; } catch { return 0; } }
+  /** YouTube only offers some speeds: the nearest one it has. Returns the speed it took. */
+  rate(r: number) {
+    try {
+      const have = this.p?.getAvailablePlaybackRates?.() ?? [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+      const near = have.reduce((a, b) => Math.abs(b - r) < Math.abs(a - r) ? b : a, 1);
+      this.p?.setPlaybackRate?.(near);
+      return near;
+    } catch { return 1; }
+  }
+  destroy() { try { this.p?.destroy?.(); } catch { /* gone */ } this.p = null; }
 }

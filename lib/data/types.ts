@@ -22,6 +22,11 @@ export interface SetlistItem {
 }
 
 /** Your own working copy of a tune, outside any setlist (R13). Private to you. */
+/** A recording you uploaded to the Transcribe tool. */
+export interface PracticeTrack { id: string; name: string; mime: string; size: number; createdAt: string }
+export const MAX_PRACTICE_TRACKS = 3;
+export const MAX_PRACTICE_BYTES = 25 * 1024 * 1024;
+
 export interface Arrangement {
   id: string;
   /** Your name for it; the tune's title when you gave none. */
@@ -408,6 +413,12 @@ export interface DataStore {
   /** Creates or updates one of yours. */
   saveArrangement(a: Arrangement): Promise<void>;
   deleteArrangement(id: string): Promise<void>;
+  /** Your Transcribe recordings, oldest first; at most MAX_PRACTICE_TRACKS (local mode: kept in this browser). */
+  listPracticeTracks(): Promise<PracticeTrack[]>;
+  addPracticeTrack(file: File, onProgress?: (p: number) => void): Promise<PracticeTrack>;
+  deletePracticeTrack(t: PracticeTrack): Promise<void>;
+  /** A URL the audio element can play (signed for an hour, or a blob URL locally). */
+  practiceTrackUrl(t: PracticeTrack): Promise<string>;
   /** Your profile and press kit (accounts only). */
   getMyProfile(): Promise<Profile>;
   updateMyProfile(p: Profile): Promise<void>;
