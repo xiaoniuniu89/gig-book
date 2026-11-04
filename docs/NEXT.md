@@ -70,6 +70,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Code: `Arrangement` + `DataStore.list/save/deleteArrangement` (IndexedDB key `arrangement:<id>` locally), state in `AppProvider` (`arrangements`, `Current` kind `"arr"`), `/arrangements` (`ArrangementsView`), `/arrangements/[id]` (+ `/chart`) reuse `SongBody` in `SongView.tsx`. Private notes and licks use the song home with key `arr:<id>`, so no shared note rules changed. "My resources" is hidden on an arrangement (resources are pinned from their own page by song).
 - Smoke test: New arrangement (pick tune, optional name); Make an arrangement from a library chart; change key, save a recording, add a note; Add to setlist (copy is independent); rename, delete; signed out works on this device; tour step.
 
+## Pending: press kit import and press photos (#52)
+- Built by the bot, **typecheck and lint not run** (no installed dependencies, `npm ci` was not allowed): run `npm run typecheck && npm run lint` first. No migration.
+- Builds on #60: the AI profile fill is now "Import from a press kit" (About you tab). Added **.docx** (read in the browser, `lib/ai/docx.ts`, no dependency; sent as text) next to PDF, .txt and pasted text. No URL fetching. Same route, same `ai_claim` daily limit, same validation.
+- Press photos: images among the promo files (Promo files tab), max 5 (`lib/photos.ts`, checked in the browser only), resized to 1800 px JPEG before upload, each with its own who-can-see-it setting (default Only me). Not done: a database cap on the count; band admins using "My bands" photos (that's #53, gig posters).
+- Smoke test: import a .docx, a PDF, pasted text; add 6 photos at once (5 upload, a notice for the rest); check an uploaded photo is small; change a photo's visibility; a photo set to Public shows on the public page.
+
 ## Smoke test (Dan, on localhost)
 1. **Make Spotify playlist** on one of your setlists: connect, change a recording, skip one, make it, open it in Spotify. Then **Update the linked playlist**.
 2. **Share** a setlist: recent collaborators show as one-tap picks; add by email still works.

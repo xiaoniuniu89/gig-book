@@ -13,6 +13,7 @@ import { Modal } from "../Modal";
 import { InstrumentPicker } from "../Instruments";
 import { ProfileAi } from "../ProfileAi";
 import { canonInstruments } from "@/lib/instruments";
+import { MAX_PHOTOS, resizeImage } from "@/lib/photos";
 import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, type Profile, type Share } from "@/lib/data/types";
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
@@ -134,6 +135,33 @@ export function AccountView() {
     try { await navigator.clipboard.writeText(liveUrl); toast("Link copied."); } catch { toast("Couldn't copy. Select the link and copy it."); }
   };
 
+  const photos = files.filter(a => a.kind === "image"), others = files.filter(a => a.kind !== "image");
+  // Images are resized in the browser; no more than MAX_PHOTOS of them.
+  const addFiles = async (fs: File[]) => {
+    const isImg = (f: File) => f.type.startsWith("image/");
+    const room = Math.max(0, MAX_PHOTOS - photos.length - uploads.ups.filter(u => isImg(u.file) && !u.error).length);
+    const keep = new Set(fs.filter(isImg).slice(0, room));
+    if (fs.filter(isImg).length > room) toast(room ? `Only ${room} more press ${room === 1 ? "photo" : "photos"} fit. Remove one to add another.` : `You already have ${MAX_PHOTOS} press photos. Remove one to add another.`);
+    const list = await Promise.all(fs.filter(f => !isImg(f) || keep.has(f)).map(f => isImg(f) ? resizeImage(f) : f));
+    if (list.length) uploads.add("profile", list);
+  };
+  const fileRow = (a: Attachment) => {
+    const k = fileShareKey(a.id);
+    return (
+      <div className="acct-file" key={a.id}>
+        <AttachmentList store={store} items={[a]} canDelete={() => true} onDelete={removeFile} />
+        {open === k ? <div className="acct-row">
+          <ShareSelect label={a.name} value={x.share[k]} onChange={v => setShare(k, v)} />
+          <button className="btn small primary" type="button" disabled={busy} onClick={() => void saveOpen()}>{busy ? "Saving…" : "Save"}</button>
+          <button className="btn small" type="button" disabled={busy} onClick={cancel}>Cancel</button>
+        </div> : <div className="acct-row">
+          <ShareChip value={p.share[k]} />
+          <button className="btn icon-btn small" type="button" aria-label={"Edit who can see " + a.name} title="Edit who can see it" onClick={() => edit1(k)}><Icon name="edit" size={16} /></button>
+        </div>}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="page-head" data-tour="account"><h1>Account</h1></div>
@@ -181,26 +209,15 @@ export function AccountView() {
       </section>}
 
       {tab === "files" && <section className="acct-sec" role="tabpanel" aria-label="Promo files">
-        <p className="hint">Press photos, a one-sheet or EPK PDF, demo recordings.</p>
-        <AttachMenu onFiles={fs => uploads.add("profile", fs)} />
+        <p className="hint">Press photos (up to {MAX_PHOTOS}), a one-sheet or EPK PDF, demo recordings. New files start as Only me. Photos are resized before they upload.</p>
+        <AttachMenu onFiles={fs => void addFiles(fs)} />
         <UploadRows ups={uploads.ups} noteId="profile" retry={uploads.retry} dismiss={uploads.dismiss} />
-        {files.map(a => {
-          const k = fileShareKey(a.id);
-          return (
-            <div className="acct-file" key={a.id}>
-              <AttachmentList store={store} items={[a]} canDelete={() => true} onDelete={removeFile} />
-              {open === k ? <div className="acct-row">
-                <ShareSelect label={a.name} value={x.share[k]} onChange={v => setShare(k, v)} />
-                <button className="btn small primary" type="button" disabled={busy} onClick={() => void saveOpen()}>{busy ? "Saving…" : "Save"}</button>
-                <button className="btn small" type="button" disabled={busy} onClick={cancel}>Cancel</button>
-              </div> : <div className="acct-row">
-                <ShareChip value={p.share[k]} />
-                <button className="btn icon-btn small" type="button" aria-label={"Edit who can see " + a.name} title="Edit who can see it" onClick={() => edit1(k)}><Icon name="edit" size={16} /></button>
-              </div>}
-            </div>
-          );
-        })}
-        {!files.length && <p className="hint">No files yet.</p>}
+        <h2 className="acct-sub">Press photos <span className="hint">{photos.length} of {MAX_PHOTOS}</span></h2>
+        {photos.map(fileRow)}
+        {!photos.length && <p className="hint">No press photos yet.</p>}
+        <h2 className="acct-sub">Other files</h2>
+        {others.map(fileRow)}
+        {!others.length && <p className="hint">No other files yet.</p>}
       </section>}
 
       {tab === "page" && <section className="acct-sec" role="tabpanel" aria-label="Public page">
