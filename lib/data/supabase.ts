@@ -85,8 +85,8 @@ interface LickRow {
   created_at: string;
   updated_at: string;
 }
-interface ArrangementRow { id: string; name: string; song: string; shift: number | null; versions: Version[] | null; created_at: string }
-const ARR_COLS = "id, name, song, shift, versions, created_at";
+interface ArrangementRow { id: string; name: string; song: string; shift: number | null; versions: Version[] | null; hits: Hit[] | null; feels: Feels | null; created_at: string }
+const ARR_COLS = "id, name, song, shift, versions, hits, feels, created_at";
 interface PlaylistRow { id: string; name: string; songs: string[] | null }
 
 interface LinkRow { id: string; created_by: string; licks: LickRow | null }
@@ -916,11 +916,11 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async listArrangements() {
       const { data, error } = await sb.from("arrangements").select(ARR_COLS).eq("owner", userId).order("created_at", { ascending: false });
       if (error) fail("load your arrangements", error);
-      return ((data || []) as ArrangementRow[]).map(r => ({ id: r.id, name: r.name, raw: r.song, shift: r.shift, versions: r.versions || [], createdAt: r.created_at }));
+      return ((data || []) as ArrangementRow[]).map(r => ({ id: r.id, name: r.name, raw: r.song, shift: r.shift, versions: r.versions || [], hits: r.hits || [], feels: r.feels || {}, createdAt: r.created_at }));
     },
 
     async saveArrangement(a: Arrangement) {
-      const { error } = await sb.from("arrangements").upsert({ id: a.id, owner: userId, name: a.name, song: a.raw, shift: a.shift, versions: a.versions });
+      const { error } = await sb.from("arrangements").upsert({ id: a.id, owner: userId, name: a.name, song: a.raw, shift: a.shift, versions: a.versions, hits: a.hits || [], feels: a.feels || {} });
       if (error) fail("save that arrangement", error);
     },
 

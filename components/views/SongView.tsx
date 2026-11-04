@@ -133,13 +133,19 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   // R3.6: hits live on the setlist tune only; the library chart has none
   const [editHits, setEditHits] = useState(false);
   const [selBar, setSelBar] = useState<number | null>(null);
-  const hitItem = s && item && !isBuiltin(s.id) ? item : undefined;
-  const canHits = !!hitItem && canEdit;
+  const marks = s && item && !isBuiltin(s.id) ? item : arr; // a setlist tune's hits, or the arrangement's
+  const canHits = !!marks && canEdit;
   const editing = canHits && editHits;
-  const saveItem = (fn: (it: SetlistItem) => SetlistItem) => { if (cur.kind === "set" && s) app.updateItem(s.id, cur.itemIdx, fn); };
+  const saveItem = (fn: (it: SetlistItem) => SetlistItem) => {
+    if (cur.kind === "set" && s) app.updateItem(s.id, cur.itemIdx, fn);
+    else if (cur.kind === "arr") app.updateArrangement(cur.arrId, a => {
+      const n = fn({ id: a.id, raw: a.raw, set: 1, shift: a.shift, versions: a.versions, hits: a.hits, feels: a.feels });
+      return { ...a, hits: n.hits, feels: n.feels };
+    });
+  };
   const html = useMemo(() => chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn, drummer: prefs.drummer,
-    hits: item?.hits, feels: item?.feels, sel: editing ? selBar : null, editHits: editing }),
-    [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, item?.hits, item?.feels, editing, selBar]);
+    hits: marks?.hits, feels: marks?.feels, sel: editing ? selBar : null, editHits: editing }),
+    [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, marks?.hits, marks?.feels, editing, selBar]);
 
   const tr = (d: number) => {
     app.setShift(cur, (((app.shiftOf(cur) + d) % 12) + 18) % 12 - 6);
@@ -191,10 +197,10 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
             </More>
           </div>
         </div>
-        <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={item?.feels}
+        <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={marks?.feels}
           setFeel={(sec, f) => saveItem(it => ({ ...it, feels: { ...it.feels, [sec]: f } }))} />
         <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} onBar={editing ? setSelBar : undefined} />
-        {editing && <HitEditor bars={sg.bars.length} sel={selBar} hits={validateHits(item?.hits, sg.bars.length)}
+        {editing && <HitEditor bars={sg.bars.length} sel={selBar} hits={validateHits(marks?.hits, sg.bars.length)}
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
       </section>
