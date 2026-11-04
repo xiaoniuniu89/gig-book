@@ -96,6 +96,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - No in-app music notation editor: free ones are too basic and good ones cost money. MusicXML upload and rendering is enough.
 - Spotify playlists use the Authorization Code flow with the app secret; the refresh token is sealed (AES-GCM) before it's stored.
 
+## Pending: band gig poster (#53, R10.11)
+- Built by the bot, **typecheck and lint not run** (no installed dependencies): run `npm run typecheck && npm run lint` first. No migration.
+- Code: `lib/poster.ts` (canvas drawing; templates "Cover band" and "Big stripe"; A4 1240x1754 and Instagram square 1080), `components/Poster.tsx` (Poster tab on the band page in `BandView.tsx`). PNG via `toBlob`; PDF = the picture printed from a new tab, Save as PDF.
+- Photos: the band's press-kit images (pick up to 4). Members are tagged by name and what they play; with no photos they show as initials circles. Swap in members' own press photos once #52 is on develop.
+- Not done: no tests (canvas), no What's new line yet (add at release).
+
 ## Open questions
 - Should band invite links be multi-use or single-use?
 - Later: share licks and resources with a band, AI dedupe of lead sheets, a full WhatsApp integration.

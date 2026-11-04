@@ -10,6 +10,7 @@ import { BandShareForm } from "../BandShare";
 import { InstrumentPicker } from "../Instruments";
 import { Modal } from "../Modal";
 import { Collaborators } from "../Collaborators";
+import { BandPoster } from "../Poster";
 import { Notes } from "../Notes";
 import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
@@ -19,8 +20,8 @@ import {
   type Attachment, type Band, type BandCandidate, type BandMember, type BandPerms, type BandSetlist,
 } from "@/lib/data/types";
 
-type Tab = "setlists" | "notes" | "people" | "kit";
-const TABS: [Tab, string][] = [["setlists", "Setlists"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"]];
+type Tab = "setlists" | "notes" | "people" | "kit" | "poster";
+const TABS: [Tab, string][] = [["setlists", "Setlists"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"]];
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
 
 export function BandView() {
@@ -72,6 +73,7 @@ export function BandView() {
       )}
       {tab === "people" && <PeopleTab band={band} reloadBand={reload} />}
       {tab === "kit" && <KitTab band={band} reloadBand={reload} />}
+      {tab === "poster" && <BandPoster band={band} />}
       <Modal open={asking} title={"Join " + band.name} onClose={() => setAsking(false)}>
         <BandShareForm bandId={band.id} bandName={band.name} cta="Save" onSaved={() => setAsking(false)} />
       </Modal>

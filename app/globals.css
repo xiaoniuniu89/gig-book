@@ -966,3 +966,15 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .hit-slot { flex: 0 0 auto; min-width: 44px; min-height: 44px; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--surface); font-weight: 700; font-size: 1rem; cursor: pointer; color: var(--ink); }
 .hit-slot.off { color: var(--muted); font-weight: 400; }
 .hit-slot.on { background: var(--brass); border-color: var(--brass); color: #fff; }
+
+/* ---------------------------------------------------------------- gig poster (band page) */
+.poster-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.poster-form { display: grid; gap: 12px; }
+.poster-canvas { width: 100%; height: auto; border: 1.5px solid var(--cover-ink); border-radius: 4px; background: #FBF8EF; max-height: 80vh; object-fit: contain; }
+.poster-dot { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--cover-ink); cursor: pointer; padding: 0; }
+.poster-dot[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }
+.poster-dot.yellow { background: var(--cover-yellow); }
+.poster-dot.orange { background: var(--cover-orange); }
+.poster-dot.pink { background: var(--cover-pink); }
+.poster-dot.blue { background: var(--cover-blue); }
+@media (max-width: 760px) { .poster-grid { grid-template-columns: 1fr; } }
