@@ -1,7 +1,7 @@
 "use client";
 // Hits, stops and fermatas on a setlist tune's chart, and the drummer view (R3.6). The marks are drawn by lib/chart.ts;
 // this is the toolbar (drummer view, edit) and the little editor for one bar.
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { useApp } from "./AppProvider";
@@ -46,6 +46,46 @@ export function HitBar({ sg, canEdit, editing, setEditing, feels, setFeel }: {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Tap along while the band plays: each tap drops a hit on the nearest eighth of the bar being heard. Space taps too. */
+export function TapAlong({ sg, hits, onChange }: { sg: Song; hits: Hit[]; onChange: (h: Hit[]) => void }) {
+  const { band, bandPlaying, bandFor } = useApp();
+  const [last, setLast] = useState<Hit | null>(null);
+  const live = bandPlaying && bandFor === sg;
+  const ref = useRef({ hits, onChange, band, live });
+  ref.current = { hits, onChange, band, live };
+  const tap = useCallback(() => {
+    const r = ref.current, w = r.live && r.band ? r.band.where() : null;
+    if (!w) return;
+    const h: Hit = { bar: w.idx, eighth: w.eighth, kind: "hit" };
+    if (hasHit(r.hits, h.bar, h.eighth, "hit") || hasHit(r.hits, h.bar, h.eighth, "push")) { setLast(null); return; }
+    r.onChange(toggleHit(r.hits, h)); setLast(h);
+    r.band?.setHits(toggleHit(r.hits, h));
+  }, []);
+  useEffect(() => {
+    if (!live) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.code !== "Space" || (t && t.closest && t.closest("input, textarea, select, button, a[href], [contenteditable]:not([contenteditable=false])"))) return;
+      e.preventDefault(); e.stopPropagation(); // the band keeps playing: Space is a tap now
+      if (!e.repeat) tap();
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [live, tap]);
+  const undo = () => {
+    if (!last) return;
+    const next = hits.filter(h => !(h.bar === last.bar && h.eighth === last.eighth && h.kind === "hit"));
+    onChange(next); band?.setHits(next); setLast(null);
+  };
+  return (
+    <div className="tap-along">
+      <button type="button" className="btn small" disabled={!live} onClick={tap}>Tap</button>
+      <button type="button" className="btn small" disabled={!last} onClick={undo}>Undo tap</button>
+      <span className="hint">{live ? "Tap (or press Space) in time with the band." : "Start the band, then tap along to add hits."}</span>
     </div>
   );
 }

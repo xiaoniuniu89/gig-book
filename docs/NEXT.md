@@ -58,6 +58,12 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
 - Not done: **tap along** (the issue allowed skipping it); fermatas are drawn but the band doesn't hold them; the band doesn't change its feel per section (feel is a drummer-view label only); hits aren't edited in the chart view. The iReal-export caveat is in the hits Info icon (there is no iReal tune export in the UI yet). Hits print on setlist pages.
 - Smoke test: on a setlist tune, Edit hits, tap bar 8, tap the "&" of 4, add Stop time through bar 12 on bar 9, Fermata; transpose (marks stay); play the band (accent, then silence); Drummer view on and off; change a section's feel; reload; as a viewer there is no Edit hits; library tune shows no editor. Add a "Hits" line to `lib/whatsNew.ts` at release.
 
+## Pending: tap along and fermatas (#67, R3.6)
+- Built by the bot, **typecheck, lint and tests not run** (no installed dependencies): run `npm run typecheck && npm run lint && npm test` first. No migration.
+- Tap along: `TapAlong` in `components/Hits.tsx` (Tap button, Space, Undo tap) shown in Edit hits; `Band.where()` gives the bar heard now and the nearest eighth (clamped to the bar's 8 slots); `Band.setHits()` lets new hits sound in bars not yet scheduled. Space is taken in the capture phase only while the band plays on that tune, so it taps instead of stopping.
+- Fermatas: a bar with a fermata lasts twice its length in `engine.ts`; `shapeBar` keeps only its first chord, rung through the extra bar. Hits at the end of a bar can't spill into the next bar (eighth 8 rounds to 7).
+- Smoke test: Edit hits, start the band, tap and press Space (hits appear, next chorus accents them), Undo tap; fermata on a bar, the chord holds two bars' length.
+
 ## Pending: arrangements (#65, R13)
 - Built by the bot, **typecheck, lint and tests not run** (no installed dependencies, `npm ci` was not allowed): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0030** (`arrangements`, owner only; tests in `tests/access/arrangements.test.ts`).
 - **Built without hits and section feel**: #64 wasn't on `develop` yet. When it lands, add them to `Arrangement` (types, both adapters, a migration after 0030 if it needs columns) and to `ArrangementActions.into` in `components/Arrangements.tsx` so the setlist copy carries them.

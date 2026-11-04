@@ -4,7 +4,7 @@ import { encodeSong, parseProgression, progressionMusic } from "@/lib/irealExpor
 import { song } from "@/lib/songs";
 import { chartHTML } from "@/lib/chart";
 import { MAX_HITS, defaultFeel, stopAt, toggleHit, validateFeels, validateHits, type Hit } from "@/lib/hits";
-import { shapeBar } from "@/lib/band/hitplay";
+import { shapeBar, hasFermata } from "@/lib/band/hitplay";
 import { Generator } from "@/lib/band/gen";
 
 const sg = song(encodeSong({ title: "Hit Tune", key: "C", music: progressionMusic(parseProgression("Dm7 | G7 | Cmaj7 | Cmaj7")), tempo: 120 }));
@@ -62,5 +62,14 @@ describe("band and hits", () => {
     const hs: Hit[] = [{ bar: 1, eighth: 0, kind: "stop", until: 2 }];
     expect(shapeBar(base, 1, bar, hs, gen, 0).every(e => e.beat < 0.3)).toBe(true);
     expect(shapeBar(base, 2, bar, hs, gen, 0)).toEqual([]);
+  });
+  it("holds a fermata chord through the extra bar", () => {
+    const hs: Hit[] = [{ bar: 1, eighth: 0, kind: "fermata" }];
+    expect(hasFermata(hs, 1)).toBe(true);
+    expect(hasFermata(hs, 0)).toBe(false);
+    const out = shapeBar(base, 1, bar, hs, gen, 0, bar.beats * 2);
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.every(e => e.beat < 0.3)).toBe(true);
+    expect(out.filter(e => e.inst !== "drums").every(e => "dur" in e && e.dur > bar.beats)).toBe(true);
   });
 });

@@ -958,7 +958,7 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .chart.drummer .ch { font-size: min(13px, var(--fit, 99px)); color: var(--muted); font-weight: 400; }
 .chart.drummer .mbar { min-height: 64px; }
 .focus .chart.drummer .ch { font-size: min(clamp(13px, 2.4vw, 20px), var(--fit, 99px)); }
-.hit-bar, .feel-row, .hit-editor-head, .hit-editor-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hit-bar, .feel-row, .hit-editor-head, .hit-editor-foot, .tap-along { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .feel-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--muted); }
 .feel-pick input[type="number"] { width: 4.5em; }
 .hit-editor { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); min-width: 0; }
