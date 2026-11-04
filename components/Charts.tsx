@@ -188,14 +188,15 @@ export function ChartTabs({ songKey, setlist, ch }: { songKey: string; setlist?:
   if (store.kind !== "supabase" && !ch.charts.length) return null;
   return (
     <div className="chart-tabs-row">
-      <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
+      {ch.charts.length > 0 && <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
+        <span className="tabs-label">Chart</span>
         <button role="tab" className="pl-tab" aria-selected={ch.tab === "ireal"} onClick={() => ch.setTab("ireal")}>iReal</button>
         {ch.charts.map(c => (
           <button key={c.id} role="tab" className="pl-tab" aria-selected={ch.tab === c.id} onClick={() => ch.setTab(c.id)}>
             {c.name}{c.audio && <span aria-label="has a recording">♪</span>}{c.setlistId && <span>band</span>}
           </button>
         ))}
-      </div>
+      </div>}
       {store.kind === "supabase" && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
       <Modal open={adding} title="Upload a chart" onClose={() => setAdding(false)}>
         <AddChart songKey={songKey} setlist={setlist} taken={ch.charts.map(c => c.name)}

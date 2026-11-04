@@ -23,7 +23,7 @@ export interface ChartOpts {
   extraClass?: string;
   /** R3.6: this setlist tune's hits, stops and fermatas, drawn above the bars. */
   hits?: Hit[];
-  /** Drummer view: form, bar numbers, feel per section, hits; chords small. */
+  /** Rhythm view: form, bar numbers, feel per section, and a rhythm staff per bar (time slashes, hits as notes); chords small. */
   drummer?: boolean;
   feels?: Feels;
   /** Hit editor: the bar picked for editing, and whether bars can be tapped. */
@@ -33,6 +33,26 @@ export interface ChartOpts {
 
 const HIT_TITLE = { hit: "Hit", push: "Push", fermata: "Fermata", stop: "Stop" } as const;
 const slotLeft = (e: number) => 6.25 + e * 12.5; // % across the bar
+
+// A stemmed note for the rhythm staff; `flag` makes it a lone eighth.
+const NOTE = (flag: boolean) => `<svg class="rn-svg" viewBox="0 0 12 24" aria-hidden="true"><ellipse cx="4.2" cy="20.2" rx="3.7" ry="2.7" transform="rotate(-22 4.2 20.2)"/><rect x="7" y="1.5" width="1.3" height="19"/>${flag ? `<path d="M8.3 1.5c.4 3.4 3.6 4.6 3.2 9.2-.6-2.6-1.8-3.9-3.2-4.2z"/>` : ""}</svg>`;
+
+/** One bar of drum-chart rhythm: time slashes on the line, the band's hits as accented notes above it (as on a big band drum part). */
+export function rhythmHTML(hits: Hit[], bi: number, beats = 4): string {
+  const st = stopAt(hits, bi);
+  const at = new Map(barHits(hits, bi).filter(h => h.kind === "hit" || h.kind === "push").map(h => [h.eighth, h]));
+  const parts: string[] = [];
+  if (!st) for (let k = 0; k < Math.min(4, beats); k++) parts.push(`<span class="sl" style="left:${slotLeft(2 * k)}%"></span>`);
+  const note = (h: Hit, flag: boolean) =>
+    `<span class="rn" style="left:${slotLeft(h.eighth)}%" title="${HIT_TITLE[h.kind]}"><span class="ac">&gt;</span>${NOTE(flag)}${h.kind === "push" ? `<span class="tie"></span>` : ""}</span>`;
+  for (let k = 0; k < 4; k++) {
+    const a = at.get(2 * k), b = at.get(2 * k + 1);
+    if (a) parts.push(note(a, false));
+    if (b) parts.push(note(b, !a));
+    if (a && b) parts.push(`<span class="beam" style="left:calc(${slotLeft(2 * k)}% + 4px);width:12.5%"></span>`);
+  }
+  return `<div class="rhy${st ? " stopped" : ""}">${parts.join("")}</div>`;
+}
 
 interface Group { label: string; single: string; keys: string[] }
 interface Info { group: Group; tones: { n: string; keep: boolean }[]; fam: string }
@@ -95,7 +115,7 @@ export function chartHTML(song: Song, opts: ChartOpts): string {
     const parts: string[] = [];
     if (st) parts.push(`<span class="hstop${st.bar === bi ? " first" : ""}">${st.bar === bi ? "Stop" : ""}</span>`);
     for (const h of barHits(hits, bi)) {
-      parts.push(`<span class="hm ${h.kind}" style="left:${slotLeft(h.eighth)}%" title="${HIT_TITLE[h.kind]}">${h.kind === "fermata" ? "𝄐" : "▼"}</span>`);
+      parts.push(`<span class="hm ${h.kind}" style="left:${slotLeft(h.eighth)}%" title="${HIT_TITLE[h.kind]}">${h.kind === "fermata" ? "𝄐" : "&gt;"}</span>`);
     }
     return parts.length ? `<div class="hits">${parts.join("")}</div>` : "";
   };
@@ -135,7 +155,7 @@ export function chartHTML(song: Song, opts: ChartOpts): string {
       ].join("");
       if (opts.sel === bi) cls.push("hsel");
       const bn = opts.drummer ? `<span class="bn">${bi + 1}</span>` : "";
-      return `<div class="${cls.join(" ")}" data-bar="${bi}">${bn}${hitHTML(bi)}${marks}<div class="cells">${inner}</div></div>`;
+      return `<div class="${cls.join(" ")}" data-bar="${bi}">${bn}${hitHTML(bi)}${marks}<div class="cells">${inner}</div>${opts.drummer ? rhythmHTML(hits, bi, b.beats) : ""}</div>`;
     }).join("");
     const sec = r.mark || (r.bars[0].bi === 0 ? "" : null);
     return `<div class="row"><div class="mark">${r.mark ? `<span>${esc(r.mark)}</span>` : ""}${opts.drummer && sec !== null ? feelTag(sec) : ""}</div>${cells}</div>`;

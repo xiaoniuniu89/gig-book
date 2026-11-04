@@ -166,7 +166,7 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
             {ch.charts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         )}
-        <button className="btn icon-btn" aria-label="Drummer view" aria-pressed={!!prefs.drummer} title="Drummer view" onClick={() => app.updatePrefs({ drummer: !prefs.drummer })}><Icon name="drum" size={18} /></button>
+        <button className="btn icon-btn" aria-label="Rhythm view" aria-pressed={!!prefs.drummer} title="Rhythm view" onClick={() => app.updatePrefs({ drummer: !prefs.drummer })}><Icon name="drum" size={18} /></button>
         <button className="btn icon-btn" aria-label={playing ? "Stop the band" : "Play with the band"} disabled={!app.band}
           onClick={() => playing ? app.stopBand() : app.startBand(cur)}>{playing ? "■" : "▶"}</button>
         {fs !== "no" && <button className="btn icon-btn" aria-label={fs === "on" ? "Leave full screen" : "Full screen"}

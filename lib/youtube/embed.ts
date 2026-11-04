@@ -34,7 +34,7 @@ function loadApi(): Promise<YTApi> {
   return apiPromise;
 }
 
-export type YtEvent = { type: "ended" } | { type: "playing" } | { type: "error" };
+export type YtEvent = { type: "ended" } | { type: "playing" } | { type: "paused" } | { type: "error" };
 
 export class YtPlayer {
   private p: YTPlayerApi | null = null;
@@ -55,11 +55,12 @@ export class YtPlayer {
         playerVars: { playsinline: 1, rel: 0, autoplay: play ? 1 : 0, origin: location.origin },
         events: {
           onReady: () => resolve(),
-          onStateChange: e => { if (e.data === 0) this.handler({ type: "ended" }); else if (e.data === 1) this.handler({ type: "playing" }); },
+          onStateChange: e => { if (e.data === 0) this.handler({ type: "ended" }); else if (e.data === 1) this.handler({ type: "playing" }); else if (e.data === 2) this.handler({ type: "paused" }); },
           onError: () => this.handler({ type: "error" }),
         },
       });
     });
   }
+  resume() { try { this.p?.playVideo(); } catch { /* not ready */ } }
   pause() { try { if (this.p && this.p.getPlayerState() === 1) this.p.pauseVideo(); } catch { /* not ready */ } }
 }

@@ -169,10 +169,15 @@ interface Ctx {
   /** YouTube: play a list of videos in order from `start`; a song with no `id` gets its automatic pick (searched once, ever). */
   playYoutube(queue: YtQueueItem[], start?: number, setName?: string): Promise<void>;
   ytStep(d: 1 | -1): void;
+  /** Whether the YouTube video is playing (not paused or finished), and pause/resume it. */
+  ytPlaying: boolean;
+  ytToggle(): void;
   ytEmbedRef: React.MutableRefObject<HTMLDivElement | null>;
   /** Which player the Listen tab is showing, and where YouTube is in its list. */
   recKind: "spotify" | "youtube";
   ytPos: { pos: number; count: number } | null;
+  /** The YouTube video playing now and the tune it's for (an automatic pick when nothing was saved). */
+  ytNow: { key: string; id: string; title: string; picked: boolean } | null;
   recTitle: string;
   /** Nothing loaded in the Listen tab yet (recTitle is then the chosen player's name). */
   recIdle: boolean;
@@ -220,7 +225,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [recStatus, setRecStatus] = useState("");
   const [follow, setFollow] = useState(true);
   const [recKind, setRecKind] = useState<"spotify" | "youtube">("spotify");
-  const [yt, setYt] = useState<{ queue: YtQueueItem[]; pos: number } | null>(null);
+  const [yt, setYt] = useState<{ queue: YtQueueItem[]; pos: number; now?: { id: string; title: string; picked: boolean } } | null>(null);
   const ytRef = useRef(yt); ytRef.current = yt;
   const [gig, setGigState] = useState<Gig | null>(null);
   const [band, setBand] = useState<Band | null>(null);
@@ -243,6 +248,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const ytPlayerRef = useRef<YtPlayer | null>(null);
   const ytToken = useRef(0); // a newer play request cancels an older one still looking for its video
   const onYtRef = useRef<(ev: YtEvent) => void>(() => {});
+  const [ytPlaying, setYtPlaying] = useState(false);
   const pendingGigPlay = useRef<{ setId: string; idx: number } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -705,10 +711,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const token = ++ytToken.current;
     for (let i = pos; i >= 0 && i < queue.length; i += dir) {
       const it = queue[i];
-      let id = it.id;
+      let id = it.id, title = it.title;
       if (!id) {
         setRecStatus("Finding " + it.title + "…");
-        try { id = (await autoPick(it.key, it.title, it.composer, it.performer))?.id ?? null; }
+        try { const p = await autoPick(it.key, it.title, it.composer, it.performer); id = p?.id ?? null; if (p) title = p.title; }
         catch (e) { if (token === ytToken.current) { setRecStatus(""); toast(e instanceof Error ? e.message : "YouTube search failed."); } return; }
         if (token !== ytToken.current) return;
       }
@@ -723,7 +729,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await ytPlayerRef.current.load(id, true);
       } catch (e) { toast(e instanceof Error ? e.message : "YouTube's player didn't load."); return; }
       if (token !== ytToken.current) return;
-      setYt({ queue, pos: i });
+      setYt({ queue, pos: i, now: { id, title, picked: !it.id } });
       setRecTitle(queue.length > 1 ? "Setlist" : "Recording");
       const s = it.setId !== undefined ? setlistsRef.current.find(x => x.id === it.setId) : undefined;
       if (s && it.idx !== undefined && s.items[it.idx] && followRef.current) openFromSpotify(s, it.idx);
@@ -756,6 +762,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [playYtAt]);
 
   onYtRef.current = ev => {
+    setYtPlaying(ev.type === "playing");
     if (ev.type === "playing" && band && band.playing) { setGig(null); band.stop(); }
     const y = ytRef.current;
     if (ev.type === "ended" && y && y.pos + 1 < y.queue.length) void playYtAt(y.queue, y.pos + 1, 1);
@@ -792,7 +799,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     settings, updateSettings, prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,
     band, bandPlaying, bandFor, bandStatus, tempo, setTempo, loop, setLoop, startBand, stopBand, setMute, setLevel, bandKeyShift, markBar, lastBar,
-    setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, playYoutube, ytStep, ytEmbedRef, recKind, ytPos: yt && { pos: yt.pos, count: yt.queue.length }, recTitle: recTitle || (settings.player === "youtube" ? "YouTube" : "Spotify"), recIdle: !recTitle, recStatus, follow, setFollow,
+    setDockTab, setDockSize, embedRef, drawerSlot, setDrawerSlot, playSpotify, playYoutube, ytStep, ytPlaying, ytToggle: () => { if (ytPlaying) ytPlayerRef.current?.pause(); else ytPlayerRef.current?.resume(); }, ytEmbedRef, recKind, ytPos: yt && { pos: yt.pos, count: yt.queue.length }, ytNow: yt?.now && recKind === "youtube" ? { key: yt.queue[yt.pos].key, ...yt.now } : null, recTitle: recTitle || (settings.player === "youtube" ? "YouTube" : "Spotify"), recIdle: !recTitle, recStatus, follow, setFollow,
     gig, startGig,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

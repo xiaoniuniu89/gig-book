@@ -199,10 +199,11 @@ function SetBody({ s }: { s: Setlist }) {
           )}
         </div>
         <div className="row-btns">
-          {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}>Add tunes</button>}
+          {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}><Icon name="plus" size={18} /> Add tunes</button>}
+          {canEdit && count < MAX_SETS && <button className="btn" onClick={() => setShown(count + 1)}><Icon name="plus" size={18} /> Add set</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
-          {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> Share</button></More>}
+          {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Share" : "Who's on it"}</button></More>}
         </div>
       </div>
       <div className="sets" data-tour="tunes">
@@ -239,9 +240,6 @@ function SetBody({ s }: { s: Setlist }) {
           </section>
         ))}
       </div>
-      {canEdit && count < MAX_SETS && (
-        <div className="row-btns add-set"><button className="btn small" onClick={() => setShown(count + 1)}><Icon name="plus" size={16} /> Add set</button></div>
-      )}
       <section className="panel sp-panel" aria-label="Listen" data-tour="playlist">
         <div className="panel-head">
           <h2>Listen</h2>
@@ -277,7 +275,7 @@ function SetBody({ s }: { s: Setlist }) {
       <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
       </Modal>
-      <Modal open={sharing} title={"Share " + s.name} onClose={() => setSharing(false)}>
+      <Modal open={sharing} title={(isOwner ? "Share " : "Who's on ") + s.name} onClose={() => setSharing(false)}>
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />
       </Modal>

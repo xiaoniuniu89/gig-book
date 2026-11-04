@@ -7,6 +7,7 @@ import { PlaybackHelpLink, useMyPlayback } from "./PlaybackHelp";
 import { Icon } from "./Icon";
 import { PREMIUM_NOTE, YOUTUBE_SIGN_IN } from "./YoutubePremium";
 import { tuneQueueItem } from "@/lib/youtube/queue";
+import { songKey } from "@/lib/songs";
 import { GENERAL_HINT } from "@/lib/playback";
 import type { Instrument } from "@/lib/band/engine";
 
@@ -44,6 +45,8 @@ export function Dock() {
     void app.playYoutube([tuneQueueItem(current.song, item?.versions, ref)]);
   };
 
+  // this tune's video is the one loaded: Play/Pause and Restart instead of starting it again
+  const thisTune = !!(app.ytNow && current && current.kind !== "lick" && app.ytNow.key === songKey(current.song.raw));
   const open = (t: "band" | "record") => { app.setDockTab(t); app.setDockSize("full"); };
 
   return (
@@ -139,8 +142,12 @@ export function Dock() {
                     <a className="btn small" href={YOUTUBE_SIGN_IN} target="_blank" rel="noopener noreferrer"><Icon name="youtube" size={16} /> Connect YouTube Premium</a>
                   </Info>
                 : <Info label="About playing recordings here">{mine ? mine.hint : GENERAL_HINT} <PlaybackHelpLink /></Info>}
-              {yTube && current && current.kind !== "lick" &&
-                <button className="btn small" id="rec-play-tune" onClick={playTune}><Icon name="youtube" size={16} /> Play this tune</button>}
+              {yTube && current && current.kind !== "lick" && (thisTune
+                ? <>
+                    <button className="btn small" id="rec-play-tune" onClick={app.ytToggle}>{app.ytPlaying ? "❚❚ Pause" : "▶ Play"}</button>
+                    <button className="btn icon-btn small" aria-label="Play from the start" title="Play from the start" onClick={playTune}>↺</button>
+                  </>
+                : <button className="btn small" id="rec-play-tune" onClick={playTune}><Icon name="youtube" size={16} /> Play this tune</button>)}
               {app.recKind === "youtube" && app.ytPos && app.ytPos.count > 1 && <>
                 <button className="btn icon-btn small" aria-label="Previous video" disabled={app.ytPos.pos === 0} onClick={() => app.ytStep(-1)}>⏮</button>
                 <button className="btn icon-btn small" aria-label="Next video" disabled={app.ytPos.pos >= app.ytPos.count - 1} onClick={() => app.ytStep(1)}>⏭</button>

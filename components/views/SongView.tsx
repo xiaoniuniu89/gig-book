@@ -203,9 +203,9 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         </div>
         <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={marks?.feels}
           setFeel={(sec, f) => saveItem(it => ({ ...it, feels: { ...it.feels, [sec]: f } }))} />
-        <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} onBar={editing ? setSelBar : undefined} />
         {editing && <TapAlong sg={sg} hits={validateHits(marks?.hits, sg.bars.length)} onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
-        {editing && <HitEditor bars={sg.bars.length} sel={selBar} hits={validateHits(marks?.hits, sg.bars.length)}
+        <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} onBar={editing ? setSelBar : undefined} />
+        {editing && <HitEditor bars={sg.bars.length} sel={selBar} setSel={setSelBar} hits={validateHits(marks?.hits, sg.bars.length)}
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
       </section>
@@ -412,6 +412,9 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
     const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
     return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
   };
+  // the automatic pick playing for this tune, until it's saved
+  const now = app.ytNow;
+  const playing = src === "youtube" && now && now.picked && now.key === songKey(cur.song.raw) && !vs.some(v => v.uri === "youtube:" + now.id) ? now : null;
   const removeVersion = (uri: string) => {
     onVersions?.(have => have.filter(v => v.uri !== uri));
   };
@@ -427,11 +430,17 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
               <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
-          )) : <p className="hint">No saved {pName} versions yet. Search below.</p>}
+          )) : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording below and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
+        {playing && (
+          <div className="ver">
+            <span className="name"><span className="eyebrow">Playing now</span> {playing.title}<span className="sub">Picked automatically</span></span>
+            {saveBtn({ uri: "youtube:" + playing.id, name: playing.title, artists: "" })}
+          </div>
+        )}
       </div>
       <div className="inline-form">
         <input id="v-q" type="search" aria-label="Search for recordings, or paste a link" placeholder={`Search ${pName} or paste a link`} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") go(); }} />
-        <button className="btn" id="v-go" onClick={go} disabled={busy}>Find versions</button>
+        <button className="btn" id="v-go" onClick={go} disabled={busy}><Icon name="search" size={16} /> Find recordings</button>
       </div>
       <div id="v-results" className="list">
         {status && <p className={status.flag ? "flag" : "hint"}>{status.msg}{status.settings && <> <Link href="/settings">Open Settings</Link></>}</p>}

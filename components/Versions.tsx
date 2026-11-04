@@ -41,7 +41,7 @@ export function useVersions(sg: Song | null) {
     try { const m = readPicks(); if (!id) delete m[key]; else m[key] = id; localStorage.setItem(PICK_KEY, JSON.stringify(m)); } catch { /* private mode */ }
   }, [key]);
   const versions = useMemo(() => data.versions.filter(v => v.songKey === key), [data, key]);
-  const shown = versions.find(v => v.id === pick) ?? null; // a remembered version that's gone falls back to Original
+  const shown = versions.find(v => v.id === pick) ?? null; // a remembered version that's gone falls back to the standard changes
   const applied = useMemo(() => sg && shown ? applyChanges(sg, shown.changes) : null, [sg, shown]);
   return { on, key, versions, aiDone: data.aiDone, shown, fits: !shown || !!applied, song: applied ?? sg, pick: shown ? shown.id : "", setPick, setData };
 }
@@ -94,7 +94,7 @@ function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneV
       </label>}
       {!edit && <label className="field"><span className="field-label">Start from</span>
         <select value={from} onChange={e => start(e.target.value)}>
-          <option value="">Original</option>
+          <option value="">Standard changes</option>
           {vs.versions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
         </select>
       </label>}
@@ -137,7 +137,7 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
       if (!res.ok && res.status !== 409) throw new Error(j?.error || "Couldn't look those up (" + res.status + ").");
       const d = await store.listTuneVersions(vs.key);
       vs.setData(d);
-      if (res.ok && !d.versions.some(x => x.source === "ai")) toast("No well-known recorded versions of this tune turned up.");
+      if (res.ok && !d.versions.some(x => x.source === "ai")) toast("No famous reharmonisations of this tune turned up.");
     } catch (e) { toast(msg(e, "Couldn't look those up.")); }
     setFinding(false);
   };
@@ -151,13 +151,17 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
   return (
     <div className="version-bar">
       <div className="chart-tabs-row">
-        <div className="pl-tabs chart-tabs" role="tablist" aria-label="Versions">
-          <button role="tab" className="pl-tab" aria-selected={!v} onClick={() => vs.setPick("")}>Original</button>
+        {vs.versions.length > 0 && <div className="pl-tabs chart-tabs" role="tablist" aria-label="Chord changes">
+          <span className="tabs-label">Changes</span>
+          <button role="tab" className="pl-tab" aria-selected={!v} onClick={() => vs.setPick("")}>Standard</button>
           {vs.versions.map(x => <button key={x.id} role="tab" className="pl-tab" aria-selected={vs.pick === x.id} onClick={() => vs.setPick(x.id)}>{x.name}</button>)}
-        </div>
+        </div>}
         <div className="row-btns">
-          {!vs.aiDone && <button className="btn small accent" disabled={finding} onClick={find}><Icon name="sparkle" size={16} /> {finding ? "Looking…" : "Find famous versions"}</button>}
-          <button className="btn small" onClick={() => setEditor("add")}><Icon name="plus" size={16} /> Add your own version</button>
+          {!vs.aiDone && <>
+            <button className="btn small accent" disabled={finding} onClick={find}><Icon name="sparkle" size={16} /> {finding ? "Looking…" : "Find famous reharmonisations"}</button>
+            <Info label="About famous reharmonisations">Looks up well-known recordings that play different chords on this tune and adds each one as its own set of changes you can switch to. AI can make mistakes, so each one says whether a player has checked it.</Info>
+          </>}
+          <button className="btn small" onClick={() => setEditor("add")}><Icon name="plus" size={16} /> Add your own changes</button>
         </div>
       </div>
       {v && (
@@ -183,7 +187,7 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
           </span>
         </div>
       )}
-      <Modal open={editor !== null} title={editor === "edit" && v ? "Edit " + v.name : "Add your own version"} onClose={() => setEditor(null)}>
+      <Modal open={editor !== null} title={editor === "edit" && v ? "Edit " + v.name : "Add your own changes"} onClose={() => setEditor(null)}>
         {editor && <Editor sg={sg} vs={vs} edit={editor === "edit" ? v : null} onClose={() => setEditor(null)} />}
       </Modal>
     </div>
