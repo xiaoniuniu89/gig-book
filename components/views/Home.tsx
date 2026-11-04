@@ -53,7 +53,7 @@ export function Home() {
               </Link>
               <Link className="book" href="/tools">
                 <span className="t">Tools</span>
-                <span className="m">Metronome, drone and print sheet music</span>
+                <span className="m">Transcribe, metronome, drone and print sheet music</span>
               </Link>
             </div>
           </section>

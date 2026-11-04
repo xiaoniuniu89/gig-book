@@ -11,8 +11,9 @@ import { parseYoutube } from "@/lib/youtube/ids";
 import { MAX_PRACTICE_TRACKS, type PracticeTrack } from "@/lib/data/types";
 
 type Source = { kind: "youtube"; id: string } | { kind: "file"; track: PracticeTrack; url: string };
-const FILE_SPEEDS = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1];
-const YT_SPEEDS = [0.25, 0.5, 0.75, 1];
+const PRESETS = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1];
+const MIN_SPEED = 0.25, MAX_SPEED = 2;
+const clampSpeed = (r: number) => Math.round(Math.min(MAX_SPEED, Math.max(MIN_SPEED, r)) * 100) / 100;
 const fmt = (t: number) => { const s = Math.max(0, t); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`; };
 const mb = (n: number) => (n / 1024 / 1024).toFixed(1) + " MB";
 
@@ -32,7 +33,7 @@ export function TranscribeView() {
   const [keepPitch, setKeepPitch] = useState(true);
   const [a, setA] = useState<number | null>(null);
   const [b, setB] = useState<number | null>(null);
-  const [looping, setLooping] = useState(true);
+  const [actual, setActual] = useState(1); // what YouTube actually took
   const ytEl = useRef<HTMLDivElement>(null);
   const yt = useRef<YtLooper | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
@@ -59,19 +60,20 @@ export function TranscribeView() {
   }, [src, toast]);
 
   // the clock: show the time, and jump back to A when B goes by
-  const loop = useRef({ a, b, looping }); loop.current = { a, b, looping };
+  const loop = useRef({ a, b }); loop.current = { a, b };
   useEffect(() => {
     if (!src) return;
     const id = window.setInterval(() => {
       const c = ctl(); if (!c) return;
       const t = c.time(), l = loop.current;
       setNow(t); setDur(c.duration());
-      if (l.looping && l.a !== null && l.b !== null && l.b > l.a && t >= l.b) c.seek(l.a);
+      if (l.b !== null && t >= l.b) c.seek(l.a ?? 0);
+      if (yt.current) setActual(yt.current.currentRate());
     }, 50);
     return () => window.clearInterval(id);
   }, [src, ctl]);
 
-  const reset = () => { setA(null); setB(null); setNow(0); setDur(0); setPlaying(false); setSpeed(1); };
+  const reset = () => { setA(null); setB(null); setNow(0); setDur(0); setPlaying(false); setSpeed(1); setActual(1); };
   const openYoutube = async () => {
     const id = parseYoutube(link.trim());
     if (!id) { toast("Paste a YouTube link, like youtube.com/watch?v=…"); return; }
@@ -116,7 +118,7 @@ export function TranscribeView() {
   // speed and pitch
   useEffect(() => {
     if (src?.kind === "file" && audio.current) { audio.current.playbackRate = speed; audio.current.preservesPitch = keepPitch; }
-    if (src?.kind === "youtube" && yt.current) { const got = yt.current.rate(speed); if (got !== speed) setSpeed(got); }
+    if (src?.kind === "youtube" && yt.current) yt.current.rate(speed);
   }, [speed, keepPitch, src]);
 
   const toggle = () => {
@@ -124,16 +126,13 @@ export function TranscribeView() {
     if (playing) { c.pause(); return; }
     if (app.bandPlaying) app.stopBand();
     if (app.ytPlaying) app.ytToggle();
-    if (a !== null && b !== null && looping && (c.time() < a || c.time() >= b)) c.seek(a);
+    if ((a !== null && c.time() < a - 0.05) || (b !== null && c.time() >= b)) c.seek(a ?? 0);
     c.play();
   };
   const nudge = (d: number) => { const c = ctl(); if (c) c.seek(Math.max(0, c.time() + d)); };
-  const markA = () => { const t = ctl()?.time() ?? 0; setA(t); if (b !== null && b <= t) setB(null); };
-  const markB = () => { const t = ctl()?.time() ?? 0; if (a !== null && t <= a) { toast("B has to come after A."); return; } setB(t); };
-  const shiftMark = (which: "a" | "b", d: number) => {
-    if (which === "a" && a !== null) setA(Math.max(0, Math.min(a + d, (b ?? Infinity) - 0.1)));
-    if (which === "b" && b !== null) setB(Math.max((a ?? 0) + 0.1, b + d));
-  };
+  const markA = () => { const t = ctl()?.time() ?? 0; setA(t); if (b !== null && b <= t + 0.1) setB(null); };
+  const markB = () => { const t = ctl()?.time() ?? 0; if (t <= (a ?? 0) + 0.1) { toast("B has to come after A."); return; } setB(t); };
+  const goA = () => { const c = ctl(); if (c) c.seek(a ?? 0); };
 
   // Space plays, arrows skip, [ and ] set the loop
   const keys = useRef({ toggle, nudge, markA, markB }); keys.current = { toggle, nudge, markA, markB };
@@ -153,9 +152,8 @@ export function TranscribeView() {
     return () => document.removeEventListener("keydown", onKey, true);
   }, [src]);
 
-  const speeds = src?.kind === "youtube" ? YT_SPEEDS : FILE_SPEEDS;
   const full = tracks.length >= MAX_PRACTICE_TRACKS;
-  const pct = (t: number | null) => dur && t !== null ? `${(t / dur) * 100}%` : "0%";
+  const shown = src?.kind === "youtube" ? actual : speed;
 
   return (
     <>
@@ -197,45 +195,81 @@ export function TranscribeView() {
                 <audio ref={audio} src={src.url} preload="auto" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
               </>}
 
-          <div className="tr-time">
-            <div className="tr-track" aria-hidden="true">
-              {a !== null && b !== null && <span className="tr-loop" style={{ left: pct(a), width: `calc(${pct(b)} - ${pct(a)})` }} />}
-              {a !== null && <span className="tr-mark" style={{ left: pct(a) }}>A</span>}
-              {b !== null && <span className="tr-mark" style={{ left: pct(b) }}>B</span>}
-            </div>
-            <input className="tool-range" type="range" min={0} max={dur || 0} step={0.1} value={Math.min(now, dur || 0)} aria-label="Position"
-              onChange={e => ctl()?.seek(+e.target.value)} />
-            <span className="hint tr-clock">{fmt(now)} / {fmt(dur)}</span>
-          </div>
+          <Timeline now={now} dur={dur} a={a} b={b} setA={setA} setB={setB} seek={t => ctl()?.seek(t)} />
 
-          <div className="tool-nudge">
-            <button className="btn" aria-label="Back 5 seconds" onClick={() => nudge(-5)}>−5s</button>
+          <div className="tr-btns">
             <button className="btn primary tool-play" onClick={toggle}>{playing ? "❚❚ Pause" : "▶ Play"}</button>
+            <button className="btn" onClick={goA}>⏮ Back to A</button>
+            <button className="btn" disabled={a === null && b === null} onClick={() => { setA(null); setB(null); }}>↺ Reset loop</button>
+            <button className="btn" aria-label="Back 5 seconds" onClick={() => nudge(-5)}>−5s</button>
             <button className="btn" aria-label="Forward 5 seconds" onClick={() => nudge(5)}>+5s</button>
           </div>
 
-          <div className="tr-row">
-            <span className="field-label">Speed</span>
-            <span className="seg" role="group" aria-label="Speed">
-              {speeds.map(s => <button key={s} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{Math.round(s * 100)}%</button>)}
-            </span>
-            {src.kind === "file"
-              ? <label className="toggle"><input type="checkbox" checked={keepPitch} onChange={e => setKeepPitch(e.target.checked)} /> Keep the pitch</label>
-              : <Info label="About YouTube speeds">YouTube only plays at these speeds. For finer steps, upload the recording.</Info>}
-          </div>
-
-          <div className="tr-row">
-            <span className="field-label">Loop</span>
-            <button className="btn" onClick={markA}>Set A{a !== null && <span className="sub"> {fmt(a)}</span>}</button>
-            {a !== null && <span className="tr-fine"><button className="btn small" aria-label="A earlier" onClick={() => shiftMark("a", -0.1)}>‹</button><button className="btn small" aria-label="A later" onClick={() => shiftMark("a", 0.1)}>›</button></span>}
-            <button className="btn" onClick={markB} disabled={a === null}>Set B{b !== null && <span className="sub"> {fmt(b)}</span>}</button>
-            {b !== null && <span className="tr-fine"><button className="btn small" aria-label="B earlier" onClick={() => shiftMark("b", -0.1)}>‹</button><button className="btn small" aria-label="B later" onClick={() => shiftMark("b", 0.1)}>›</button></span>}
-            {a !== null && b !== null && <label className="toggle"><input type="checkbox" checked={looping} onChange={e => setLooping(e.target.checked)} /> Loop it</label>}
-            {(a !== null || b !== null) && <button className="btn small" onClick={() => { setA(null); setB(null); }}><Icon name="close" size={16} /> Clear</button>}
-            <Info label="About looping">Play, then tap Set A where the phrase starts and Set B where it ends. It goes round until you stop. ‹ and › move a point by a tenth of a second. Keys: Space plays, ← and → skip 5 seconds, [ and ] set A and B.</Info>
+          <div className="tr-speed" role="group" aria-label="Speed">
+            <output className="tr-speed-now" aria-live="polite">{Math.round(shown * 100)}%</output>
+            <div className="tr-steps">
+              {[-0.1, -0.05, 0.05, 0.1].map(d => <button key={d} className="btn" disabled={d < 0 ? speed <= MIN_SPEED : speed >= MAX_SPEED}
+                onClick={() => setSpeed(clampSpeed(speed + d))}>{d > 0 ? "+" : "−"}{Math.round(Math.abs(d) * 100)}%</button>)}
+            </div>
+            <div className="seg tr-presets">
+              {PRESETS.map(r => <button key={r} aria-pressed={Math.abs(speed - r) < 0.001} onClick={() => setSpeed(r)}>{Math.round(r * 100)}%</button>)}
+            </div>
+            <div className="tr-row">
+              {src.kind === "file"
+                ? <label className="toggle"><input type="checkbox" checked={keepPitch} onChange={e => setKeepPitch(e.target.checked)} /> Keep the pitch</label>
+                : Math.abs(actual - speed) > 0.001 && <span className="hint">YouTube plays this one at {Math.round(actual * 100)}%.</span>}
+              <Info label="About the controls">Drag A and B on the bar to set the loop; it goes round until you stop. Tap the bar to jump there. Keys: Space plays, ← and → skip 5 seconds, [ and ] put A and B where it&apos;s playing. On a focused A or B, ← and → move it a tenth of a second (Shift: a whole second).</Info>
+            </div>
           </div>
         </section>
       )}
     </>
+  );
+}
+
+/** The time bar: the loop between A and B, the play position, and A/B handles you drag (or move with the arrow keys). */
+function Timeline({ now, dur, a, b, setA, setB, seek }: {
+  now: number; dur: number; a: number | null; b: number | null; setA: (t: number) => void; setB: (t: number) => void; seek: (t: number) => void;
+}) {
+  const bar = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<"a" | "b" | null>(null);
+  const A = a ?? 0, B = b ?? dur;
+  const at = (x: number) => { const r = bar.current?.getBoundingClientRect(); return r && dur ? Math.min(dur, Math.max(0, (x - r.left) / r.width * dur)) : 0; };
+  const put = (which: "a" | "b", t: number) => which === "a" ? setA(Math.max(0, Math.min(t, B - 0.1))) : setB(Math.min(dur, Math.max(t, A + 0.1)));
+  const pct = (t: number) => dur ? `${(t / dur) * 100}%` : "0%";
+  const handle = (which: "a" | "b") => {
+    const t = which === "a" ? A : B;
+    return (
+      <span className={"tr-h" + (drag === which ? " on" : "")} style={{ left: pct(t) }} role="slider" tabIndex={0}
+        aria-label={which === "a" ? "Loop start (A)" : "Loop end (B)"} aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t)} aria-valuetext={fmt(t)}
+        onPointerDown={e => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setDrag(which); }}
+        onPointerMove={e => { if (drag === which) put(which, at(e.clientX)); }}
+        onPointerUp={() => setDrag(null)} onPointerCancel={() => setDrag(null)}
+        onKeyDown={e => {
+          const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+          if (!d) return;
+          e.preventDefault(); e.stopPropagation();
+          put(which, t + d * (e.shiftKey ? 1 : 0.1));
+        }}>
+        <span className="tr-h-tag">{which === "a" ? "A" : "B"}</span>
+        <span className="tr-h-time">{fmt(t)}</span>
+      </span>
+    );
+  };
+  return (
+    <div className="tr-timeline">
+      <div className="tr-tl-head">
+        <span>{fmt(now)}</span>
+        <span className="hint">Drag A and B to set the loop</span>
+        <span>{fmt(dur)}</span>
+      </div>
+      <div className="tr-bar" ref={bar} onPointerDown={e => { if (dur) seek(at(e.clientX)); }}>
+        <span className="tr-rail" />
+        <span className="tr-loop" style={{ left: pct(A), width: `calc(${pct(B)} - ${pct(A)})` }} />
+        <span className="tr-head-pos" style={{ left: pct(Math.min(now, dur)) }} aria-hidden="true" />
+        {dur > 0 && handle("a")}
+        {dur > 0 && handle("b")}
+      </div>
+    </div>
   );
 }

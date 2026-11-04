@@ -7,7 +7,7 @@ import { SignIn } from "./SignIn";
 import { TopBar } from "./TopBar";
 import { Dock } from "./Dock";
 import { Tour } from "./Tour";
-import { WhatsNew } from "./WhatsNew";
+import { WhatsNew, WhatsNewBanner } from "./WhatsNew";
 import { supabaseConfigured } from "@/lib/supabase/client";
 
 export function Gate({ children }: { children: React.ReactNode }) {
@@ -22,6 +22,7 @@ export function Gate({ children }: { children: React.ReactNode }) {
     <>
       <TopBar />
       <main><div className="wrap" id="view">
+        <WhatsNewBanner />
         {/* where you are, right above the page: Home / Setlists / Ava's Standards */}
         {crumb && <nav className="crumb" id="crumb" aria-label="Breadcrumb"><Link href="/">Home</Link> / {crumb}</nav>}
         {children}

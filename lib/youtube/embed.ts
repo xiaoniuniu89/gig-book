@@ -11,6 +11,7 @@ interface YTPlayerApi {
   getCurrentTime?(): number;
   getDuration?(): number;
   setPlaybackRate?(r: number): void;
+  getPlaybackRate?(): number;
   getAvailablePlaybackRates?(): number[];
   destroy?(): void;
 }
@@ -97,14 +98,8 @@ export class YtLooper {
   seek(t: number) { try { this.p?.seekTo?.(t, true); } catch { /* not ready */ } }
   time() { try { return this.p?.getCurrentTime?.() ?? 0; } catch { return 0; } }
   duration() { try { return this.p?.getDuration?.() ?? 0; } catch { return 0; } }
-  /** YouTube only offers some speeds: the nearest one it has. Returns the speed it took. */
-  rate(r: number) {
-    try {
-      const have = this.p?.getAvailablePlaybackRates?.() ?? [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-      const near = have.reduce((a, b) => Math.abs(b - r) < Math.abs(a - r) ? b : a, 1);
-      this.p?.setPlaybackRate?.(near);
-      return near;
-    } catch { return 1; }
-  }
+  /** Asks for a speed; YouTube may round it to one it has (see currentRate). */
+  rate(r: number) { try { this.p?.setPlaybackRate?.(r); } catch { /* not ready */ } }
+  currentRate() { try { return this.p?.getPlaybackRate?.() ?? 1; } catch { return 1; } }
   destroy() { try { this.p?.destroy?.(); } catch { /* gone */ } this.p = null; }
 }
