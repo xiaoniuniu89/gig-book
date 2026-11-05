@@ -61,7 +61,7 @@ function Account() {
   const signedIn = !!account && store.kind === "supabase";
   return (
     <span className="acct-wrap" ref={wrap}>
-      <button className="btn small icon-btn" aria-label="Your menu" aria-haspopup="menu" aria-expanded={open} title={account?.email || "Your menu"} onClick={() => setOpen(o => !o)}><Icon name="user" size={18} /></button>
+      <button className="btn small icon-btn" data-tour="menu" aria-label="Your menu" aria-haspopup="menu" aria-expanded={open} title={account?.email || "Your menu"} onClick={() => setOpen(o => !o)}><Icon name="user" size={18} /></button>
       {open && (
         <div className="user-menu" role="menu">
           {signedIn && <Link role="menuitem" className="user-menu-item" href="/account"><Icon name="user" size={18} /> Account</Link>}

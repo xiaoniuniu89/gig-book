@@ -1,6 +1,12 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-07",
+    items: [
+      "Signing in: type the code from the email, so you're signed in on the browser you're using even if the link opens somewhere else. You stay signed in on that device until you tap Sign out (in your menu).",
+    ],
+  },
+  {
     date: "2026-11-06",
     items: [
       "New in Tools: Transcribe (work in progress). Slow down and loop a YouTube video or a recording you upload, to learn it by ear.",

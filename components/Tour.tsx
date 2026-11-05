@@ -45,6 +45,8 @@ const STEPS: Step[] = [
     body: "Your profile and press kit. Each field has its own edit button, and AI can fill them in from your bio or CV. This tour is here again whenever you want it." },
   { title: "Settings", path: "/settings", targets: ["settings"],
     body: "Light or stage mode, bigger text, and whether recordings play on YouTube or Spotify. They follow you to every device you sign in on." },
+  { title: "Your menu", path: "any", targets: ["menu"],
+    body: "Account, Settings, What's new and Sign out. You stay signed in on this device until you tap Sign out, so there's no need to sign in each visit. Sign out on a shared computer; you'll then need a new sign-in email to get back in." },
   { title: "Bugs and ideas", path: "any", targets: ["feedback"],
     body: "Something not working, or missing? Tap Bugs & ideas to report a problem or suggest a feature." },
 ];
