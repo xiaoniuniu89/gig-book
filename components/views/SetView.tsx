@@ -20,6 +20,7 @@ import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { tuneQueueItem } from "@/lib/youtube/queue";
 import { isBuiltin } from "@/lib/seeds";
+import { setlistFile, setlistLink } from "@/lib/irealExport";
 import { MAX_SETS, MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
 
 export function SetView() {
@@ -62,6 +63,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [sharing, setSharing] = useState(false);
   const [making, setMaking] = useState(false);
   const [pasting, setPasting] = useState(false);
+  const [ireal, setIreal] = useState(false);
   const yTube = app.settings.player === "youtube";
   const playSet = () => {
     if (yTube) void app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })), 0, s.name);
@@ -204,6 +206,7 @@ function SetBody({ s }: { s: Setlist }) {
           {canEdit && count < MAX_SETS && <button className="btn" onClick={() => setShown(count + 1)}><Icon name="plus" size={18} /> Add set</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
+          {s.items.length > 0 && <button className="btn" id="to-ireal" onClick={() => setIreal(true)}><Icon name="share" size={18} /> iReal Pro</button>}
           {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Share" : "Members"}</button></More>}
         </div>
       </div>
@@ -276,6 +279,9 @@ function SetBody({ s }: { s: Setlist }) {
       <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
       </Modal>
+      <Modal open={ireal} title={"Send to iReal Pro: " + s.name} onClose={() => setIreal(false)}>
+        <IrealExport s={s} />
+      </Modal>
       <Modal open={sharing} title={(isOwner ? "Share " : "Members of ") + s.name} onClose={() => setSharing(false)}>
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />
@@ -289,6 +295,33 @@ function SetBody({ s }: { s: Setlist }) {
           }}>{delArmed ? "Tap again to delete " + s.name : "Delete this setlist"}</button>
         </section>
       )}
+    </>
+  );
+}
+
+// The setlist as one iReal Pro playlist, each tune in the key you play it: open it here, copy the link, or download a file to email.
+function IrealExport({ s }: { s: Setlist }) {
+  const { toast } = useApp();
+  const link = useMemo(() => setlistLink(s.name, s.items), [s.name, s.items]);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); toast("Link copied."); } catch { toast("Couldn't copy. Use Download instead."); }
+  };
+  const download = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([setlistFile(s.name, link)], { type: "text/html" }));
+    a.download = (s.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Setlist") + " (iReal Pro).html";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  return (
+    <>
+      <p className="hint">{s.items.length} tune{s.items.length === 1 ? "" : "s"}, in set order and in the keys on this setlist.</p>
+      <div className="row-btns">
+        <a className="btn primary" href={link}><Icon name="music" size={18} /> Open in iReal Pro</a>
+        <button className="btn" onClick={() => void copy()}><Icon name="share" size={18} /> Copy link</button>
+        <button className="btn" onClick={download}><Icon name="import" size={18} /> Download</button>
+        <Info label="About sending to iReal Pro">Open works on a phone or tablet with iReal Pro installed. To send it to the band, attach the downloaded file to an email: they open it and tap the link. A copied link may not be tappable once pasted into some email apps. Hits, notes and recordings stay here; iReal gets the chords.</Info>
+      </div>
     </>
   );
 }

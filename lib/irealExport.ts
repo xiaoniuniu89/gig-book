@@ -97,3 +97,24 @@ export function lickSongs(title: string, progression: string, keyName: string, a
 /** The link "Export to iReal Pro" opens. All 12 keys is one playlist of 12 songs. */
 export const lickLink = (title: string, progression: string, keyName: string, all12: boolean): string =>
   all12 ? irealLink(lickSongs(title, progression, keyName, true), title + " in 12 keys") : irealLink(lickSongs(title, progression, keyName, false));
+
+/** A setlist as one iReal Pro playlist link: each tune exactly as imported, set by set, in the key you play it.
+ *  iReal keeps the key to play in as a pitch class (minor keys as their relative major); old-format songs stay as they are. */
+export function setlistLink(name: string, items: { raw: string; set: number; shift: number | null }[]): string {
+  const songs = items.map((it, i) => ({ it, i })).sort((a, b) => a.it.set - b.it.set || a.i - b.i).map(({ it }) => {
+    const f = it.raw.split("=");
+    if (it.shift === null || f.length < 9) return it.raw;
+    const key = f[4] || "C", minor = key.includes("-");
+    f[5] = String((rootPc(key.replace("-", "")) + it.shift + (minor ? 3 : 0) + 120) % 12);
+    return f.join("=");
+  });
+  return irealLink(songs, name.replace(/[=\r\n]+/g, " ").trim() || "Setlist");
+}
+
+/** A small web page holding the link, the way iReal Pro itself shares playlists: attach it to an email and open it on the phone. */
+export function setlistFile(name: string, link: string): string {
+  const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(name)}</title>`
+    + `<p style="font:18px sans-serif;margin:2em 1em"><a href="${esc(link)}">Open “${esc(name)}” in iReal Pro</a></p>`
+    + `<p style="font:14px sans-serif;margin:0 1em;color:#555">Made with Niu Real Book. Tap the link on a phone or tablet with iReal Pro installed.</p>`;
+}
