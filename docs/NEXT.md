@@ -32,11 +32,14 @@ What's left to do, in order. Last updated 2026-11-05. Update it at the end of ea
 
 ## Pending: Lyrics tab for singers (work in progress)
 - A **Lyrics** tab after the chart tabs on every tune page (library, setlist, arrangement; signed out too). Add lyrics (paste or type), Edit, clear to remove; "Search the web" opens a Google search for the tune's lyrics. Views: Lyrics, Side by side (stacks on phones), Over the chart (iReal chart faded behind, the playing bar still shows); the last two are tagged Work in progress. Text size A−/A+. View and size are remembered per device.
-- No migration: lyrics are a personal note at song key `lyrics:<songKey>` (private, 10,000 characters, both adapters), so they never show in "My notes". Code: `components/Lyrics.tsx`, tab in `ChartTabs` (`components/Charts.tsx`; the tab row now always shows), pane in `SongView.tsx`, `.lyrics-*` in `globals.css`.
+- Sections: a line like `[A]`, `[Intro]` or `[Chorus]` starts a section, drawn as a boxed label. The editor has chips to add Intro/A/B/C/Verse/Chorus/Bridge/Ending at the cursor and **Follow the form** (the chart's letters through repeats, e.g. A A B A; `formOf` in `lib/lyrics.ts`). An empty tune offers "Start from the form".
+- Versions: several named lyric versions per song (e.g. "Lyrics" and "My version"), shown as chips when there's more than one. **New version** copies the one on screen to change. The name is a `# Name` first line of the note (no name line = "Lyrics").
+- No migration: each version is a personal note at song key `lyrics:<songKey>` (private, 10,000 characters, both adapters), so they never show in "My notes". Code: `lib/lyrics.ts` (+ `tests/unit/lyrics.test.ts`), `components/Lyrics.tsx`, tab in `ChartTabs` (`components/Charts.tsx`; the tab row now always shows), pane in `SongView.tsx`, `.lyrics-*` in `globals.css`.
+- Later (Dan's idea): shared lyrics people can correct ("that line isn't right"). For now a singer fixes them in their own version. A shared, editable copy of copyrighted lyrics would need licensing too.
 - **No AI lookup on purpose**: having the model write out lyrics would reproduce copyrighted words (and it often gets them wrong). If Dan wants a one-tap fetch, it should come from a licensed lyrics API (e.g. Musixmatch), not the model.
 - Not done: the full-screen Chart view has no lyrics yet; arrangements share the song's lyrics (key is the song, not `arr:`). Existing issue seen while testing: on a phone the song page is wider than the screen (the `.nav-pair` buttons), on the iReal tab too.
-- What's new line at release: "Lyrics tab on every tune (work in progress): paste the words in, then read them on their own, beside the chart, or over a faded chart."
-- Smoke test: Lyrics tab, Add lyrics, Save, reload; Side by side and Over the chart while the band plays; Edit, clear, Save (back to empty); signed in and signed out.
+- What's new line at release: "Lyrics tab on every tune (work in progress): paste your lyrics in, mark sections like intro, A, B or chorus (or follow the tune's form), keep more than one version, and read them on their own, beside the chart, or over a faded chart."
+- Smoke test: Lyrics tab, Start from the form, fill it, Save, reload; New version, rename, switch between versions; Side by side and Over the chart while the band plays; Edit, clear, Save (back to empty); signed in and signed out.
 
 ## Pending: Transcribe tool (/tools/transcribe)
 - Slow down (speed presets, keep pitch for uploads) and A–B loop a YouTube link or an uploaded recording. Uploads: 3 per person, 25 MB each.
