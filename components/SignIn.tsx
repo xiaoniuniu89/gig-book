@@ -53,6 +53,7 @@ function RequestAccess() {
 export function SignIn() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [open, setOpen] = useState<"signin" | "request" | null>(null);
@@ -75,6 +76,16 @@ export function SignIn() {
     setErr(unknown ? NOT_INVITED : error.message);
   };
 
+  // the code in the email signs you in right here, even when the link would open in another browser (Gmail, Outlook…)
+  const verify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const sb = getSupabase(); if (!sb) return;
+    setBusy(true); setErr("");
+    const { error } = await sb.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
+    setBusy(false);
+    if (error) setErr(/expired|invalid/i.test(error.message) ? "That code didn't work or has expired. Check it, or send a new one." : error.message);
+  };
+
   return (
     <section className="landing">
       <header className="hero">
@@ -93,17 +104,23 @@ export function SignIn() {
       </header>
       <Modal open={open === "signin"} title={sent ? "Check your email" : "Sign in"} onClose={() => setOpen(null)}>
         {sent ? (
-          <div className="landing-form">
-            <p className="hint">We sent a sign-in link to {email}. Open it on this device.</p>
-            <div className="row-btns"><button className="btn small" onClick={() => setSent(false)}>Use another email</button></div>
-          </div>
+          <form className="landing-form" onSubmit={verify}>
+            <p className="hint">We sent an email to {email}. Type the code from it here, or open its link on this device.</p>
+            <label htmlFor="signin-code">Code</label>
+            <input id="signin-code" required autoFocus inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" maxLength={10} placeholder="123456" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} />
+            {err && <p className="flag" role="alert">{err}</p>}
+            <div className="row-btns">
+              <button className="btn primary" type="submit" disabled={busy}><Icon name="user" size={16} /> {busy ? "Checking…" : "Sign in"}</button>
+              <button type="button" className="btn small" onClick={() => { setSent(false); setCode(""); setErr(""); }}>Use another email</button>
+            </div>
+          </form>
         ) : (
           <form className="landing-form" onSubmit={send}>
-            <p className="hint">Already invited? Enter your email and we&apos;ll send you a sign-in link. No password.</p>
+            <p className="hint">Already invited? Enter your email and we&apos;ll email you a sign-in code. No password.</p>
             <label htmlFor="signin-email">Email</label>
             <input id="signin-email" type="email" required autoFocus autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
             {err && <p className="flag" role="alert">{err}{err === NOT_INVITED && <> <button type="button" className="btn small link-btn" onClick={() => setOpen("request")}>Request access</button></>}</p>}
-            <div className="row-btns"><button className="btn primary" type="submit" disabled={busy}><Icon name="user" size={16} /> {busy ? "Sending…" : "Email me a link"}</button></div>
+            <div className="row-btns"><button className="btn primary" type="submit" disabled={busy}><Icon name="user" size={16} /> {busy ? "Sending…" : "Email me a code"}</button></div>
             {DevSignIn && <DevSignIn />}
           </form>
         )}

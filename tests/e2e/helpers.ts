@@ -23,14 +23,14 @@ async function magicLink(email: string, after: number): Promise<string> {
   throw new Error("No sign-in email arrived for " + email);
 }
 
-/** Sign in through the real sign-in page: ask for a link, open the mailed link. */
+/** Sign in through the real sign-in page: ask for a code, open the mailed link. */
 export async function signIn(page: Page, who: Who) {
   const email = USERS[who].email;
   const started = Date.now();
   await go(page, "/");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.locator("#signin-email").fill(email);
-  await page.getByRole("button", { name: "Email me a link" }).click();
+  await page.getByRole("button", { name: "Email me a code" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
   await page.goto(await magicLink(email, started));
   await expect(page.getByRole("heading", { name: `Welcome back, ${USERS[who].name}` })).toBeVisible();
