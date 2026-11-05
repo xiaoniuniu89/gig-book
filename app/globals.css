@@ -19,6 +19,7 @@
   --cover-orange: #FFAD00;
   --cover-pink: #DB3EB1;
   --cover-blue: #8FA8FF;
+--cover-green: #44D62C;
   --cover-ink: #202020;
   --display: "Luckiest Guy", "Arial Rounded MT Bold", sans-serif;
   --type: "Special Elite", "Courier New", monospace;
@@ -946,7 +947,7 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .more-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; display: grid; gap: 10px; justify-items: start; padding: 12px; min-width: 180px;
   background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
 /* What's new banner, under the top bar */
-.wn-banner { position: relative; display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 4px; padding: 10px 12px 14px 14px; border: 1.5px solid var(--cover-ink); border-radius: 6px; background: var(--cover-yellow); color: var(--cover-ink); overflow: hidden; }
+.wn-banner { position: relative; display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 4px; padding: 10px 12px 14px 14px; border: 1.5px solid var(--cover-ink); border-radius: 6px; background: var(--cover-green); color: var(--cover-ink); overflow: hidden; }
 .wn-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .wn-title { font-family: var(--display); font-size: 1.125rem; letter-spacing: .02em; line-height: 1.1; }
 .wn-banner ul { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; font-size: 0.9375rem; }

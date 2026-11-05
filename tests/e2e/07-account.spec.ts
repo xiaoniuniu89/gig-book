@@ -9,13 +9,18 @@ test("7. changing who sees a phone number on the Account page changes the public
   pub.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
   const phone = USERS.ava.contact.phone;
 
-  const setPhone = async (who: "Public" | "Only me") => {
+  // Account > Contact > the pencil on Phone opens it with its "who can see it" picker
+  const openPhone = async () => {
     await go(ava.page, "/account");
+    await ava.page.getByRole("tab", { name: "Contact" }).click();
+    await ava.page.getByRole("button", { name: "Edit Phone" }).click();
     await expect(ava.page.getByLabel("Phone", { exact: true })).toHaveValue(phone);
-    await ava.page.getByRole("button", { name: "Change who sees what" }).click();
+  };
+  const setPhone = async (who: "Public" | "Only me") => {
+    await openPhone();
     await ava.page.getByLabel("Who can see Phone").selectOption({ label: who });
-    await ava.page.getByRole("button", { name: "Save" }).click();
-    await expect(ava.page.getByRole("button", { name: "Save" })).toBeDisabled(); // saved
+    await ava.page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(ava.page.getByRole("button", { name: "Edit Phone" })).toBeVisible(); // saved and closed
   };
 
   try {
@@ -36,10 +41,9 @@ test("7. changing who sees a phone number on the Account page changes the public
     await expect(pub.getByText("ava.example.test")).toBeVisible();
   } finally {
     // leave Ava as the seed made her, whatever happened above
-    await go(ava.page, "/account");
-    await ava.page.getByRole("button", { name: "Change who sees what" }).click();
+    await openPhone();
     const sel = ava.page.getByLabel("Who can see Phone");
-    if ((await sel.inputValue()) !== "private") { await sel.selectOption("private"); await ava.page.getByRole("button", { name: "Save" }).click(); }
+    if ((await sel.inputValue()) !== "private") { await sel.selectOption("private"); await ava.page.getByRole("button", { name: "Save", exact: true }).click(); }
   }
 
   // a page that doesn't exist is a plain 404 for a signed-out visitor
