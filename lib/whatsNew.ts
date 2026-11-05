@@ -4,6 +4,9 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
     date: "2026-11-07",
     items: [
       "Signing in: type the code from the email, so you're signed in on the browser you're using even if the link opens somewhere else. You stay signed in on that device until you tap Sign out (in your menu).",
+      "New: Transcriptions. Upload a PDF of a solo you've written out, link it to the tune, and keep it private, share it, or make it public. Search everyone's public ones, and find them at the bottom of each tune's page.",
+      "Sharing: start typing someone's name and pick them from the list, instead of typing their email.",
+      "Lyrics tab for singers (work in progress): paste the words for a tune, split them into sections, and follow along with the chart.",
     ],
   },
   {
