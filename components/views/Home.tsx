@@ -47,6 +47,10 @@ export function Home() {
                 <span className="t">Arrangements</span>
                 <span className="m">{app.arrangements.length ? `${app.arrangements.length} · ${names(app.arrangements)}` : "Your own copies of tunes: key, recordings, notes"}</span>
               </Link>
+              <Link className="book green" href="/transcriptions">
+                <span className="t">Transcriptions</span>
+                <span className="m">Written-out solos and parts: upload, search and share</span>
+              </Link>
               <Link className="book" href="/resources">
                 <span className="t">Resources</span>
                 <span className="m">Bookmarks, books and PDFs to pin to tunes</span>

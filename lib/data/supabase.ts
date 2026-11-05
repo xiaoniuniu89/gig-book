@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import type { Hit, Feels } from "../hits";
-import { MAX_PRACTICE_BYTES, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MAX_FILE_MB, MAX_PRACTICE_BYTES, type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -74,6 +74,17 @@ interface ChartRow {
 const CHART_COLS = "id, owner, song_key, setlist_id, name, file_path, file_kind, file_name, file_mime, file_size, audio_path, audio_name, audio_mime, audio_size, created_at";
 const CHART_BUCKET = "charts";
 const PRACTICE_BUCKET = "practice";
+const TRANSCRIPTION_BUCKET = "transcriptions";
+interface TranscriptionRow {
+  id: string; owner: string; title: string; song_key: string | null; tune_title: string; tune_composer: string; instrument: string; player: string;
+  recording: string; youtube: string | null; visibility: "private" | "public"; file_path: string; file_kind: "pdf" | "image" | "musicxml";
+  file_name: string; file_mime: string; file_size: number; created_at: string; updated_at: string;
+}
+const TR_COLS = "id, owner, title, song_key, tune_title, tune_composer, instrument, player, recording, youtube, visibility, file_path, file_kind, file_name, file_mime, file_size, created_at, updated_at";
+const trFields = (f: TranscriptionFields) => ({
+  title: f.title, song_key: f.songKey, tune_title: f.tuneTitle, tune_composer: f.tuneComposer, instrument: f.instrument, player: f.player,
+  recording: f.recording, youtube: f.youtube, visibility: f.visibility,
+});
 interface LickRow {
   id: string;
   owner: string;
@@ -215,6 +226,13 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       audio: r.audio_path && r.audio_name && r.audio_mime ? part(r.audio_path, "audio", r.audio_name, r.audio_mime, r.audio_size ?? 0) : null,
     };
   };
+
+  const toTranscription = (r: TranscriptionRow, nm: Map<string, string>): Transcription => ({
+    id: r.id, ownerId: r.owner, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member", mine: r.owner === userId, title: r.title,
+    songKey: r.song_key, tuneTitle: r.tune_title, tuneComposer: r.tune_composer, instrument: r.instrument, player: r.player, recording: r.recording,
+    youtube: r.youtube, visibility: r.visibility, createdAt: r.created_at, updatedAt: r.updated_at,
+    file: { id: r.id, noteId: null, lickId: null, resourceId: null, bucket: TRANSCRIPTION_BUCKET, path: r.file_path, kind: r.file_kind, name: r.file_name, mime: r.file_mime, size: Number(r.file_size), createdBy: r.owner, createdAt: r.created_at },
+  });
 
   /** Uploads one file to Storage (XHR rather than supabase-js, to get upload progress). */
   const putFile = async (bucket: string, path: string, file: File, mime: string, onProgress?: (p: number) => void): Promise<void> => {
@@ -764,6 +782,86 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (rm.error) fail("delete that chart", rm.error);
       const { error } = await sb.from("charts").delete().eq("id", c.id);
       if (error) fail("delete that chart", error);
+    },
+
+    async listTranscriptions(q) {
+      // RLS already limits "all" to yours, public and shared with you; the filters narrow it a page at a time
+      const shared = q.tab === "shared";
+      let req = sb.from("transcriptions").select(shared ? TR_COLS + ", transcription_shares!inner(user_id)" : TR_COLS, { count: "exact" });
+      if (shared) req = req.eq("transcription_shares.user_id", userId);
+      if (q.tab === "mine") req = req.eq("owner", userId);
+      if (q.instrument) req = req.eq("instrument", q.instrument);
+      if (q.songKey) req = req.eq("song_key", q.songKey);
+      const t = q.q.replace(/[%_\\,()*]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+      if (t) req = req.or(["title", "tune_title", "player"].map(c => `${c}.ilike.%${t}%`).join(","));
+      req = q.sort === "new" ? req.order("created_at", { ascending: false }) : req.order("title").order("created_at", { ascending: false });
+      const from = Math.max(0, q.page) * q.perPage;
+      const { data, error, count } = await req.range(from, from + q.perPage - 1);
+      if (error) fail("load the transcriptions", error);
+      const rows = (data || []) as unknown as TranscriptionRow[];
+      const nm = await namesOf(rows.map(r => r.owner).filter(o => o !== userId));
+      return { items: rows.map(r => toTranscription(r, nm)), total: count ?? rows.length };
+    },
+
+    async getTranscription(id) {
+      if (!UUID.test(id)) return null;
+      const { data, error } = await sb.from("transcriptions").select(TR_COLS).eq("id", id).maybeSingle();
+      if (error) fail("open that transcription", error);
+      if (!data) return null;
+      const r = data as unknown as TranscriptionRow;
+      return toTranscription(r, await namesOf([r.owner]));
+    },
+
+    async createTranscription(f, file, onProgress) {
+      const fk = attachmentKind(file.type, file.name);
+      if (fk !== "pdf" && fk !== "image" && fk !== "musicxml") throw new Error("A transcription has to be a PDF, a photo or a MusicXML file.");
+      if (file.size > MAX_FILE_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_FILE_MB} MB.`);
+      // the row first: the upload is only allowed to a path one of your rows names, so the daily cap holds
+      const id = newUuid(), mime = mimeOf(file), path = `${userId}/${id}/${newUuid()}-${safeName(file.name)}`;
+      const { data, error } = await sb.from("transcriptions").insert({
+        id, ...trFields(f), file_path: path, file_kind: fk, file_name: file.name.slice(0, 300), file_mime: mime, file_size: file.size,
+      }).select(TR_COLS).single();
+      if (error) {
+        if (/transcriptions today/.test(error.message)) throw new Error(error.message);
+        fail("save that transcription", error);
+      }
+      try { await putFile(TRANSCRIPTION_BUCKET, path, file, mime, onProgress); }
+      catch (e) { await sb.from("transcriptions").delete().eq("id", id); throw e; }
+      return toTranscription(data as unknown as TranscriptionRow, new Map());
+    },
+
+    async updateTranscription(t, f) {
+      const { data, error } = await sb.from("transcriptions").update({ ...trFields(f), updated_at: new Date().toISOString() }).eq("id", t.id).select(TR_COLS);
+      if (error) fail("save that transcription", error);
+      if (!data?.length) throw new Error("Couldn't save that transcription: you can't change it.");
+      return toTranscription(data[0] as unknown as TranscriptionRow, new Map());
+    },
+
+    async deleteTranscription(t) {
+      const { data, error } = await sb.from("transcriptions").delete().eq("id", t.id).select("id");
+      if (error) fail("delete that transcription", error);
+      if (!data?.length) throw new Error("Couldn't delete that transcription: you can't change it.");
+      await sb.storage.from(TRANSCRIPTION_BUCKET).remove([t.file.path]);
+    },
+
+    async listTranscriptionShares(id) {
+      const { data, error } = await sb.rpc("transcription_share_list", { p_id: id });
+      if (error) fail("load who it's shared with", error);
+      return ((data || []) as { user_id: string; display_name: string | null; email: string | null }[])
+        .map(m => ({ userId: m.user_id, name: m.display_name || "Member", email: m.email }));
+    },
+
+    async addTranscriptionShare(id, email) {
+      const { error } = await sb.rpc("add_transcription_share", { p_id: id, p_email: email });
+      if (error) {
+        if (error.code === "P0002") throw new Error(MEMBER_NOT_FOUND);
+        fail("share that", error);
+      }
+    },
+
+    async removeTranscriptionShare(id, uid) {
+      const { error } = await sb.from("transcription_shares").delete().eq("transcription_id", id).eq("user_id", uid);
+      if (error) fail("remove that person", error);
     },
 
     async listBands() {

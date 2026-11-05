@@ -7,7 +7,8 @@ import { createPortal } from "react-dom";
 import { useApp, songHref, type Current, type TuneCurrent } from "../AppProvider";
 import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
-import { song, norm, songKey } from "@/lib/songs";
+import { song, norm, songKey, meta } from "@/lib/songs";
+import { TuneTranscriptions } from "../Transcriptions";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
 import { MyResources } from "../Resources";
@@ -223,6 +224,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
       {!arr && <MyResources key={"my-res:" + mineKey} songKey={mineKey} />}
       <Notes tour="notes" key={"mine:" + mineKey} title={"My notes on " + mineWhere} hint={mineHint}
         home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />
+      <TuneTranscriptions key={"tr:" + songKey(sg.raw)} tune={{ songKey: songKey(sg.raw), title: meta(sg.raw).title, composer: meta(sg.raw).composer }} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} versions={versions} onVersions={cur.kind === "lib" ? undefined : editVersions} canEdit={canEdit} />

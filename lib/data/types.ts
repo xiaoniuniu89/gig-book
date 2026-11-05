@@ -313,6 +313,45 @@ export interface Chart {
   createdAt: string;
 }
 
+/** A written-out solo or part that players upload and share (R14). */
+export interface Transcription {
+  id: string;
+  ownerId: string;
+  /** "You" for your own. */
+  ownerName: string;
+  mine: boolean;
+  title: string;
+  /** Tags it to a tune (`songKey()`), with the tune's title and composer; null when it isn't in any library. */
+  songKey: string | null;
+  tuneTitle: string;
+  tuneComposer: string;
+  instrument: string;
+  player: string;
+  recording: string;
+  /** A YouTube video id for the recording. */
+  youtube: string | null;
+  visibility: TranscriptionVisibility;
+  file: Attachment;
+  createdAt: string;
+  updatedAt: string;
+}
+export type TranscriptionVisibility = "private" | "public";
+export type TranscriptionFields = Pick<Transcription, "title" | "songKey" | "tuneTitle" | "tuneComposer" | "instrument" | "player" | "recording" | "youtube" | "visibility">;
+export interface TranscriptionQuery {
+  q: string;
+  instrument: string;
+  tab: "all" | "mine" | "shared";
+  sort: "az" | "new";
+  /** From 0. */
+  page: number;
+  perPage: number;
+  /** Only those tagged with this tune. */
+  songKey?: string;
+}
+export const PAGE_SIZES = [10, 20, 50] as const;
+export const NEEDS_ACCOUNT_TRANSCRIPTIONS = "Transcriptions need an account.";
+export interface TranscriptionShare { userId: string; name: string; email: string | null }
+
 /** A version of a tune's changes (R3.5), shared with everyone and keyed by song key. `changes` is the text format of lib/versions.ts. */
 export interface TuneVersion {
   id: string;
@@ -423,6 +462,22 @@ export interface DataStore {
   deletePracticeTrack(t: PracticeTrack): Promise<void>;
   /** A URL the audio element can play (signed for an hour, or a blob URL locally). */
   practiceTrackUrl(t: PracticeTrack): Promise<string>;
+  /** One page of the transcriptions you can see (yours, public, shared with you); `total` counts all pages. Local mode rejects. */
+  listTranscriptions(q: TranscriptionQuery): Promise<{ items: Transcription[]; total: number }>;
+  /** Null when not found or not allowed. */
+  getTranscription(id: string): Promise<Transcription | null>;
+  /** Row first, then the file; rejected past 20 a day. Progress is 0..1. */
+  createTranscription(f: TranscriptionFields, file: File, onProgress?: (p: number) => void): Promise<Transcription>;
+  /** Owner only. */
+  updateTranscription(t: Transcription, f: TranscriptionFields): Promise<Transcription>;
+  /** Owner only. Removes the file too. */
+  deleteTranscription(t: Transcription): Promise<void>;
+  /** Owner only. */
+  listTranscriptionShares(id: string): Promise<TranscriptionShare[]>;
+  /** Owner only. Throws Error(MEMBER_NOT_FOUND) when no account has that email. */
+  addTranscriptionShare(id: string, email: string): Promise<void>;
+  /** The owner removes anyone; a shared person removes themselves. */
+  removeTranscriptionShare(id: string, userId: string): Promise<void>;
   /** Your profile and press kit (accounts only). */
   getMyProfile(): Promise<Profile>;
   updateMyProfile(p: Profile): Promise<void>;

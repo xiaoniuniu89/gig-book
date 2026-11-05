@@ -1,6 +1,8 @@
 // Line icons: 24px grid, 2px stroke, round caps, drawn in currentColor. Decorative; the button carries the label.
 const PATHS = {
   plus: "M12 5v14M5 12h14",
+  lock: "M6 11h12v9H6v-9zM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
+  share: "M12 15V4M8 8l4-4 4 4M5 13v7h14v-7",
   user: "M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 20c0-4 4-6 8-6s8 2 8 6",
   close:"M6 6l12 12M18 6L6 18",
   music: "M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0a3 3 0 1 1 6 0zM20 16a3 3 0 1 1-6 0a3 3 0 1 1 6 0z",

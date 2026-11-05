@@ -131,6 +131,16 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R13.5 Table `arrangements` (owner only, RLS); migration `0030_arrangements.sql`; tests in `tests/access/arrangements.test.ts`.
 - R13.6 Not yet: hits and section feel (needs #64), sharing with bands.
 
+### R14 Transcriptions
+- R14.1 **Transcriptions** are written-out solos or parts (a PDF, a photo or a MusicXML file, up to 20 MB) that players upload and share. Accounts only; signed out, the pages say they need an account.
+- R14.2 A **Transcriptions** card on the home page opens `/transcriptions`: search (title, tune, player), an instrument filter, **All / Mine / Shared with me** tabs, sort A–Z (default) or Newest, and pagination read a page at a time from the server (10 / 20 default / 50 per page). Each row shows title, tune, player, instrument, who uploaded it and a lock when private.
+- R14.3 **Upload transcription** (modal): file, optional tune (the library picker; stores `song_key` plus the tune's title and composer, so it shows on that tune's page), title (defaults to the tune), instrument, player, recording, optional YouTube link, and **Who can see it** (Private by default, or Public). An unticked "Fill in the recording details with AI" suggests album and year (one `ai_claim`); it never blocks saving.
+- R14.4 A transcription page (`/transcriptions/<id>`) shows the file inline, its details, a link to the tune's page, ▶ to play the YouTube link, and for the owner Edit, Delete and Share. **Report** on public ones goes through `/api/feedback`.
+- R14.5 **Who can see it**, like GitHub repos: Public = anyone signed in; Private = the owner and the people they share it with. Share (owner only) adds people by email (as setlist sharing does) and removes them; a shared person can remove themselves. The name picker (#74) will replace the email box.
+- R14.6 A tune's page has a **Transcriptions** section listing those you can see tagged with that tune, with an Upload button that has the tune filled in.
+- R14.7 Tables `transcriptions` and `transcription_shares`, private bucket `transcriptions` (`<owner>/<id>/<uuid>-<name>`), at most 20 uploads a day per person (a trigger and a log); migration `0038_transcriptions.sql`; tests in `tests/access/transcriptions.test.ts`.
+- R14.8 Not yet: star ratings and comments (#75), the name picker (#74), musician pages (#76), notifications for shares.
+
 ### Later (captured, not v1)
 - Offline chart view (service worker caching of setlists and attachments).
 - Storage quotas, open sign-up, public setlists.
