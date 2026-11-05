@@ -266,6 +266,18 @@ h2 { font-size: 1.5rem; }
 .collabs { display: grid; gap: 8px; margin: 10px 0; }
 .collab-list { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .inline-form input, .inline-form select { flex: 1; min-width: min(180px, 100%); }
+.people-picker { position: relative; flex: 2; min-width: min(220px, 100%); }
+.people-list { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; max-height: 260px; overflow: auto;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
+.people-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.people-list li.on { background: var(--brass-soft); }
+.people-list li.none { cursor: default; color: var(--muted); font-size: 0.875rem; }
+.people-list .name, .people-chip { display: inline-flex; align-items: center; gap: 8px; }
+.people-list .name { display: grid; gap: 0; }
+.people-list .sub { color: var(--muted); font-size: 0.8125rem; }
+.people-chip { border: 1px solid var(--rule); border-radius: 999px; padding: 3px 6px 3px 4px; background: var(--paper); }
+.people-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 2px 6px; }
+.people-picker .avatar { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--brass-soft); color: var(--brass); font-weight: 700; font-size: 0.8125rem; }
 input[type="search"], input[type="url"], input[type="text"], textarea, select {
   font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; width: 100%;
 }

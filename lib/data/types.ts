@@ -241,6 +241,8 @@ export interface BandMember {
 /** Someone you've been in a band or shared a setlist with. */
 export interface Collaborator { userId: string; name: string }
 export interface BandCandidate { userId: string; name: string; instruments: string[] }
+/** Someone you play with, as the name picker lists them. Instruments only if they share them. */
+export type Person = BandCandidate;
 
 /** A setlist shared with a band. */
 export interface BandSetlist { id: string; name: string; tunes: number; ownerId: string; ownerName: string; mine: boolean }
@@ -359,7 +361,9 @@ export interface DataStore {
   addMember(setlistId: string, email: string, role: Member["role"]): Promise<void>;
   /** Your recent collaborators, newest first (accounts only; local mode has none). */
   listCollaborators(): Promise<Collaborator[]>;
-  /** Owner only. One of your recent collaborators. */
+  /** Up to 10 people you play with whose name contains q (2+ letters). Local mode has none. */
+  searchPeople(q: string): Promise<Person[]>;
+  /** Owner only. One of the people you play with. */
   addCollaborator(setlistId: string, userId: string, role: Member["role"]): Promise<void>;
   setMemberRole(setlistId: string, userId: string, role: Member["role"]): Promise<void>;
   removeMember(setlistId: string, userId: string): Promise<void>;

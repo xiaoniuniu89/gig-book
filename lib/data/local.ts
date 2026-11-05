@@ -64,6 +64,7 @@ export const localStore: DataStore = {
   listMembers: async () => [],
   addMember: noMembers,
   listCollaborators: async () => [],
+  searchPeople: async () => [],
   addCollaborator: noMembers,
   setMemberRole: noMembers,
   removeMember: noMembers,

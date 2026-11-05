@@ -62,6 +62,7 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R4.3 Every member, viewer or editor, can read everything on the setlist and add notes, replies and attachments (R5, R6). Only editors and the owner change the setlist itself (name, tunes, order, keys, Spotify playlist).
 - R4.4 A member can leave a setlist.
 - R4.5 Being added to a setlist creates an in-app notification (R7).
+- R4.6 Sharing (setlists, band invites) picks people by name: type 2+ letters, choose from a list (avatar, name, instruments; keyboard friendly), the pick becomes a removable chip. Only people you already play with are listed (bandmates, people on setlists you own or are on, recent collaborators), never every user. A full email still works for someone new. Local mode has no list, just the email box.
 
 ### R5 Notes and discussion
 - R5.1 A note has an author, a body (plain text, links), a time, and exactly one home: a setlist (general setlist notes), a tune within a setlist, or the author's personal song notes.

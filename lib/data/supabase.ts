@@ -329,6 +329,14 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       return ((data || []) as { user_id: string; display_name: string | null }[]).map(r => ({ userId: r.user_id, name: r.display_name || "Member" }));
     },
 
+    async searchPeople(q) {
+      if (q.trim().length < 2) return [];
+      const { data, error } = await sb.rpc("search_people", { q: q.trim() });
+      if (error) fail("search for people", error);
+      return ((data || []) as { user_id: string; display_name: string | null; instruments: string[] | null }[])
+        .map(r => ({ userId: r.user_id, name: r.display_name || "Member", instruments: r.instruments || [] }));
+    },
+
     async addCollaborator(setlistId, uid, role) {
       const { error } = await sb.rpc("add_setlist_collaborator", { p_setlist: setlistId, p_user: uid, p_role: role });
       if (error) fail("add that person", error);

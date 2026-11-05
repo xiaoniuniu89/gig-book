@@ -3,13 +3,14 @@
 import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useApp } from "../AppProvider";
 import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachments";
 import { BandShareForm } from "../BandShare";
 import { InstrumentPicker } from "../Instruments";
 import { Modal } from "../Modal";
 import { Collaborators } from "../Collaborators";
+import { PeoplePicker, type Picked } from "../PeoplePicker";
 import { BandPoster } from "../Poster";
 import { Notes } from "../Notes";
 import { PermSwitches } from "../BandPerms";
@@ -267,30 +268,30 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
 // Invite by search or by link (needs the invite permission).
 function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[]; onAdded: () => Promise<void> }) {
   const { store, toast } = useApp();
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<BandCandidate[] | null>(null);
-  const [addAs, setAddAs] = useState<Record<string, string[]>>({});
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const [plays, setPlays] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState("");
 
-  const search = async () => {
-    if (q.trim().length < 2 || busy) return;
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!picked || busy) return;
     setBusy(true);
     try {
-      const r = await store.searchBandUsers(band.id, q.trim());
-      setFound(r);
-      setAddAs(Object.fromEntries(r.map(c => [c.userId, c.instruments.length === 1 ? c.instruments : []])));
-    } catch (e) { toast(errText(e, "Couldn't search.")); }
+      let c: BandCandidate | undefined = picked.kind === "person" ? picked.person : undefined;
+      // A typed email is the one search that reaches people outside your circle (exact match only).
+      if (picked.kind === "email") { const r = await store.searchBandUsers(band.id, picked.email); c = r.length === 1 ? r[0] : undefined; }
+      if (!c) toast("No one has that email. They need a Niu Real Book account first; send an invite link.");
+      else {
+        await store.addBandMember(band.id, c.userId, plays);
+        toast(c.name + " is in the band.");
+        setPicked(null); setPlays([]);
+        await onAdded();
+      }
+    } catch (x) { toast(errText(x, "Couldn't add them.")); }
     setBusy(false);
   };
-  const add = async (c: BandCandidate) => {
-    try {
-      await store.addBandMember(band.id, c.userId, addAs[c.userId] || []);
-      setFound(f => (f || []).filter(x => x.userId !== c.userId));
-      toast(c.name + " is in the band.");
-      await onAdded();
-    } catch (e) { toast(errText(e, "Couldn't add them.")); }
-  };
+  const pickedPerson = picked?.kind === "person" ? picked.person : null;
   const makeLink = async () => {
     try { setLink(location.origin + "/bands/join/" + await store.createBandInvite(band.id)); } catch (e) { toast(errText(e, "Couldn't make a link.")); }
   };
@@ -308,25 +309,19 @@ function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[];
         try { await store.addBandMember(band.id, c.userId, []); toast(c.name + " is in the band."); await onAdded(); }
         catch (e) { toast(errText(e, "Couldn't add them.")); }
       }} />
-      <form className="inline-form" onSubmit={e => { e.preventDefault(); void search(); }}>
-        <input type="search" aria-label="Find people" placeholder="Search by email or name" autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
-        <button className="btn" type="submit" disabled={busy || q.trim().length < 2}>Search</button>
+      <form className="inline-form" onSubmit={add}>
+        <PeoplePicker value={picked} exclude={memberIds} label="Find people" placeholder="Type a name or an email" disabled={busy}
+          onChange={v => { setPicked(v); setPlays(v?.kind === "person" && v.person.instruments.length === 1 ? v.person.instruments : []); }} />
+        {pickedPerson && (
+          <span className="add-as">
+            <span className="hint">Add as</span>
+            <InstrumentPicker dropdown label={"Add " + pickedPerson.name + " as"} options={pickedPerson.instruments.length > 1 ? pickedPerson.instruments : undefined}
+              value={plays} onChange={setPlays} />
+          </span>
+        )}
+        <button className="btn" type="submit" disabled={busy || !picked}>Add</button>
       </form>
-      {found && (!found.length ? <p className="hint">No one found. They need a Niu Real Book account first; try their exact email, or send an invite link.</p> : (
-        <div className="list">
-          {found.map(c => (
-            <div className="member" key={c.userId}>
-              <span className="name">{c.name}</span>
-              <span className="add-as">
-                <span className="hint">Add as</span>
-                <InstrumentPicker dropdown label={"Add " + c.name + " as"} options={c.instruments.length > 1 ? c.instruments : undefined}
-                  value={addAs[c.userId] || []} onChange={v => setAddAs(p => ({ ...p, [c.userId]: v }))} />
-              </span>
-              <button className="btn small" onClick={() => add(c)}>Add</button>
-            </div>
-          ))}
-        </div>
-      ))}
+      <p className="hint">Names come from people you already play with. For someone new, type their exact email or send an invite link.</p>
       <div className="inline-form">
         <button className="btn" onClick={makeLink}>Make an invite link</button>
         {band.role === "admin" && <button className="btn" onClick={revoke}>Switch off all links</button>}

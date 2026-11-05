@@ -14,6 +14,11 @@ What's left to do, in order. Last updated 2026-11-03. Update it at the end of ea
   - **Niu AI** card and page (`/ai`): the AI setlist draft moved out of the New setlist dialog.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 
+## Pending: name picker (#74, R4.6)
+- Built by the bot, **typecheck, lint and tests not run** (no installed dependencies): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0039** (`people_circle()`, `search_people(q)`, and `add_setlist_collaborator` now accepts anyone in the circle, not only recent collaborators). Tests: `tests/access/people-search.test.ts`.
+- Code: `components/PeoplePicker.tsx` (combobox/listbox, chip, email fallback), used in the setlist Share form (`Band` in `SetView.tsx`) and band Invite (`BandView.tsx`); `DataStore.searchPeople` (local returns `[]`). The old name search in band Invite is gone; a typed email there still goes through `searchBandUsers` (its name matching reaches every user, so don't expose it to name typing). Transcription sharing still uses email (#75).
+- Smoke test: Share a setlist, type 2 letters of a bandmate's name, pick with the mouse and with ↑ ↓ Enter, Esc closes, ✕ removes the chip, choose Editor, Add; a stranger's name shows "No one you play with"; type a full email and Add; band Invite: pick someone, choose the instrument, Add; signed out/local: only the email box works.
+
 ## Pending: Transcribe tool (/tools/transcribe)
 - Slow down (speed presets, keep pitch for uploads) and A–B loop a YouTube link or an uploaded recording. Uploads: 3 per person, 25 MB each.
 - Migrations **0036** + **0037** (10 uploads per 24 hours, logged by the trigger) (`practice_tracks` + private `practice` bucket; the row is made first and the upload must match it, so the cap holds). Applied to dev, not live. Tests: `tests/access/practice.test.ts` (not run locally). Local mode keeps the files in IndexedDB.

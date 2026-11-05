@@ -15,6 +15,7 @@ import { Modal } from "../Modal";
 import { Info } from "../Info";
 import { PlaybackHelpLink } from "../PlaybackHelp";
 import { Collaborators } from "../Collaborators";
+import { PeoplePicker, type Picked } from "../PeoplePicker";
 import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { tuneQueueItem } from "@/lib/youtube/queue";
@@ -332,7 +333,7 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
   const router = useRouter();
   const { toast, store } = app;
   const [members, setMembers] = useState<Member[] | null>(null);
-  const [email, setEmail] = useState("");
+  const [picked, setPicked] = useState<Picked | null>(null);
   const [role, setRole] = useState<Member["role"]>("viewer");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -344,12 +345,12 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
 
   const add = async (e: FormEvent) => {
     e.preventDefault();
-    const v = email.trim();
-    if (!v || busy) return;
+    if (!picked || busy) return;
     setBusy(true); setErr("");
     try {
-      await store.addMember(s.id, v, role);
-      setEmail(""); toast("Added to the band.");
+      if (picked.kind === "person") await store.addCollaborator(s.id, picked.person.userId, role);
+      else await store.addMember(s.id, picked.email, role);
+      setPicked(null); toast("Added to the band.");
       await reload();
     } catch (x) {
       setErr(x instanceof Error && x.message === MEMBER_NOT_FOUND
@@ -395,12 +396,12 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
             catch (x) { toast(x instanceof Error ? x.message : "Couldn't add them."); }
           }} />
           <form className="inline-form" onSubmit={add}>
-            <input type="email" aria-label="Email" placeholder="Add by email" autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} />
+            <PeoplePicker value={picked} onChange={setPicked} exclude={members?.map(m => m.userId) ?? []} label="Add a person" placeholder="Type a name or an email" disabled={busy} />
             <select aria-label="Role" value={role} onChange={e => setRole(e.target.value as Member["role"])}>
               <option value="viewer">Viewer</option>
               <option value="editor">Editor</option>
             </select>
-            <button className="btn" type="submit" disabled={busy}>Add</button>
+            <button className="btn" type="submit" disabled={busy || !picked}>Add</button>
           </form>
           {err && <p className="hint" role="alert">{err}</p>}
           <p className="hint">Viewers can read the setlist and add notes. Editors can also change tunes, order and keys.</p>
