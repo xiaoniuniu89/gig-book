@@ -30,6 +30,14 @@ What's left to do, in order. Last updated 2026-11-05. Update it at the end of ea
 - **Before releasing:** in both Supabase projects (Authentication > Emails > Magic Link) add the code to the template, e.g. `<p>Or type this code: <b>{{ .Token }}</b></p>`. Without it the email has no code. Also check Authentication > Sessions has no time-box or inactivity timeout.
 - Add a What's new line at release ("Sign in with the code from the email").
 
+## Pending: Lyrics tab for singers (work in progress)
+- A **Lyrics** tab after the chart tabs on every tune page (library, setlist, arrangement; signed out too). Add lyrics (paste or type), Edit, clear to remove; "Search the web" opens a Google search for the tune's lyrics. Views: Lyrics, Side by side (stacks on phones), Over the chart (iReal chart faded behind, the playing bar still shows); the last two are tagged Work in progress. Text size A−/A+. View and size are remembered per device.
+- No migration: lyrics are a personal note at song key `lyrics:<songKey>` (private, 10,000 characters, both adapters), so they never show in "My notes". Code: `components/Lyrics.tsx`, tab in `ChartTabs` (`components/Charts.tsx`; the tab row now always shows), pane in `SongView.tsx`, `.lyrics-*` in `globals.css`.
+- **No AI lookup on purpose**: having the model write out lyrics would reproduce copyrighted words (and it often gets them wrong). If Dan wants a one-tap fetch, it should come from a licensed lyrics API (e.g. Musixmatch), not the model.
+- Not done: the full-screen Chart view has no lyrics yet; arrangements share the song's lyrics (key is the song, not `arr:`). Existing issue seen while testing: on a phone the song page is wider than the screen (the `.nav-pair` buttons), on the iReal tab too.
+- What's new line at release: "Lyrics tab on every tune (work in progress): paste the words in, then read them on their own, beside the chart, or over a faded chart."
+- Smoke test: Lyrics tab, Add lyrics, Save, reload; Side by side and Over the chart while the band plays; Edit, clear, Save (back to empty); signed in and signed out.
+
 ## Pending: Transcribe tool (/tools/transcribe)
 - Slow down (speed presets, keep pitch for uploads) and A–B loop a YouTube link or an uploaded recording. Uploads: 3 per person, 25 MB each.
 - Migrations **0036** + **0037** (10 uploads per 24 hours, logged by the trigger) (`practice_tracks` + private `practice` bucket; the row is made first and the upload must match it, so the cap holds). Applied to dev, not live. Tests: `tests/access/practice.test.ts` (not run locally). Local mode keeps the files in IndexedDB.

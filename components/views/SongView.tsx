@@ -18,6 +18,7 @@ import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
+import { LyricsPane } from "../Lyrics";
 import { ReharmButtons, VersionBar, useVersions } from "../Versions";
 import { HitBar, HitEditor, TapAlong } from "../Hits";
 import { validateHits } from "@/lib/hits";
@@ -187,7 +188,9 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
       </div>
       <section className="panel" aria-label="Chord chart" data-tour="chart">
         <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} vs={vs}><ReharmButtons sg={cur0.song} vs={vs} /></ChartTabs>
-        {ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
+        {ch.tab === "lyrics" ? <LyricsPane songKey={songKey(cur0.song.raw)} title={cur0.song.title} composer={composerName(cur0.song.composer)}
+          chart={<ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />} />
+        : ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
         <VersionBar sg={cur0.song} vs={vs} />
         <div className="panel-head">
           <span className="seg" role="group" aria-label="Approach">

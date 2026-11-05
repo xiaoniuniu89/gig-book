@@ -21,7 +21,7 @@ function readTabs(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(TAB_KEY) || "{}") as Record<string, string>; } catch { return {}; }
 }
 
-/** The charts on a song (plus those shared with `setlistId`), and the tab picked for it: "ireal" or a chart id. */
+/** The charts on a song (plus those shared with `setlistId`), and the tab picked for it: "ireal", "lyrics" or a chart id. */
 export function useCharts(songKey: string, setlistId?: string) {
   const { store } = useApp();
   const [charts, setCharts] = useState<Chart[]>([]);
@@ -38,7 +38,7 @@ export function useCharts(songKey: string, setlistId?: string) {
     try { const m = readTabs(); if (t === "ireal") delete m[songKey]; else m[songKey] = t; localStorage.setItem(TAB_KEY, JSON.stringify(m)); } catch { /* private mode */ }
   }, [songKey]);
   const shown = charts.find(c => c.id === tab) ?? null; // a remembered chart that's gone falls back to iReal
-  return { charts, setCharts, tab: shown ? tab : "ireal", shown, setTab };
+  return { charts, setCharts, tab: shown || tab === "lyrics" ? tab : "ireal", shown, setTab };
 }
 
 /** Picks a chart file and an optional recording; shared by "Upload chart" and "Edit chart". */
@@ -182,18 +182,17 @@ function EditChart({ c, setlist, canDelete, onSaved, onDeleted }: {
   );
 }
 
-/** The one tab row: iReal, its reharms, each uploaded chart; then Upload chart and whatever buttons the page adds (`children`). */
+/** The one tab row: iReal, its reharms, each uploaded chart, Lyrics; then Upload chart and whatever buttons the page adds (`children`). */
 export function ChartTabs({ songKey, setlist, ch, vs, children }: {
   songKey: string; setlist?: Setlist; ch: ReturnType<typeof useCharts>; vs?: Versions; children?: React.ReactNode;
 }) {
   const { store } = useApp();
   const [adding, setAdding] = useState(false);
-  if (store.kind !== "supabase" && !ch.charts.length) return null;
   const reharms = vs?.versions ?? [];
   const onIreal = ch.tab === "ireal";
   return (
     <div className="chart-tabs-row">
-      {(ch.charts.length > 0 || reharms.length > 0) && <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
+      <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
         <button role="tab" className="pl-tab" aria-selected={onIreal && !vs?.pick} onClick={() => { ch.setTab("ireal"); vs?.setPick(""); }}>iReal</button>
         {reharms.map(x => (
           <button key={x.id} role="tab" className="pl-tab" aria-selected={onIreal && vs?.pick === x.id} onClick={() => { ch.setTab("ireal"); vs?.setPick(x.id); }}>
@@ -205,7 +204,8 @@ export function ChartTabs({ songKey, setlist, ch, vs, children }: {
             {c.name}{c.audio && <span aria-label="has a recording">♪</span>}{c.setlistId && <span>band</span>}
           </button>
         ))}
-      </div>}
+        <button role="tab" className="pl-tab" aria-selected={ch.tab === "lyrics"} onClick={() => ch.setTab("lyrics")}>Lyrics</button>
+      </div>
       <div className="row-btns">
         {store.kind === "supabase" && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
         {children}

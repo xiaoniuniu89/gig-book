@@ -612,6 +612,20 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .chart-pane-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .chart-pane-bar .chart-audio { flex: 1; }
 .chart-pane-file object.file-chart { min-height: 0; height: min(85vh, 1200px); }
+/* Lyrics tab: words alone, beside the chart, or over a faded chart */
+.lyrics-pane { display: grid; gap: 10px; min-width: 0; }
+.lyrics-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lyrics-bar .btn { margin-left: auto; }
+.lyrics-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 1rem; max-width: 60ch; }
+.lyrics-side { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+.lyrics-side .lyrics-text { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow-y: auto; }
+.lyrics-over { display: grid; }
+.lyrics-over > * { grid-area: 1 / 1; min-width: 0; }
+.lyrics-over .lyrics-chart { opacity: .22; pointer-events: none; }
+.lyrics-over .lyrics-text { position: relative; max-width: none; padding: 4px 8px; font-weight: 600; text-shadow: 0 0 6px var(--surface), 0 0 2px var(--surface); }
+.lyrics-empty, .lyrics-edit { display: grid; gap: 10px; }
+.lyrics-edit textarea { width: 100%; min-height: 50vh; font: inherit; line-height: 1.5; }
+@media (max-width: 720px) { .lyrics-side { grid-template-columns: 1fr; } .lyrics-side .lyrics-text { position: static; max-height: none; } }
 .chart-pane-file .file-chart img { max-height: 85vh; width: auto; max-width: 100%; }
 .chart-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .chart-audio audio { flex: 1; min-width: 220px; max-width: 520px; }
