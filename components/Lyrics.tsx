@@ -1,11 +1,13 @@
 "use client";
-// Lyrics for singers: a Lyrics tab next to the charts. Your own copy, private to you and kept with the song
-// (a personal note at its own key, so it never shows among your notes and needs no table of its own).
+// Lyrics for singers: a Lyrics tab next to the charts, so words and chords are in one place. Your own copies,
+// private to you and kept with the song: each version is a personal note at its own key (never among your notes,
+// no table of its own). "[A]" or "[Chorus]" lines mark sections; "Follow the form" lays them out from the chart.
 // Views: lyrics only, side by side with the iReal chart, or over a faded chart (work in progress).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import type { Note } from "@/lib/data/types";
+import { DEFAULT_NAME, LYRIC_SECTIONS, blocks, formTemplate, joinName, splitName } from "@/lib/lyrics";
 
 export const lyricsKey = (songKey: string): string => "lyrics:" + songKey;
 const VIEW_KEY = "gigbook-lyrics-view", SIZE_KEY = "gigbook-lyrics-size";
@@ -25,12 +27,57 @@ const isSize = (v: unknown): v is number => typeof v === "number" && v >= 0 && v
 const searchUrl = (title: string, composer: string) =>
   "https://www.google.com/search?q=" + encodeURIComponent(`"${title}" ${composer} lyrics`.trim());
 
-/** The Lyrics tab's pane. `chart` is the iReal chart, drawn beside or behind the lyrics. */
-export function LyricsPane({ songKey, title, composer, chart }: { songKey: string; title: string; composer: string; chart: React.ReactNode }) {
+/** What's being edited: an existing version (`id`) or a new one. */
+type Draft = { id: string | null; name: string; text: string };
+
+function Editor({ d, setD, form, busy, onSave, onCancel, search }: {
+  d: Draft; setD: (d: Draft) => void; form: string[]; busy: boolean; onSave: () => void; onCancel: () => void; search: string;
+}) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  // puts "[X]" on its own line at the cursor
+  const addSection = (label: string) => {
+    const el = box.current, at = el ? el.selectionStart : d.text.length;
+    const before = d.text.slice(0, at), after = d.text.slice(at);
+    const pre = before && !before.endsWith("\n") ? "\n\n" : before && !before.endsWith("\n\n") ? "\n" : "";
+    const ins = pre + "[" + label + "]\n";
+    setD({ ...d, text: before + ins + after });
+    requestAnimationFrame(() => { if (el) { el.focus(); el.selectionStart = el.selectionEnd = at + ins.length; } });
+  };
+  const fillForm = () => setD({ ...d, text: d.text.trim() ? d.text.replace(/\s*$/, "\n\n") + formTemplate(form) : formTemplate(form) });
+  return (
+    <div className="lyrics-edit">
+      <label className="field"><span className="field-label">Name</span>
+        <input type="text" maxLength={40} value={d.name} onChange={e => setD({ ...d, name: e.target.value })} placeholder="Lyrics, My version, Live take…" />
+      </label>
+      <div className="field"><span className="field-label">Sections <span className="field-opt">(optional)</span></span>
+        <div className="chips" role="group" aria-label="Add a section">
+          {form.length > 0 && <button type="button" className="chip" onClick={fillForm}>Follow the form: {form.join(" ")}</button>}
+          {LYRIC_SECTIONS.map(s => <button key={s} type="button" className="chip" onClick={() => addSection(s)}>+ {s}</button>)}
+        </div>
+        <span className="field-hint">A line like [A] or [Chorus] starts a section. Type your own, like [Tag] or [Vamp].</span>
+      </div>
+      <label className="field"><span className="field-label">Words</span>
+        <textarea ref={box} rows={16} maxLength={MAX} value={d.text} onChange={e => setD({ ...d, text: e.target.value })} autoFocus
+          placeholder={"Paste or type the words.\n\n[A]\nFirst line…"} />
+        <span className="field-hint">Only you see them. Clear the words and save to delete this version.</span>
+      </label>
+      <div className="row-btns">
+        <button className="btn primary" disabled={busy} onClick={onSave}>{busy ? "Saving…" : "Save lyrics"}</button>
+        <button className="btn" disabled={busy} onClick={onCancel}>Cancel</button>
+        <a className="btn small" href={search} target="_blank" rel="noopener noreferrer">Search the web ↗</a>
+      </div>
+    </div>
+  );
+}
+
+/** The Lyrics tab's pane. `chart` is the iReal chart, drawn beside or behind the lyrics; `form` its sections as played. */
+export function LyricsPane({ songKey, title, composer, form, chart }: {
+  songKey: string; title: string; composer: string; form: string[]; chart: React.ReactNode;
+}) {
   const { store, toast } = useApp();
-  const home = { kind: "song", songKey: lyricsKey(songKey) } as const;
-  const [note, setNote] = useState<Note | null | undefined>(undefined); // undefined while loading
-  const [draft, setDraft] = useState<string | null>(null); // the text being edited, or null when not editing
+  const [list, setList] = useState<Note[] | null>(null); // null while loading
+  const [pick, setPick] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [view, setViewState] = useState<View>("lyrics");
   const [size, setSizeState] = useState(1);
@@ -40,56 +87,67 @@ export function LyricsPane({ songKey, title, composer, chart }: { songKey: strin
 
   useEffect(() => {
     let gone = false;
-    setNote(undefined); setDraft(null);
+    setList(null); setDraft(null); setPick("");
     store.listNotes({ kind: "song", songKey: lyricsKey(songKey) })
-      .then(l => { if (!gone) setNote(l.find(n => !n.parentId) ?? null); }, () => { if (!gone) setNote(null); });
+      .then(l => { if (!gone) setList(l.filter(n => !n.parentId)); }, () => { if (!gone) setList([]); });
     return () => { gone = true; };
   }, [store, songKey]);
 
+  const search = searchUrl(title, composer);
+  const shown = list?.find(n => n.id === pick) ?? list?.[0];
+
   const save = async () => {
-    if (draft === null) return;
-    const body = draft.replace(/\s+$/, "").slice(0, MAX);
+    if (!draft || !list) return;
+    const text = draft.text.replace(/\s+$/, "");
+    const body = joinName(draft.name, text).slice(0, MAX);
     setBusy(true);
     try {
-      if (!body.trim()) { if (note) await store.deleteNote(note.id); setNote(null); }
-      else if (note) { await store.updateNote(note.id, { body, tag: null }); setNote({ ...note, body }); }
-      else setNote(await store.addNote(home, { body }));
+      if (!text.trim()) {
+        if (draft.id) await store.deleteNote(draft.id);
+        setList(list.filter(n => n.id !== draft.id)); setPick("");
+      } else if (draft.id) {
+        await store.updateNote(draft.id, { body, tag: null });
+        setList(list.map(n => n.id === draft.id ? { ...n, body } : n));
+      } else {
+        const n = await store.addNote({ kind: "song", songKey: lyricsKey(songKey) }, { body });
+        setList(list.concat(n)); setPick(n.id);
+      }
       setDraft(null);
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save the lyrics."); }
     setBusy(false);
   };
 
-  if (note === undefined) return <p className="hint">Loading lyrics…</p>;
+  if (list === null) return <p className="hint">Loading lyrics…</p>;
+  if (draft) return <Editor d={draft} setD={setDraft} form={form} busy={busy} onSave={save} onCancel={() => setDraft(null)} search={search} />;
 
-  if (draft !== null) return (
-    <div className="lyrics-edit">
-      <label className="field"><span className="field-label">Lyrics for {title}</span>
-        <textarea rows={16} maxLength={MAX} value={draft} onChange={e => setDraft(e.target.value)} autoFocus
-          placeholder={"Paste or type the words.\nA blank line starts a new verse."} />
-        <span className="field-hint">Only you see them. Clear the box and save to remove them.</span>
-      </label>
-      <div className="row-btns">
-        <button className="btn primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save lyrics"}</button>
-        <button className="btn" disabled={busy} onClick={() => setDraft(null)}>Cancel</button>
-        <a className="btn small" href={searchUrl(title, composer)} target="_blank" rel="noopener noreferrer">Search the web ↗</a>
-      </div>
-    </div>
-  );
-
-  if (!note) return (
+  if (!shown) return (
     <div className="lyrics-empty">
       <p>No lyrics for this tune yet.</p>
       <div className="row-btns">
-        <button className="btn primary" onClick={() => setDraft("")}><Icon name="plus" size={16} /> Add lyrics</button>
-        <a className="btn" href={searchUrl(title, composer)} target="_blank" rel="noopener noreferrer">Search the web ↗</a>
+        <button className="btn primary" onClick={() => setDraft({ id: null, name: DEFAULT_NAME, text: "" })}><Icon name="plus" size={16} /> Add lyrics</button>
+        {form.length > 0 && <button className="btn" onClick={() => setDraft({ id: null, name: DEFAULT_NAME, text: formTemplate(form) })}>Start from the form: {form.join(" ")}</button>}
+        <a className="btn" href={search} target="_blank" rel="noopener noreferrer">Search the web ↗</a>
       </div>
-      <p className="hint">Find them online, copy the words and paste them in. They are kept with this song, only for you.</p>
+      <p className="hint">Paste your own lyrics, or find them online and paste them in. Add sections like intro, A, B or chorus. They are kept with this song, only for you.</p>
     </div>
   );
 
-  const words = <div className="lyrics-text" style={{ fontSize: SIZES[size] + "rem" }}>{note.body}</div>;
+  const cur = splitName(shown.body);
+  const words = (
+    <div className="lyrics-text" style={{ fontSize: SIZES[size] + "rem" }}>
+      {blocks(cur.text).map((b, i) => (
+        <div key={i} className="lyrics-block">
+          {b.label && <span className="lyrics-label">{b.label}</span>}
+          {b.lines && <p>{b.lines}</p>}
+        </div>
+      ))}
+    </div>
+  );
   return (
     <div className="lyrics-pane">
+      {list.length > 1 && <div className="chips lyrics-versions" role="group" aria-label="Lyrics versions">
+        {list.map(n => <button key={n.id} className="chip" aria-pressed={n.id === shown.id} onClick={() => setPick(n.id)}>{splitName(n.body).name}</button>)}
+      </div>}
       <div className="lyrics-bar">
         <span className="seg" role="group" aria-label="Lyrics view">
           {VIEWS.map(([k, label]) => <button key={k} aria-pressed={view === k} onClick={() => setView(k)}>{label}</button>)}
@@ -99,7 +157,10 @@ export function LyricsPane({ songKey, title, composer, chart }: { songKey: strin
           <button aria-label="Smaller text" disabled={size === 0} onClick={() => setSize(size - 1)}>A−</button>
           <button aria-label="Bigger text" disabled={size === SIZES.length - 1} onClick={() => setSize(size + 1)}>A+</button>
         </span>
-        <button className="btn small" onClick={() => setDraft(note.body)}><Icon name="edit" size={16} /> Edit lyrics</button>
+        <span className="lyrics-acts">
+          <button className="btn small" onClick={() => setDraft({ id: shown.id, ...cur })}><Icon name="edit" size={16} /> Edit</button>
+          <button className="btn small" onClick={() => setDraft({ id: null, name: "My version", text: cur.text })}><Icon name="plus" size={16} /> New version</button>
+        </span>
       </div>
       {view === "lyrics" ? words
         : view === "side" ? <div className="lyrics-side">{words}<div className="lyrics-chart">{chart}</div></div>

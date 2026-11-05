@@ -615,8 +615,12 @@ object.file-chart { height: 100%; min-height: 80vh; }
 /* Lyrics tab: words alone, beside the chart, or over a faded chart */
 .lyrics-pane { display: grid; gap: 10px; min-width: 0; }
 .lyrics-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.lyrics-bar .btn { margin-left: auto; }
-.lyrics-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 1rem; max-width: 60ch; }
+.lyrics-acts { display: flex; gap: 8px; margin-left: auto; }
+.lyrics-text { display: grid; gap: 14px; line-height: 1.6; font-size: 1rem; max-width: 60ch; }
+.lyrics-block { display: grid; gap: 4px; justify-items: start; }
+.lyrics-block p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lyrics-label { font-family: var(--display); font-size: .8em; line-height: 1; border: 2px solid currentColor; border-radius: 3px; padding: 3px 6px 1px; }
+.lyrics-versions { margin-bottom: 2px; }
 .lyrics-side { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
 .lyrics-side .lyrics-text { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow-y: auto; }
 .lyrics-over { display: grid; }
