@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useApp } from "./AppProvider";
 import { cleanUrl, hostOf } from "@/lib/resources";
-import { parseTags, type Resource, type ResourceFields } from "@/lib/data/types";
+import { checkFile } from "@/lib/validate";
+import { MAX_FILE_MB, attachmentKind, parseTags, type Resource, type ResourceFields } from "@/lib/data/types";
 
 /** Link: URL, title (the site's name if left blank), tags, note. File (new): title, tags, note and the file itself. */
-export function ResourceForm({ kind, initial, cta, onSubmit, onCancel }: {
-  kind: Resource["kind"]; initial?: ResourceFields; cta: string;
+export function ResourceForm({ kind, initial, cta, onSubmit, onCancel, onDirty }: {
+  kind: Resource["kind"]; initial?: ResourceFields; cta: string; onDirty?: (d: boolean) => void;
   onSubmit: (f: ResourceFields, file: File | null) => Promise<void>; onCancel: () => void;
 }) {
   const [url, setUrl] = useState(initial?.url ?? "");
@@ -19,11 +20,19 @@ export function ResourceForm({ kind, initial, cta, onSubmit, onCancel }: {
   const [bad, setBad] = useState("");
   const [busy, setBusy] = useState(false);
   const needFile = kind === "file" && !initial;
+  const changed = [url, title, tags, note].join("\u0001") !== [initial?.url, initial?.title, (initial?.tags ?? []).join(", "), initial?.note].map(x => x ?? "").join("\u0001") || !!file;
+  useEffect(() => { onDirty?.(changed); }, [changed, onDirty]);
   const submit = async () => {
     if (busy) return;
     const u = kind === "link" ? cleanUrl(url) : "";
     if (kind === "link" && !u) { setBad("Enter a web address, like https://example.com."); return; }
     if (needFile && !file) { setBad("Choose a PDF, image or MusicXML score."); return; }
+    if (file) {
+      const k = attachmentKind(file.type, file.name);
+      if (k !== "pdf" && k !== "image" && k !== "musicxml") { setBad("Choose a PDF, an image or a MusicXML score."); return; }
+      const why = checkFile(file, { maxMB: MAX_FILE_MB });
+      if (why) { setBad(why); return; }
+    }
     const t = title.trim() || (kind === "link" ? hostOf(u) : file?.name.replace(/\.[^.]+$/, "") || "");
     if (!t) { setBad("Give it a title."); return; }
     setBad("");
@@ -43,7 +52,7 @@ export function ResourceForm({ kind, initial, cta, onSubmit, onCancel }: {
       {needFile && (
         <label className="field">
           <span className="field-label">File <span className="req" aria-hidden="true">*</span></span>
-          <input type="file" aria-label="File" onChange={e => { setFile(e.target.files?.[0] ?? null); setBad(""); }} />
+          <input type="file" aria-label="File" accept="application/pdf,image/*,.musicxml,.mxl,.xml" onChange={e => { setFile(e.target.files?.[0] ?? null); setBad(""); }} />
         </label>
       )}
       <label className="field">
@@ -52,7 +61,7 @@ export function ResourceForm({ kind, initial, cta, onSubmit, onCancel }: {
       </label>
       <label className="field">
         <span className="field-label">Tags <span className="field-opt">(optional, comma-separated)</span></span>
-        <input type="text" aria-label="Tags" placeholder="method book, bebop" value={tags} onChange={e => setTags(e.target.value)} />
+        <input type="text" aria-label="Tags" placeholder="method book, bebop" maxLength={300} value={tags} onChange={e => setTags(e.target.value)} />
       </label>
       <label className="field">
         <span className="field-label">Note <span className="field-opt">(optional)</span></span>

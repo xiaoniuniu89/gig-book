@@ -58,13 +58,16 @@ async function report(v: TuneVersion, page: string) {
   if (!res.ok) throw new Error("Couldn't send the report.");
 }
 
-function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneVersion | null; onClose: () => void }) {
+function Editor({ sg, vs, edit, onClose, onDirty }: { sg: Song; vs: Versions; edit: TuneVersion | null; onClose: () => void; onDirty: (d: boolean) => void }) {
   const { store, toast } = useApp();
   const original = useMemo(() => changesText(sg), [sg]);
   const [from, setFrom] = useState(edit ? edit.id : vs.pick);
   const [name, setName] = useState(edit ? edit.name : "");
   const [text, setText] = useState(edit ? edit.changes : vs.shown ? vs.shown.changes : original);
   const [busy, setBusy] = useState(false);
+  const [name0, text0] = useMemo(() => [name, text], []); // eslint-disable-line react-hooks/exhaustive-deps -- as first shown
+  const changed = name !== name0 || text !== text0;
+  useEffect(() => { onDirty(changed && !busy); }, [changed, busy, onDirty]);
   const check = parseChanges(text, sg.bars.length);
   const err = "error" in check ? check.error : "";
   const canName = !edit || edit.mine;
@@ -90,7 +93,7 @@ function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneV
   return (
     <form className="chart-form" onSubmit={save}>
       {canName && <label className="field"><span className="field-label">Name</span>
-        <input type="text" maxLength={MAX_NAME} value={name} onChange={e => setName(e.target.value)} placeholder="Player · Recording, or My reharm" />
+        <input type="text" required maxLength={MAX_NAME} value={name} onChange={e => setName(e.target.value)} placeholder="Player · Recording, or My reharm" />
       </label>}
       {!edit && <label className="field"><span className="field-label">Start from</span>
         <select value={from} onChange={e => start(e.target.value)}>
@@ -98,9 +101,8 @@ function Editor({ sg, vs, edit, onClose }: { sg: Song; vs: Versions; edit: TuneV
           {vs.versions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
         </select>
       </label>}
-      <label className="field"><span className="field-label">Changes</span>
-        <textarea className="version-text" rows={Math.min(14, Math.max(5, Math.ceil(sg.bars.length / 4) + 1))} spellCheck={false} value={text} onChange={e => setText(e.target.value)} />
-        <span className="field-hint">One bar between each pair of | marks, like | Bbmaj7 | G7 | Cm7 F7 |. Two chords in a bar share it. Use % to repeat the bar before. {sg.bars.length} bars.</span>
+      <label className="field"><span className="field-label">Changes <Info label="About the changes">One bar between each pair of | marks, like | Bbmaj7 | G7 | Cm7 F7 |. Two chords in a bar share it. Use % to repeat the bar before. {sg.bars.length} bars.</Info></span>
+        <textarea className="version-text" rows={Math.min(14, Math.max(5, Math.ceil(sg.bars.length / 4) + 1))} maxLength={6000} required spellCheck={false} value={text} onChange={e => setText(e.target.value)} />
       </label>
       {err && <p className="flag" role="alert">{err}</p>}
       <div className="row-btns">
@@ -118,6 +120,7 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
   const [editor, setEditor] = useState<"edit" | null>(null);
   const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState(false);
+  const [editDirty, setEditDirty] = useState(false);
   useEffect(() => { setArmed(false); }, [vs.pick]);
   if (!vs.on) return null;
   const v = vs.shown;
@@ -155,8 +158,8 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
           </span>
         </div>
       )}
-      <Modal open={editor !== null && !!v} title={v ? "Edit " + v.name : ""} onClose={() => setEditor(null)}>
-        {editor && v && <Editor sg={sg} vs={vs} edit={v} onClose={() => setEditor(null)} />}
+      <Modal open={editor !== null && !!v} title={v ? "Edit " + v.name : ""} onClose={() => setEditor(null)} dirty={editDirty}>
+        {editor && v && <Editor sg={sg} vs={vs} edit={v} onClose={() => setEditor(null)} onDirty={setEditDirty} />}
       </Modal>
     </div>
   );
@@ -166,6 +169,7 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
 export function ReharmButtons({ sg, vs }: { sg: Song; vs: Versions }) {
   const { store, toast } = useApp();
   const [adding, setAdding] = useState(false);
+  const [addDirty, setAddDirty] = useState(false);
   const [finding, setFinding] = useState(false);
   if (!vs.on) return null;
   const find = async () => {
@@ -192,8 +196,8 @@ export function ReharmButtons({ sg, vs }: { sg: Song; vs: Versions }) {
         <Info label="About famous reharms">Looks up well-known recordings that play different chords on this tune and adds each one as a reharm tab. AI can make mistakes, so each one says whether a player has checked it.</Info>
       </>}
       <button className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Add a reharm</button>
-      <Modal open={adding} title="Add a reharm" onClose={() => setAdding(false)}>
-        {adding && <Editor sg={sg} vs={vs} edit={null} onClose={() => setAdding(false)} />}
+      <Modal open={adding} title="Add a reharm" onClose={() => setAdding(false)} dirty={addDirty}>
+        {adding && <Editor sg={sg} vs={vs} edit={null} onClose={() => setAdding(false)} onDirty={setAddDirty} />}
       </Modal>
     </>
   );

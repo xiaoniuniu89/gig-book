@@ -2,6 +2,7 @@
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
+import { plainError } from "../validate";
 import type { Hit, Feels } from "../hits";
 import { MAX_FILE_MB, MAX_LEAD_SHEET_MB, type OriginalSong,MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
@@ -125,8 +126,9 @@ const BUCKET = "attachments";
 const SETLIST_COLS = "id, owner, name, spotify_uri, visibility, band_id, bands(name), setlist_items(id, position, set_no, song, shift, versions, hits, feels)";
 const NOTE_COLS = "id, author, setlist_id, setlist_item_id, song_key, parent_id, tag, body, created_at, updated_at";
 
-function fail(what: string, error: { message: string } | null): never {
-  throw new Error(`Couldn't ${what}: ${error ? error.message : "unknown error"}`);
+function fail(what: string, error: { message: string; code?: string } | null): never {
+  if (error) console.error(`Couldn't ${what}:`, error);
+  throw new Error(`Couldn't ${what}. ${plainError(error)}`);
 }
 
 function toSetlist(r: SetlistRow, role: Role): Setlist {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "../Icon";
+import { Info } from "../Info";
 import { Modal } from "../Modal";
 import { PermSwitches } from "../BandPerms";
 import { useApp } from "../AppProvider";
@@ -58,15 +59,14 @@ export function BandsView() {
           {!bands.length && <p className="hint">No bands yet. Make one with New band, or open an invite link from a bandmate.</p>}
         </div>
       )}
-      <Modal open={adding} title="New band" onClose={() => setAdding(false)}>
+      <Modal open={adding} title="New band" onClose={() => setAdding(false)} dirty={!!name.trim() && !busy}>
         <form className="new-band" onSubmit={e => { e.preventDefault(); void create(); }}>
           <label className="field">
             <span className="field-label">Band name <span className="req" aria-hidden="true">*</span></span>
-            <input aria-label="Band name" autoFocus maxLength={200} placeholder="e.g. Ava Trio" value={name} onChange={e => setName(e.target.value)} />
+            <input aria-label="Band name" autoFocus required maxLength={200} placeholder="e.g. Ava Trio" value={name} onChange={e => setName(e.target.value)} />
           </label>
-          <h3 className="modal-sub">What new members can do</h3>
+          <h3 className="modal-sub">What new members can do <Info label="About member permissions">You&apos;re the admin and can do everything. You can change these later, or set them for one person.</Info></h3>
           <PermSwitches value={perms} onChange={setPerms} />
-          <p className="hint">You&apos;re the admin and can do everything. You can change these later, or set them for one person.</p>
           <button className="btn primary" type="submit" disabled={busy}>{busy ? "Creating…" : "Create band"}</button>
         </form>
       </Modal>

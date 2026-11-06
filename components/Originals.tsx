@@ -45,6 +45,8 @@ export function NewSong({ o, title: preTitle, onClose, onSaved }: { o?: Original
   const [pct, setPct] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const touched = useRef({ key: !!o, tempo: !!o });
+  const snap = JSON.stringify([title, composer, style, key, tempo, ts, vis, file?.name, dropSheet, edit]);
+  const [snap0] = useState(snap);
 
   useEffect(() => { store.listBands().then(setBands).catch(() => setBands([])); }, [store]);
 
@@ -95,6 +97,7 @@ export function NewSong({ o, title: preTitle, onClose, onSaved }: { o?: Original
     const visibility: OriginalVisibility = vis === "public" ? "public" : vis.startsWith("band:") ? "band" : "private";
     const bandId = visibility === "band" ? vis.slice(5) : null;
     const t = Math.round(Number(tempo));
+    if (tempo.trim() && !(t >= 30 && t <= 400)) { toast("Tempo has to be between 30 and 400."); return; }
     const raw = encodeChart({ title: name, composer: storeComposer(composer), style, key, tempo: t >= 30 && t <= 400 ? t : undefined, sections: r.sections });
     setPct(0);
     try {
@@ -108,10 +111,10 @@ export function NewSong({ o, title: preTitle, onClose, onSaved }: { o?: Original
 
   const sheetName = file?.name ?? (!dropSheet ? o?.leadSheet?.name : undefined);
   return (
-    <Modal open title={o ? "Edit song" : "New song"} onClose={() => { if (pct === null) onClose(); }}>
+    <Modal open title={o ? "Edit song" : "New song"} onClose={() => { if (pct === null) onClose(); }} dirty={pct === null && snap !== snap0}>
       <form className="chart-form" onSubmit={save}>
         <label className="field"><span className="field-label">Title</span>
-          <input type="text" maxLength={200} autoFocus={!title} value={title} onChange={e => setTitle(e.target.value)} />
+          <input type="text" required maxLength={200} autoFocus={!title} value={title} onChange={e => setTitle(e.target.value)} />
         </label>
         <label className="field"><span className="field-label">Composer <Info label="About the composer">Starts as your name. Change it if someone else wrote it.</Info></span>
           <input type="text" maxLength={120} value={composer} onChange={e => setComposer(e.target.value)} />

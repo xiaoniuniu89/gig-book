@@ -29,8 +29,8 @@ function ago(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onCancel, autoFocus, rows = 2 }: {
-  label: string; placeholder: string; tags: boolean; attach?: boolean; initial?: { body: string; tag: NoteTag | null }; cta: string;
+function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onCancel, onDirty, autoFocus, rows = 2 }: {
+  label: string; placeholder: string; tags: boolean; attach?: boolean; initial?: { body: string; tag: NoteTag | null }; cta: string; onDirty?: (d: boolean) => void;
   onSubmit: (body: string, tag: NoteTag | null, files: File[]) => Promise<void>; onCancel?: () => void; autoFocus?: boolean; rows?: number;
 }) {
   const [body, setBody] = useState(initial?.body ?? "");
@@ -39,6 +39,7 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => { onDirty?.(!!body.trim() || files.length > 0); }, [body, files, onDirty]);
   const submit = async () => {
     if (busy) return;
     const v = body.trim();
@@ -104,6 +105,7 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
   const [editing, setEditing] = useState<string | null>(null);
   const [armed, setArmed] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
+  const [composeDirty, setComposeDirty] = useState(false);
   const [atts, setAtts] = useState<Attachment[]>([]);
   const canAttach = store.kind === "supabase"; // local mode has no attachments (R6)
   const uploads = useUploads(store, home, useCallback((a: Attachment) => setAtts(p => p.concat(a)), []));
@@ -254,8 +256,8 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
         </div>
       )}
       {readOnly && <p className="hint">You can read notes here, but not post. Ask an admin.</p>}
-      <Modal open={composing} title={"Add a note: " + title} onClose={() => setComposing(false)}>
-        <Compose label="New note" placeholder="Write your note…" tags attach={canAttach} cta="Add note" autoFocus rows={5}
+      <Modal open={composing} title={"Add a note: " + title} onClose={() => setComposing(false)} dirty={composeDirty}>
+        <Compose label="New note" placeholder="Write your note…" tags attach={canAttach} cta="Add note" autoFocus rows={5} onDirty={setComposeDirty}
           onSubmit={async (b, t, f) => { await add(b, t, f); setComposing(false); }} onCancel={() => setComposing(false)} />
       </Modal>
     </section>

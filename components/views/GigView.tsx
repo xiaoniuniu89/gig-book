@@ -13,6 +13,7 @@ import { PeoplePicker, type Picked } from "../PeoplePicker";
 import { GigPoster } from "../Poster";
 import { GigDialog, gigWhen } from "../Gigs";
 import { hrefFor } from "@/lib/contact";
+import { isEmail } from "@/lib/validate";
 import { CONTACT_FIELDS, newItemId, type Gig, type GigPerson, type GigSetlist } from "@/lib/data/types";
 
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
@@ -181,6 +182,7 @@ function GigLineup({ gig, onLoaded }: { gig: Gig; onLoaded: (l: GigPerson[]) => 
   const addGuest = async (e: FormEvent) => {
     e.preventDefault();
     if (!guest.name.trim()) { toast("Give the guest a name."); return; }
+    if (guest.email.trim() && !isEmail(guest.email)) { toast("That email address doesn't look right."); return; }
     if (await act(() => store.addGigPerson(gig.id, { name: guest.name, plays: guest.plays, phone: guest.phone, email: guest.email }), "Couldn't add that guest.")) setGuest({ name: "", plays: "", phone: "", email: "" });
   };
   const remove = (p: GigPerson) => {
@@ -238,7 +240,7 @@ function GigLineup({ gig, onLoaded }: { gig: Gig; onLoaded: (l: GigPerson[]) => 
           <form className="chart-form" onSubmit={addGuest}>
             <h3>Add a guest <Info label="About guests">For someone without an account. Their phone and email are kept private to the lineup.</Info></h3>
             <div className="acct-row">
-              <label className="field"><span className="field-label">Name</span><input type="text" maxLength={100} value={guest.name} onChange={e => setGuest(g => ({ ...g, name: e.target.value }))} /></label>
+              <label className="field"><span className="field-label">Name</span><input type="text" required maxLength={100} value={guest.name} onChange={e => setGuest(g => ({ ...g, name: e.target.value }))} /></label>
               <label className="field"><span className="field-label">Plays</span><input type="text" maxLength={100} value={guest.plays} onChange={e => setGuest(g => ({ ...g, plays: e.target.value }))} /></label>
             </div>
             <div className="acct-row">
@@ -258,19 +260,22 @@ function EditPerson({ gig, person, onClose, onSaved }: { gig: Gig; person: GigPe
   const { store, toast } = useApp();
   const guest = !person.userId;
   const [f, setF] = useState({ name: person.name, plays: person.plays, phone: person.contact.phone ?? "", email: person.contact.email ?? "" });
+  const [init] = useState(f);
+  const dirty = JSON.stringify(f) !== JSON.stringify(init);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(x => ({ ...x, [k]: e.target.value }));
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (guest && !f.name.trim()) { toast("Give the guest a name."); return; }
+    if (guest && f.email.trim() && !isEmail(f.email)) { toast("That email address doesn't look right."); return; }
     setBusy(true);
     try { await store.updateGigPerson(gig.id, person, f); onSaved(); } catch (err) { toast(errText(err, "Couldn't save that person.")); }
     setBusy(false);
   };
   return (
-    <Modal open title={"Edit " + person.name} onClose={onClose}>
+    <Modal open title={"Edit " + person.name} onClose={onClose} dirty={dirty && !busy}>
       <form className="chart-form" onSubmit={save}>
-        {guest && <label className="field"><span className="field-label">Name</span><input type="text" maxLength={100} value={f.name} onChange={set("name")} /></label>}
+        {guest && <label className="field"><span className="field-label">Name</span><input type="text" required maxLength={100} value={f.name} onChange={set("name")} /></label>}
         <label className="field"><span className="field-label">Plays</span><input type="text" maxLength={100} value={f.plays} onChange={set("plays")} /></label>
         {guest && <>
           <label className="field"><span className="field-label">Phone</span><input type="tel" maxLength={60} value={f.phone} onChange={set("phone")} /></label>

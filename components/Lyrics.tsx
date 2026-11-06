@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
+import { Info } from "./Info";
 import type { Note } from "@/lib/data/types";
 import { DEFAULT_NAME, LYRIC_SECTIONS, blocks, formTemplate, joinName, splitName } from "@/lib/lyrics";
 
@@ -49,17 +50,15 @@ function Editor({ d, setD, form, busy, onSave, onCancel, search }: {
       <label className="field"><span className="field-label">Name</span>
         <input type="text" maxLength={40} value={d.name} onChange={e => setD({ ...d, name: e.target.value })} placeholder="Lyrics, My version, Live take…" />
       </label>
-      <div className="field"><span className="field-label">Sections <span className="field-opt">(optional)</span></span>
+      <div className="field"><span className="field-label">Sections <span className="field-opt">(optional)</span> <Info label="About sections">A line like [A] or [Chorus] starts a section. Type your own, like [Tag] or [Vamp].</Info></span>
         <div className="chips" role="group" aria-label="Add a section">
           {form.length > 0 && <button type="button" className="chip" onClick={fillForm}>Follow the form: {form.join(" ")}</button>}
           {LYRIC_SECTIONS.map(s => <button key={s} type="button" className="chip" onClick={() => addSection(s)}>+ {s}</button>)}
         </div>
-        <span className="field-hint">A line like [A] or [Chorus] starts a section. Type your own, like [Tag] or [Vamp].</span>
       </div>
-      <label className="field"><span className="field-label">Words</span>
+      <label className="field"><span className="field-label">Words <Info label="About the words">Only you see them. Clear the words and save to delete this version.</Info></span>
         <textarea ref={box} rows={16} maxLength={MAX} value={d.text} onChange={e => setD({ ...d, text: e.target.value })} autoFocus
           placeholder={"Paste or type the words.\n\n[A]\nFirst line…"} />
-        <span className="field-hint">Only you see them. Clear the words and save to delete this version.</span>
       </label>
       <div className="row-btns">
         <button className="btn primary" disabled={busy} onClick={onSave}>{busy ? "Saving…" : "Save lyrics"}</button>

@@ -73,7 +73,7 @@ export function SignIn() {
     if (!error) { setSent(true); return; }
     // with sign-ups off, Supabase answers an unknown email with otp_disabled / user_not_found
     const unknown = error.code === "otp_disabled" || error.code === "user_not_found" || /signups? not allowed|user not found/i.test(error.message);
-    setErr(unknown ? NOT_INVITED : error.message);
+    setErr(unknown ? NOT_INVITED : error.status === 429 || /rate limit|too many/i.test(error.message) ? "Too many tries. Wait a minute and try again." : "Couldn't send the code. Check the email address and try again.");
   };
 
   // the code in the email signs you in right here, even when the link would open in another browser (Gmail, Outlook…)
@@ -83,7 +83,7 @@ export function SignIn() {
     setBusy(true); setErr("");
     const { error } = await sb.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
     setBusy(false);
-    if (error) setErr(/expired|invalid/i.test(error.message) ? "That code didn't work or has expired. Check it, or send a new one." : error.message);
+    if (error) setErr(/expired|invalid/i.test(error.message) ? "That code didn't work or has expired. Check it, or send a new one." : "Couldn't sign you in. Try again.");
   };
 
   return (
@@ -118,7 +118,7 @@ export function SignIn() {
           <form className="landing-form" onSubmit={send}>
             <p className="hint">Already invited? Enter your email and we&apos;ll email you a sign-in code. No password.</p>
             <label htmlFor="signin-email">Email</label>
-            <input id="signin-email" type="email" required autoFocus autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+            <input id="signin-email" type="email" required autoFocus maxLength={254} autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
             {err && <p className="flag" role="alert">{err}{err === NOT_INVITED && <> <button type="button" className="btn small link-btn" onClick={() => setOpen("request")}>Request access</button></>}</p>}
             <div className="row-btns"><button className="btn primary" type="submit" disabled={busy}><Icon name="user" size={16} /> {busy ? "Sending…" : "Email me a code"}</button></div>
             {DevSignIn && <DevSignIn />}

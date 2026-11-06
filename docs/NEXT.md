@@ -14,6 +14,11 @@ What's left to do, in order. Last updated 2026-11-05. Update it at the end of ea
   - **Niu AI** card and page (`/ai`): the AI setlist draft moved out of the New setlist dialog.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 
+## Pending: form validation sweep (#82)
+- Built by the bot, **typecheck, lint and tests not run** (dependencies couldn't be installed): run `npm run typecheck && npm run lint` first.
+- New: `lib/validate.ts` (`checkFile`, `isEmail`, `tidyContact`, `contactProblem`, `plainError`); `Modal` takes `dirty` and asks before closing; `fail()` in `lib/data/supabase.ts` now gives plain sentences (raw error goes to the console).
+- Not done: Request access / sign-in dialogs have no unsaved-changes prompt (nothing worth keeping); inline (non-dialog) forms such as the lyrics editor and press kit tab don't ask before leaving.
+
 ## Pending: calendar feed (#81, R17)
 - Built by the bot, **typecheck, lint and tests not run** (dependencies couldn't be installed): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0042** (`calendar_feeds`, `calendar_feed_token`, `calendar_feed_gigs`). The route needs `SUPABASE_SERVICE_ROLE_KEY` in the env.
 - Code: `app/api/calendar/[file]/route.ts`, `lib/calendar/ics.ts` (+ `tests/unit/ics.test.ts`), `components/Connections.tsx` (new Account > Connections tab; the player choice moved here for signed-in users, Settings links to it; signed out keeps it in Settings). Access tests: `tests/access/calendar.test.ts`.

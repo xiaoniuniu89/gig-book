@@ -16,6 +16,7 @@ export function Setlists() {
   const { setlists, setCrumb, setCurrent, ready } = app;
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
 
@@ -26,11 +27,16 @@ export function Setlists() {
 
   const create = async () => {
     const name = newName.trim().slice(0, 200);
-    if (!name) { app.toast("A setlist needs a name."); return; }
-    const id = app.store.newId(name, id => !!app.setlistById(id));
-    await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
-    setAdding(false); setNewName("");
-    router.push("/set/" + encodeURIComponent(id));
+    if (!name) { app.toast("Give the setlist a name."); return; }
+    if (busy) return;
+    setBusy(true);
+    try {
+      const id = app.store.newId(name, id => !!app.setlistById(id));
+      await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
+      setAdding(false); setNewName("");
+      router.push("/set/" + encodeURIComponent(id));
+    } catch (e) { app.toast(e instanceof Error ? e.message : "Couldn't make that setlist."); }
+    setBusy(false);
   };
 
   return (
@@ -51,10 +57,10 @@ export function Setlists() {
           {!books.length && <p className="hint">No setlists yet. Make your first one with New setlist.</p>}
         </div>
       )}
-      <Modal open={adding} title="New setlist" onClose={() => setAdding(false)}>
+      <Modal open={adding} title="New setlist" onClose={() => setAdding(false)} dirty={!!newName.trim() && !busy}>
         <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
-          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
-          <button className="btn primary" type="submit">Create</button>
+          <input aria-label="Setlist name" autoFocus required maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
+          <button className="btn primary" type="submit" disabled={busy}>{busy ? "Creating…" : "Create"}</button>
         </form>
         {app.store.kind === "supabase" && <p className="hint">Or let <Link href="/ai">Niu AI</Link> draft one from your library.</p>}
         <h3 className="modal-sub">From iReal Pro</h3>

@@ -18,6 +18,7 @@ import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
+import { contactProblem, tidyContact } from "@/lib/validate";
 import { hrefFor } from "@/lib/contact";
 import {
   BAND_PERMS, CONTACT_FIELDS, SLUG_RE, newItemId, slug,
@@ -96,6 +97,7 @@ function SetlistsTab({ band }: { band: Band }) {
   const [armed, setArmed] = useState<string | null>(null);
   const [making, setMaking] = useState(false);
   const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
   const router = useRouter();
   const canAdd = band.role === "admin" || band.perms.add_setlists;
   const mine = app.setlists.filter(s => (!s.role || s.role === "owner") && s.band?.id !== band.id);
@@ -105,13 +107,15 @@ function SetlistsTab({ band }: { band: Band }) {
 
   const add = async () => {
     const s = mine.find(x => x.id === pick);
-    if (!s) return;
+    if (!s || busy) return;
+    setBusy(true);
     try {
       await store.setSetlistBand(s.id, band.id);
       app.updateSetlist(s.id, x => ({ ...x, band: { id: band.id, name: band.name } }));
       setPick(""); toast("Shared with the band.");
       await load();
     } catch (e) { toast(errText(e, "Couldn't add that setlist.")); }
+    setBusy(false);
   };
   const remove = async (b: BandSetlist) => {
     if (armed !== b.id) { setArmed(b.id); return; }
@@ -125,7 +129,9 @@ function SetlistsTab({ band }: { band: Band }) {
   // a new setlist of yours, shared with the band straight away
   const create = async () => {
     const name = newName.trim().slice(0, 200);
-    if (!name) { toast("A setlist needs a name."); return; }
+    if (!name) { toast("Give the setlist a name."); return; }
+    if (busy) return;
+    setBusy(true);
     try {
       const id = store.newId(name, i => !!app.setlistById(i));
       await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
@@ -133,6 +139,7 @@ function SetlistsTab({ band }: { band: Band }) {
       app.updateSetlist(id, x => ({ ...x, band: { id: band.id, name: band.name } }));
       router.push("/set/" + encodeURIComponent(id));
     } catch (e) { toast(errText(e, "Couldn't make that setlist.")); }
+    setBusy(false);
   };
   // a full copy you own (tunes, order, keys, playlist; not the notes)
   const save = async (b: BandSetlist) => {
@@ -170,13 +177,13 @@ function SetlistsTab({ band }: { band: Band }) {
             <option value="">Add one of yours…</option>
             {mine.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <button className="btn" disabled={!pick} onClick={add}>Add a setlist</button>
+          <button className="btn" disabled={!pick || busy} onClick={add}>Add a setlist</button>
         </div>
       )}
-      <Modal open={making} title={"New setlist for " + band.name} onClose={() => setMaking(false)}>
+      <Modal open={making} title={"New setlist for " + band.name} onClose={() => setMaking(false)} dirty={!!newName.trim() && !busy}>
         <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
-          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
-          <button className="btn primary" type="submit">Create</button>
+          <input aria-label="Setlist name" autoFocus required maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
+          <button className="btn primary" type="submit" disabled={busy}>{busy ? "Creating…" : "Create"}</button>
         </form>
       </Modal>
     </section>
@@ -380,15 +387,18 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
   const [perms, setPerms] = useState(band.defaultPerms);
   const [chat, setChat] = useState(band.chatUrl || "");
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const chatUrl = chat.trim() ? (/^https?:\/\//i.test(chat.trim()) ? chat.trim() : "https://" + chat.trim()).replace(/^http:/i, "https:") : null;
   const dirty = name.trim() !== band.name || JSON.stringify(perms) !== JSON.stringify(band.defaultPerms) || chatUrl !== band.chatUrl;
   const save = async () => {
-    if (!name.trim()) { toast("A band needs a name."); return; }
+    if (!name.trim()) { toast("Give the band a name."); return; }
     if (chatUrl && (chatUrl.length > 500 || !URL.canParse(chatUrl))) { toast("That chat link doesn't look right. Paste the whole invite link."); return; }
+    setSaving(true);
     try {
       await store.updateBand(band.id, { name: name.trim().slice(0, 200), defaultPerms: perms, bio: band.bio, contact: band.contact, epkSlug: band.epkSlug, chatUrl });
       await reloadBand(); toast("Saved.");
     } catch (e) { toast(errText(e, "Couldn't save.")); }
+    setSaving(false);
   };
   const del = async () => {
     try { await store.deleteBand(band.id); router.push("/bands"); } catch (e) { toast(errText(e, "Couldn't delete the band.")); }
@@ -396,13 +406,12 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
   return (
     <section className="panel">
       <h2>Band settings</h2>
-      <label className="acct-field"><span>Name</span><input type="text" value={name} maxLength={200} onChange={e => setName(e.target.value)} /></label>
-      <label className="acct-field"><span>Group chat link</span><input type="url" value={chat} maxLength={500} placeholder="https://chat.whatsapp.com/…" onChange={e => setChat(e.target.value)} /></label>
-      <p className="hint">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</p>
+      <label className="acct-field"><span>Name</span><input type="text" required value={name} maxLength={200} onChange={e => setName(e.target.value)} /></label>
+      <label className="acct-field"><span>Group chat link <Info label="About the group chat link">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</Info></span><input type="url" value={chat} maxLength={500} placeholder="https://chat.whatsapp.com/…" onChange={e => setChat(e.target.value)} /></label>
       <h3 className="modal-sub">What members can do by default</h3>
       <PermSwitches value={perms} onChange={setPerms} />
       <p className="hint">Admins can do everything. You can override these for one person under People.</p>
-      <div className="row-btns"><button className="btn primary" disabled={!dirty} onClick={save}>Save</button></div>
+      <div className="row-btns"><button className="btn primary" disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save"}</button></div>
       <div className="danger-zone"><button className="btn small" onClick={() => setDeleting(true)}><Icon name="trash" size={16} /> Delete this band</button></div>
       <ConfirmTyped open={deleting} title={"Delete " + band.name} action="Delete band" onClose={() => setDeleting(false)} onConfirm={del}>
         This deletes the band, its notes and its press kit for everyone. Setlists stay with whoever owns them.
@@ -438,9 +447,11 @@ function KitTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<vo
   };
   const save = async () => {
     if (isPublic && !slugOk) { toast("Page address: 3–40 letters, numbers or dashes."); return; }
+    const bad = contactProblem(contact);
+    if (bad) { toast(bad); return; }
     setBusy(true);
     try {
-      const clean = Object.fromEntries(Object.entries(contact).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
+      const clean = tidyContact(contact);
       await store.updateBand(band.id, { name: band.name, defaultPerms: band.defaultPerms, bio, contact: clean, epkSlug: isPublic ? slugText : null });
       await reloadBand(); toast("Saved.");
     } catch (e) { toast(errText(e, "Couldn't save.")); }
