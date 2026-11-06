@@ -1,6 +1,15 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-21",
+    items: [
+      "Loop any bars: drag across them on the chart (on a phone, hold a bar, then slide) and press Loop. Press Stop to end it. You can also type the bar numbers under More settings in the band.",
+      "Your original songs can have a recording: upload an MP3 in Recordings, and everyone who can see the song can play it.",
+      "With the band, an intro now plays only once. Later choruses start at the top of the tune, where the bass starts walking.",
+      "On a band setlist's tune, notes and licks each have one panel with Band and Private tabs.",
+    ],
+  },
+  {
     date: "2026-11-20",
     items: [
       "One way to share: setlists and transcriptions now have Who can see it, with Private, Bands I'm in, or Public, like your original songs.",
