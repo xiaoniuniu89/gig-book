@@ -213,6 +213,7 @@ export const localStore: DataStore = {
   getBandShare: async () => null,
   setBandShare: () => Promise.reject(new Error("Bands need an account.")),
   listBandSetlists: async () => [],
+  listBandmateSetlists: async () => [],
   setSetlistBand: () => Promise.reject(new Error("Bands need an account.")),
   listBandFiles: async () => [],
   uploadBandFile: () => Promise.reject(new Error("Bands need an account.")),

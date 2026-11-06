@@ -9,6 +9,7 @@ import { ImportPanel } from "../ImportPanel";
 import { Modal } from "../Modal";
 import { irealShift, keyLabel } from "@/lib/theory";
 import { song } from "@/lib/songs";
+import type { BandSetlist } from "@/lib/data/types";
 
 export function Setlists() {
   const app = useApp();
@@ -20,7 +21,16 @@ export function Setlists() {
 
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
 
-  const books = useMemo(() => setlists.map(s => ({
+  // setlists bandmates share with "Bands I'm in" (opening one adds it to the app's list, so keep those out of the main shelf)
+  const [fromBands, setFromBands] = useState<BandSetlist[]>([]);
+  useEffect(() => {
+    if (!ready) return;
+    let gone = false;
+    app.store.listBandmateSetlists().then(l => { if (!gone) setFromBands(l); }, () => { /* a nicety */ });
+    return () => { gone = true; };
+  }, [ready, app.store]);
+
+  const books = useMemo(() => setlists.filter(s => !s.viewOnly).map(s => ({
     s,
     keys: [...new Set(s.items.slice(0, 8).map(it => keyLabel(song(it.raw), it.shift ?? irealShift(song(it.raw)))))].join("  "),
   })), [setlists]);
@@ -56,6 +66,19 @@ export function Setlists() {
           ))}
           {!books.length && <p className="hint">No setlists yet. Make your first one with New setlist.</p>}
         </div>
+      )}
+      {ready && fromBands.length > 0 && (
+        <>
+          <h2 className="modal-sub" id="from-bands">From your bands</h2>
+          <div className="shelf">
+            {fromBands.map(b => (
+              <Link key={b.id} className="book blue" href={"/set/" + encodeURIComponent(b.id)}>
+                <span className="m">{b.tunes} {b.tunes === 1 ? "tune" : "tunes"} · {b.ownerName}</span>
+                <span className="t">{b.name}</span>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
       <Modal open={adding} title="New setlist" onClose={() => setAdding(false)} dirty={!!newName.trim() && !busy}>
         <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>

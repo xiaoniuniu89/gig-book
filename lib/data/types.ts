@@ -46,7 +46,8 @@ export interface Arrangement {
 /** The song key under which an arrangement keeps its private notes, licks and resources. */
 export const arrangementKey = (id: string): string => "arr:" + id;
 
-export type Visibility = "private" | "link" | "public";
+/** Who can see it: only you, everyone in any band you're in, or anyone signed in who has the link. */
+export type Visibility = "private" | "bands" | "public";
 export type Role = "owner" | "editor" | "viewer";
 
 export interface Setlist {
@@ -58,6 +59,8 @@ export interface Setlist {
   visibility?: Visibility;
   /** Your role on this setlist (accounts only). Local setlists are always yours. */
   role?: Role;
+  /** You can read it only through its Who can see it setting (no member, band or gig access): no notes or files. */
+  viewOnly?: boolean;
   /** The band it's shared with (accounts only). */
   band?: { id: string; name: string } | null;
 }
@@ -372,7 +375,7 @@ export interface Transcription {
   createdAt: string;
   updatedAt: string;
 }
-export type TranscriptionVisibility = "private" | "public";
+export type TranscriptionVisibility = "private" | "bands" | "public";
 export type TranscriptionFields = Pick<Transcription, "title" | "songKey" | "tuneTitle" | "tuneComposer" | "instrument" | "player" | "recording" | "youtube" | "visibility">;
 export interface TranscriptionQuery {
   q: string;
@@ -632,6 +635,8 @@ export interface DataStore {
   getBandShare(bandId: string): Promise<BandShare | null>;
   setBandShare(bandId: string, share: BandShare): Promise<void>;
   listBandSetlists(bandId: string): Promise<BandSetlist[]>;
+  /** Setlists bandmates share with "Bands I'm in" (not ones you own or are a member of). Local: none. */
+  listBandmateSetlists(): Promise<BandSetlist[]>;
   /** Owner only: share a setlist with a band you can add setlists to, or null to take it out. */
   setSetlistBand(setlistId: string, bandId: string | null): Promise<void>;
   /** The band's press kit files, oldest first. */

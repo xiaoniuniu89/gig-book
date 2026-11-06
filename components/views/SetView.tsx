@@ -2,7 +2,7 @@
 import { Oops } from "../Oops";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type PointerEvent } from "react";
 import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { More } from "../More";
@@ -16,14 +16,12 @@ import { Modal } from "../Modal";
 import { Info } from "../Info";
 import { SetlistGigs } from "../Gigs";
 import { PlaybackHelpLink } from "../PlaybackHelp";
-import { Collaborators } from "../Collaborators";
-import { PeoplePicker, type Picked } from "../PeoplePicker";
 import { SpotifyPlaylist } from "../SpotifyPlaylist";
 import { toUri, webUrl } from "@/lib/spotify/uri";
 import { tuneQueueItem } from "@/lib/youtube/queue";
 import { isBuiltin } from "@/lib/seeds";
 import { setlistFile, setlistLink } from "@/lib/irealExport";
-import { MAX_SETS, MEMBER_NOT_FOUND, newItemId, type Band as BandInfo, type Member, type Setlist } from "@/lib/data/types";
+import { MAX_SETS, newItemId, type Band as BandInfo, type Member, type Setlist, type Visibility } from "@/lib/data/types";
 
 export function SetView() {
   const params = useParams<{ id: string }>();
@@ -176,11 +174,11 @@ function SetBody({ s }: { s: Setlist }) {
   };
 
   const makeCopy = async () => {
-    const name = s.name + " (copy)";
-    const copy: Setlist = { ...s, id: app.store.newId(name, id => !!app.setlistById(id)), name, role: "owner", visibility: "private",
+    const name = s.viewOnly ? s.name : s.name + " (copy)";
+    const copy: Setlist = { ...s, id: app.store.newId(name, id => !!app.setlistById(id)), name, role: "owner", visibility: "private", viewOnly: false, band: null,
       items: s.items.map(it => ({ ...it, id: newItemId() })) };
-    await app.addSetlist(copy);
-    toast("Copied. This one is yours to change.");
+    try { await app.addSetlist(copy); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save a copy."); return; }
+    toast(s.viewOnly ? "Saved to your setlists." : "Copied. This one is yours to change.");
     router.push("/set/" + encodeURIComponent(copy.id));
   };
 
@@ -193,7 +191,7 @@ function SetBody({ s }: { s: Setlist }) {
     <>
       <div className="set-head">
         <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-          <span className="eyebrow">Setlist{!builtin && s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}{s.band && <> · Band: <Link href={"/bands/" + s.band.id}>{s.band.name}</Link></>}</span>
+          <span className="eyebrow">Setlist{s.viewOnly ? " · read only" : !builtin && s.role && s.role !== "owner" ? ` · shared with you (${s.role})` : ""}{s.band && <> · Band: <Link href={"/bands/" + s.band.id}>{s.band.name}</Link></>}</span>
           {renaming ? (
             <input className="rename" aria-label="Setlist name" autoFocus maxLength={200} value={draft}
               onChange={e => setDraft(e.target.value)} onBlur={commitRename}
@@ -209,12 +207,13 @@ function SetBody({ s }: { s: Setlist }) {
           {canEdit && <button className="btn" id="add-tunes" onClick={() => setPicking(true)}><Icon name="plus" size={18} /> Add tunes</button>}
           {canEdit && count < MAX_SETS && <button className="btn" onClick={() => setShown(count + 1)}><Icon name="plus" size={18} /> Add set</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
+          {s.viewOnly && <button className="btn primary" id="save-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Save to my setlists</button>}
           <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
           {s.items.length > 0 && <button className="btn" id="to-ireal" onClick={() => setIreal(true)}><Icon name="share" size={18} /> iReal Pro</button>}
-          {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Share" : "Members"}</button></More>}
+          {!builtin && !s.viewOnly && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Who can see it" : "Members"}</button></More>}
         </div>
       </div>
-      {!builtin && <SetlistGigs setlistId={s.id} canAdd={canEdit} />}
+      {!builtin && !s.viewOnly && <SetlistGigs setlistId={s.id} canAdd={canEdit} />}
       <div className="sets" data-tour="tunes">
         {nums.map(n => (
           <section className={"set" + (drag?.set === n ? " drop" : "")} aria-label={`Set ${n}`} key={n} data-set={canEdit ? n : undefined}>
@@ -280,14 +279,15 @@ function SetBody({ s }: { s: Setlist }) {
           </form>
         )}
       </section>
-      {!builtin && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
+      {!builtin && !s.viewOnly && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
       <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
       </Modal>
       <Modal open={ireal} title={"Send to iReal Pro: " + s.name} onClose={() => setIreal(false)}>
         <IrealExport s={s} />
       </Modal>
-      <Modal open={sharing} title={(isOwner ? "Share " : "Members of ") + s.name} onClose={() => setSharing(false)}>
+      <Modal open={sharing} title={(isOwner ? "Who can see " : "Members of ") + s.name} onClose={() => setSharing(false)}>
+        {isOwner && <VisibilityPick s={s} />}
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />
       </Modal>
@@ -332,6 +332,28 @@ function IrealExport({ s }: { s: Setlist }) {
   );
 }
 
+// Owner: who can see it. Bands and public readers get the setlist and its tunes only, never notes or files.
+function VisibilityPick({ s }: { s: Setlist }) {
+  const app = useApp();
+  const change = async (v: Visibility) => {
+    app.updateSetlist(s.id, x => ({ ...x, visibility: v }));
+    try { await app.flushSetlist(s.id); } catch (e) { app.toast(e instanceof Error ? e.message : "Couldn't save that."); }
+  };
+  return (
+    <div className="share-part" id="visibility-pick">
+      <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
+        Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later. Public: anyone signed in to Niu Real Book who has the link. They see the setlist and its tunes, and can save their own copy. Your notes and files stay with you and your band.
+      </Info></span>
+        <select value={s.visibility === "bands" || s.visibility === "public" ? s.visibility : "private"} onChange={e => void change(e.target.value as Visibility)}>
+          <option value="private">Private</option>
+          <option value="bands">Bands I&apos;m in</option>
+          <option value="public">Public</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+
 // Owner: share this setlist with one of your bands (R10), or take it out. Only bands where you may add setlists are offered.
 function BandPick({ s }: { s: Setlist }) {
   const app = useApp();
@@ -372,36 +394,12 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
   const router = useRouter();
   const { toast, store } = app;
   const [members, setMembers] = useState<Member[] | null>(null);
-  const [picked, setPicked] = useState<Picked | null>(null);
-  const [role, setRole] = useState<Member["role"]>("viewer");
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState<string | null>(null);
   const reload = useCallback(
     () => store.listMembers(s.id).then(setMembers).catch(e => toast(e instanceof Error ? e.message : "Couldn't load the band.")),
     [store, s.id, toast]);
   useEffect(() => { reload(); }, [reload]);
 
-  const add = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!picked || busy) return;
-    setBusy(true); setErr("");
-    try {
-      if (picked.kind === "person") await store.addCollaborator(s.id, picked.person.userId, role);
-      else await store.addMember(s.id, picked.email, role);
-      setPicked(null); toast("Added to the band.");
-      await reload();
-    } catch (x) {
-      setErr(x instanceof Error && x.message === MEMBER_NOT_FOUND
-        ? "They're not on Niu Real Book yet. Ask Dan to add them, then try again."
-        : x instanceof Error ? x.message : "Couldn't add them.");
-    }
-    setBusy(false);
-  };
-  const toggle = async (m: Member) => {
-    try { await store.setMemberRole(s.id, m.userId, m.role === "editor" ? "viewer" : "editor"); await reload(); }
-    catch (x) { toast(x instanceof Error ? x.message : "Couldn't change the role."); }
-  };
   const remove = async (m: Member) => {
     if (armed !== m.userId) { setArmed(m.userId); return; }
     setArmed(null);
@@ -409,43 +407,25 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
     catch (x) { toast(x instanceof Error ? x.message : "Couldn't remove them."); }
   };
 
+  // people added one at a time before: the owner can only tidy them up, nobody new is added this way any more
+  if (owner && !members?.length) return null;
   return (
     <div className="share-part" id="band">
-      <h3 className="modal-sub">People</h3>
+      <h3 className="modal-sub">{owner ? "Also shared with" : "People"}</h3>
       {members === null ? <p className="hint">Loading…</p> : !members.length
-        ? <p className="hint">{owner ? "Nobody else is on this setlist yet." : "Just the owner."}</p>
+        ? <p className="hint">Just the owner.</p>
         : <div className="list">
           {members.map(m => (
             <div className="member" key={m.userId}>
               <span className="name">{m.name}{m.email && <span className="sub">{m.email}</span>}</span>
               <span className="k">{m.role}</span>
               {owner && (
-                <span className="tune-btns">
-                  <button className="btn small" onClick={() => toggle(m)}>Make {m.role === "editor" ? "viewer" : "editor"}</button>
-                  <button className="btn small" aria-label="Remove" onClick={() => remove(m)}>{armed === m.userId ? "Remove?" : "✕"}</button>
-                </span>
+                <button className="btn small" aria-label={"Stop sharing with " + m.name} onClick={() => remove(m)}>{armed === m.userId ? "Remove?" : "✕"}</button>
               )}
             </div>
           ))}
         </div>}
-      {owner ? (
-        <>
-          <Collaborators exclude={members?.map(m => m.userId) ?? []} verb={role === "editor" ? "Add editor" : "Add viewer"} onPick={async c => {
-            try { await store.addCollaborator(s.id, c.userId, role); toast(c.name + " added."); await reload(); }
-            catch (x) { toast(x instanceof Error ? x.message : "Couldn't add them."); }
-          }} />
-          <form className="inline-form" onSubmit={add}>
-            <PeoplePicker value={picked} onChange={setPicked} exclude={members?.map(m => m.userId) ?? []} label="Add a person" placeholder="Type a name or an email" disabled={busy} />
-            <select aria-label="Role" value={role} onChange={e => setRole(e.target.value as Member["role"])}>
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-            </select>
-            <button className="btn" type="submit" disabled={busy || !picked}>Add</button>
-          </form>
-          {err && <p className="hint" role="alert">{err}</p>}
-          <p className="hint">Viewers can read the setlist and add notes. Editors can also change tunes, order and keys.</p>
-        </>
-      ) : members?.some(m => m.userId === app.account?.id) && (
+      {!owner && members?.some(m => m.userId === app.account?.id) && (
         <div className="danger-zone">
           <button className="btn small" id="leave-set" onClick={() => setArmed("leave")}><Icon name="logout" size={16} /> Leave this setlist</button>
           <ConfirmTyped open={armed === "leave"} title={"Leave " + s.name} action="Leave setlist" onClose={() => setArmed(null)}

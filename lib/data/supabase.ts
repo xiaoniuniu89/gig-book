@@ -78,7 +78,7 @@ const PRACTICE_BUCKET = "practice";
 const TRANSCRIPTION_BUCKET = "transcriptions";
 interface TranscriptionRow {
   id: string; owner: string; title: string; song_key: string | null; tune_title: string; tune_composer: string; instrument: string; player: string;
-  recording: string; youtube: string | null; visibility: "private" | "public"; file_path: string; file_kind: "pdf" | "image" | "musicxml";
+  recording: string; youtube: string | null; visibility: "private" | "bands" | "public"; file_path: string; file_kind: "pdf" | "image" | "musicxml";
   file_name: string; file_mime: string; file_size: number; created_at: string; updated_at: string;
 }
 const TR_COLS = "id, owner, title, song_key, tune_title, tune_composer, instrument, player, recording, youtube, visibility, file_path, file_kind, file_name, file_mime, file_size, created_at, updated_at";
@@ -361,7 +361,9 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (!data) return null;
       const row = data as unknown as SetlistRow;
       const roles = await roleFor([row]);
-      return toSetlist(row, roles.get(row.id) || "viewer");
+      const role = roles.get(row.id);
+      const s = toSetlist(row, role || "viewer");
+      return role ? s : { ...s, viewOnly: true };
     },
 
     async saveSetlist(s) {
@@ -1160,6 +1162,15 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const rows = (data || []) as { id: string; owner: string; name: string; setlist_items: { id: string }[] | null }[];
       const nm = await namesOf(rows.map(r => r.owner));
       return rows.map(r => ({ id: r.id, name: r.name, tunes: (r.setlist_items || []).length, ownerId: r.owner, mine: r.owner === userId, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member" }));
+    },
+
+    async listBandmateSetlists() {
+      // row-level security lets through only those whose owner shares a band with you (or that you're a member of)
+      const { data, error } = await sb.from("setlists").select("id, owner, name, setlist_items(id)").eq("visibility", "bands").neq("owner", userId).order("name");
+      if (error) fail("load your bandmates' setlists", error);
+      const rows = (data || []) as { id: string; owner: string; name: string; setlist_items: { id: string }[] | null }[];
+      const nm = await namesOf(rows.map(r => r.owner));
+      return rows.map(r => ({ id: r.id, name: r.name, tunes: (r.setlist_items || []).length, ownerId: r.owner, mine: false, ownerName: nm.get(r.owner) || "A bandmate" }));
     },
 
     async setSetlistBand(setlistId, bandId) {

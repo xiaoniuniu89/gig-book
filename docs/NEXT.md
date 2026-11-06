@@ -2,6 +2,13 @@
 
 What's left to do, in order. Last updated 2026-11-06. Update it at the end of each session.
 
+## Pending: one sharing model for setlists and transcriptions (#86)
+- Built by the bot. **Typecheck, lint and tests not run** (dependencies couldn't be installed): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0048** (also 0047 if not yet applied).
+- Deviation from the issue: `setlist_readable()` is left as it was, because the notes, files, licks and charts SELECT rules use it, and widening it would show them to visibility readers. A new `setlist_visible()` (role, or `bands` + `shares_band(owner)`, or `public`) is used only by `setlists_select` and `setlist_items_select`. Header of the migration lists which policy uses which.
+- Hits are a column on `setlist_items`, so visibility readers see them with the tunes.
+- App: Share dialog is now **Who can see it** (Private / Bands I'm in / Public) + Band; old `setlist_members` and `transcription_shares` show as "Also shared with" with ✕. Setlists page has **From your bands** (`listBandmateSetlists()`). A setlist read only by visibility comes back with `viewOnly: true` and role `viewer`: no edits, notes, gigs or Share; **Save to my setlists** copies it. Settings no longer shows "Someone adds me to a setlist" (setting kept).
+- Tests: `tests/access/sharing.test.ts`, `tests/e2e/10-sharing.spec.ts`. No existing e2e used per-person sharing. Not done: What's new line; "Add to gig" stays on the setlist page, not inside the dialog.
+
 ## State on 2026-11-06 (paused here)
 - Dev and live databases both have migrations up to **0046**. Everything below is released.
 - **Released this session:**

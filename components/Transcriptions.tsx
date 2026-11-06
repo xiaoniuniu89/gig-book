@@ -14,7 +14,7 @@ import { SOLO_INSTRUMENTS } from "@/lib/instruments";
 import { meta, norm, songKey } from "@/lib/songs";
 import { parseYoutube } from "@/lib/youtube/ids";
 import { readTranscriptionFile } from "@/lib/ai/transcriptionClient";
-import { MAX_FILE_MB, MEMBER_NOT_FOUND, attachmentKind, type LibraryPlaylist, type Transcription, type TranscriptionShare, type TranscriptionVisibility } from "@/lib/data/types";
+import { MAX_FILE_MB, attachmentKind, type LibraryPlaylist, type Transcription, type TranscriptionShare, type TranscriptionVisibility } from "@/lib/data/types";
 
 const ACCEPT = "application/pdf,image/*,.musicxml,.mxl,.xml,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml";
 const msg = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
@@ -161,10 +161,13 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
           <label className="field"><span className="field-label">YouTube link <span className="field-opt">(optional)</span></span>
             <input type="url" maxLength={300} value={yt} onChange={e => setYt(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
           </label>
-          <label className="field"><span className="field-label">Who can see it</span>
+          <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
+            Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later. Public: anyone signed in to Niu Real Book who has the link.
+          </Info></span>
             <select value={vis} onChange={e => setVis(e.target.value as TranscriptionVisibility)}>
-              <option value="private">Private: only you and people you share it with</option>
-              <option value="public">Public: anyone signed in to Niu Real Book</option>
+              <option value="private">Private</option>
+              <option value="bands">Bands I&apos;m in</option>
+              <option value="public">Public</option>
             </select>
           </label>
           {pct !== null && !t && <progress max={1} value={pct} aria-label="Uploading" />}
@@ -179,27 +182,23 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
   );
 }
 
-/** Share (owner only): add people by email, see them, remove them. */
-export function ShareDialog({ t, open, onClose }: { t: Transcription; open: boolean; onClose: () => void }) {
-  return <Modal open={open} title={"Share " + t.title} onClose={onClose}><ShareBody t={t} /></Modal>;
+/** Who can see it (owner only), plus anyone it was shared with one at a time before: listed with a ✕ to tidy up, no way to add more. */
+export function ShareDialog({ t, open, onClose, onChanged }: { t: Transcription; open: boolean; onClose: () => void; onChanged: (t: Transcription) => void }) {
+  return <Modal open={open} title={"Who can see " + t.title} onClose={onClose}><ShareBody t={t} onChanged={onChanged} /></Modal>;
 }
-function ShareBody({ t }: { t: Transcription }) {
+function ShareBody({ t, onChanged }: { t: Transcription; onChanged: (t: Transcription) => void }) {
   const { store, toast } = useApp();
   const [people, setPeople] = useState<TranscriptionShare[] | null>(null);
-  const [email, setEmail] = useState("");
-  const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const reload = useCallback(
     () => store.listTranscriptionShares(t.id).then(setPeople).catch(e => toast(msg(e, "Couldn't load the list."))),
     [store, t.id, toast]);
   useEffect(() => { void reload(); }, [reload]);
-  const add = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = email.trim();
-    if (!v || busy) return;
-    setBusy(true); setErr("");
-    try { await store.addTranscriptionShare(t.id, v); setEmail(""); toast("Shared."); await reload(); }
-    catch (x) { setErr(x instanceof Error && x.message === MEMBER_NOT_FOUND ? "They're not on Niu Real Book yet. Ask Dan to add them, then try again." : msg(x, "Couldn't share it.")); }
+  const change = async (v: TranscriptionVisibility) => {
+    if (busy || v === t.visibility) return;
+    setBusy(true);
+    try { onChanged(await store.updateTranscription(t, { ...t, visibility: v })); toast("Saved."); }
+    catch (x) { toast(msg(x, "Couldn't save that.")); }
     setBusy(false);
   };
   const remove = async (p: TranscriptionShare) => {
@@ -208,22 +207,28 @@ function ShareBody({ t }: { t: Transcription }) {
   };
   return (
     <div className="share-part">
-      {t.visibility === "public" && <p className="hint">This one is public: anyone signed in can already see it.</p>}
-      {people === null ? <p className="hint">Loading…</p> : !people.length ? <p className="hint">Not shared with anyone yet.</p> : (
-        <div className="list">
-          {people.map(p => (
-            <div className="member" key={p.userId}>
-              <span className="name">{p.name}{p.email && <span className="sub">{p.email}</span>}</span>
-              <button className="btn small" aria-label={"Stop sharing with " + p.name} onClick={() => remove(p)}>✕</button>
-            </div>
-          ))}
-        </div>
+      <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
+        Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later. Public: anyone signed in to Niu Real Book who has the link.
+      </Info></span>
+        <select value={t.visibility} disabled={busy} onChange={e => void change(e.target.value as TranscriptionVisibility)}>
+          <option value="private">Private</option>
+          <option value="bands">Bands I&apos;m in</option>
+          <option value="public">Public</option>
+        </select>
+      </label>
+      {!!people?.length && (
+        <>
+          <h3 className="modal-sub">Also shared with</h3>
+          <div className="list">
+            {people.map(p => (
+              <div className="member" key={p.userId}>
+                <span className="name">{p.name}{p.email && <span className="sub">{p.email}</span>}</span>
+                <button className="btn small" aria-label={"Stop sharing with " + p.name} onClick={() => remove(p)}>✕</button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
-      <form className="inline-form" onSubmit={add}>
-        <input type="email" aria-label="Email" placeholder="Add by email" autoComplete="off" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} />
-        <button className="btn primary" type="submit" disabled={busy || !email.trim()}>Share</button>
-      </form>
-      {err && <p className="hint" role="alert">{err}</p>}
     </div>
   );
 }

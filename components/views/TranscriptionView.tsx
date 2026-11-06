@@ -51,7 +51,7 @@ export function TranscriptionView() {
         {t.mine && (
           <div className="row-btns">
             <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit</button>
-            <button className="btn small" onClick={() => setSharing(true)}><Icon name="share" size={16} /> Share</button>
+            <button className="btn small" onClick={() => setSharing(true)}><Icon name="share" size={16} /> Who can see it</button>
             <button className="btn small" disabled={busy} onClick={del}><Icon name="trash" size={16} /> {armed ? "Tap again to delete" : "Delete"}</button>
           </div>
         )}
@@ -60,7 +60,7 @@ export function TranscriptionView() {
         <dl className="tr-details">
           {details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
           <div><dt>Uploaded by</dt><dd>{t.ownerName}</dd></div>
-          <div><dt>Who can see it</dt><dd>{t.visibility === "public" ? "Public: anyone signed in" : "Private"}</dd></div>
+          <div><dt>Who can see it</dt><dd>{t.visibility === "public" ? "Public: anyone signed in" : t.visibility === "bands" ? "Bands I'm in" : "Private"}</dd></div>
         </dl>
         <div className="row-btns">
           {tune && <Link className="btn small" href={tune}><Icon name="music" size={16} /> Open the tune</Link>}
@@ -71,7 +71,7 @@ export function TranscriptionView() {
       </section>
       <section className="panel" aria-label="Transcription"><FileChart store={store} a={t.file} /></section>
       {editing && <TranscriptionDialog t={t} onClose={() => setEditing(false)} onSaved={n => { setT(n); setEditing(false); }} />}
-      {t.mine && <ShareDialog t={t} open={sharing} onClose={() => setSharing(false)} />}
+      {t.mine && <ShareDialog t={t} open={sharing} onClose={() => setSharing(false)} onChanged={setT} />}
     </>
   );
 }
