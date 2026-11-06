@@ -1134,7 +1134,10 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .bar-words input { flex: 1 1 120px; min-width: 0; }
 .lead-sheet { display: grid; gap: 8px; justify-items: start; padding: 0 0 10px; }
 .lead-sheet img { max-width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; }
-.lead-sheet iframe { width: 100%; height: min(70vh, 720px); border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+.lead-sheet { padding-top: 10px; justify-items: stretch; }
+.lead-sheet-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+.lead-sheet-card .name { flex: 1; min-width: 0; display: grid; overflow-wrap: anywhere; font-weight: 700; }
+.lead-sheet-card .sub { font-weight: 400; font-family: var(--type); font-size: 0.8125rem; color: var(--muted); }
 .steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; line-height: 1.45; }
 .epk-member { padding: 12px 0; border-top: 1px solid var(--rule); }
 .epk-member h3 { margin: 0 0 6px; }

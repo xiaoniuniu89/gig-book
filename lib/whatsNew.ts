@@ -10,7 +10,7 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
     date: "2026-11-15",
     items: [
-      "Your original songs have a Lead sheet tab next to iReal, with a Download button.",
+      "Your original songs have a Lead sheet tab next to iReal, with Open and Download.",
       "Edit song is now a button above the chart, and Delete song is inside it.",
       "AI marks 1st and 2nd endings more cleanly when it reads a lead sheet.",
       "Gigs: Find address looks up the venue and fills in the address, and the gig page has Open in Google Maps.",
