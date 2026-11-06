@@ -1,7 +1,7 @@
 // Original songs (R16.5): chords shown in normal notation, and the bar grid's fromEdit.
 import { describe, expect, it } from "vitest";
 import { displayChord, irealChord, readChords } from "@/lib/irealExport";
-import { blankSection, fromEdit, toEdit, type EditSection } from "@/components/ChartEditor";
+import { blankSection, fromEdit, toEdit, type EditSection } from "@/lib/chartEdit";
 
 describe("displayChord", () => {
   const pairs: [string, string][] = [

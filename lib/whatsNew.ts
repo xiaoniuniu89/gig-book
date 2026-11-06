@@ -1,6 +1,10 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-14",
+    items: ["Writing out a song's chords is now a grid of bars, like a real chart: tap a bar, type chords the usual way (Cmaj7, Dm7), and use buttons for repeats, endings, segno and coda. Fill in chords with AI sits right above it."],
+  },
+  {
     date: "2026-11-13",
     items: [
       "Bands have an Originals tab: the original songs by people in the band, in one place. Each song stays with whoever wrote it.",

@@ -19,7 +19,7 @@ export function irealChord(tok: string): string | null {
   if (!m) return null;
   const flat = (s: string) => s.replace("♭", "b").replace("♯", "#");
   let q = flat(m[2]).replace(/[()]/g, "");
-  const MAJ = "maj|M|Δ|△";
+  const MAJ = "maj|Maj|M|Δ|△";
   if (/^(maj|M)?$/.test(q)) q = "";
   else if (/^(Δ|△)$/.test(q)) q = "^7";
   else if (new RegExp("^(m|min|-)(" + MAJ + "|\\^)").test(q)) q = q.replace(new RegExp("^(m|min|-)(" + MAJ + "|\\^)"), "-^");
