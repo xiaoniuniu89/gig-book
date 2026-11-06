@@ -1160,3 +1160,4 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .epk-member { padding: 12px 0; border-top: 1px solid var(--rule); }
 .epk-member h3 { margin: 0 0 6px; }
 .band-ctrls input.num { width: 4.5em; }
+[role="tabpanel"][hidden] { display: none; }
