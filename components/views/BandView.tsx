@@ -94,6 +94,9 @@ function SetlistsTab({ band }: { band: Band }) {
   const [list, setList] = useState<BandSetlist[] | null>(null);
   const [pick, setPick] = useState("");
   const [armed, setArmed] = useState<string | null>(null);
+  const [making, setMaking] = useState(false);
+  const [newName, setNewName] = useState("");
+  const router = useRouter();
   const canAdd = band.role === "admin" || band.perms.add_setlists;
   const mine = app.setlists.filter(s => (!s.role || s.role === "owner") && s.band?.id !== band.id);
 
@@ -119,6 +122,18 @@ function SetlistsTab({ band }: { band: Band }) {
       await load();
     } catch (e) { toast(errText(e, "Couldn't take it out of the band.")); }
   };
+  // a new setlist of yours, shared with the band straight away
+  const create = async () => {
+    const name = newName.trim().slice(0, 200);
+    if (!name) { toast("A setlist needs a name."); return; }
+    try {
+      const id = store.newId(name, i => !!app.setlistById(i));
+      await app.addSetlist({ id, name, spotify: null, items: [], visibility: "private", role: "owner" });
+      await store.setSetlistBand(id, band.id);
+      app.updateSetlist(id, x => ({ ...x, band: { id: band.id, name: band.name } }));
+      router.push("/set/" + encodeURIComponent(id));
+    } catch (e) { toast(errText(e, "Couldn't make that setlist.")); }
+  };
   // a full copy you own (tunes, order, keys, playlist; not the notes)
   const save = async (b: BandSetlist) => {
     try {
@@ -132,7 +147,10 @@ function SetlistsTab({ band }: { band: Band }) {
 
   return (
     <section className="panel">
-      <h2>Band setlists</h2>
+      <div className="panel-head">
+        <h2>Band setlists <Info label="About band setlists">A setlist stays owned by whoever made it. If they take it out or leave the band, it leaves the band too. Anyone can save their own copy.</Info></h2>
+        {canAdd && <button className="btn small" onClick={() => setMaking(true)}><Icon name="plus" size={16} /> New setlist</button>}
+      </div>
       {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No setlists shared with the band yet.</p> : (
         <div className="list">
           {list.map(b => (
@@ -149,13 +167,18 @@ function SetlistsTab({ band }: { band: Band }) {
       {canAdd && (
         <div className="inline-form">
           <select aria-label="Your setlist" value={pick} onChange={e => setPick(e.target.value)}>
-            <option value="">Add a setlist…</option>
+            <option value="">Add one of yours…</option>
             {mine.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <button className="btn" disabled={!pick} onClick={add}>Add a setlist</button>
         </div>
       )}
-      <p className="hint">A setlist stays owned by whoever made it. If they take it out or leave the band, it leaves the band too. Anyone can save their own copy.</p>
+      <Modal open={making} title={"New setlist for " + band.name} onClose={() => setMaking(false)}>
+        <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
+          <input aria-label="Setlist name" autoFocus maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
+          <button className="btn primary" type="submit">Create</button>
+        </form>
+      </Modal>
     </section>
   );
 }
