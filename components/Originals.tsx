@@ -89,7 +89,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
   };
   const makeChart = async () => {
     if (aiBusy) return;
-    if (edit.some(s => s.text.trim()) && !confirm("Replace the chart you have so far with the AI's?")) return;
+    if (edit.some(s => s.typed.some(t => t.trim())) && !confirm("Replace the chart you have so far with the AI's?")) return;
     setAiBusy(true); setProblems([]);
     try {
       const f = await sheetFile();
@@ -147,16 +147,14 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
           </div>
         </> : <>
         <div className="field"><span className="field-label">Lead sheet <span className="field-opt">(optional)</span> <Info label="About the lead sheet">
-          A PDF or a photo, up to {MAX_LEAD_SHEET_MB} MB. It is kept with the song and shown on its page. Niu AI can read it and write out the chart for you; for that a PDF has to be 3 MB or less. Only you and whoever can see the song can open it.
+          A PDF or a photo, up to {MAX_LEAD_SHEET_MB} MB. It is kept with the song and shown on its page. Niu AI can read it and fill in the chords for you; for that a PDF has to be 3 MB or less. Only you and whoever can see the song can open it.
         </Info></span>
           <div className="attach-opts">
             {sheetName ? <><span className="chip">{sheetName}</span>
               <button className="btn small" type="button" onClick={() => input.current?.click()}>Change</button>
               <button className="btn small" type="button" onClick={() => { setFile(null); setDropSheet(true); }}>Remove</button></>
               : <button className="btn small" type="button" onClick={() => input.current?.click()}><Icon name="import" size={16} /> Choose file</button>}
-            {sheetName && <button className="btn small" type="button" disabled={aiBusy} onClick={makeChart}><Icon name="sparkle" size={16} /> {aiBusy ? "Reading the lead sheet…" : "Make the chart with AI"}</button>}
           </div>
-          {sheetName && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Make the chart with AI sends the lead sheet to an AI service. It counts toward your daily Niu AI requests, and it can make mistakes: check the chart before you save.</span></div>}
         </div>
         <label className="field"><span className="field-label">Title</span>
           <input type="text" required maxLength={200} autoFocus={!title} value={title} onChange={e => setTitle(e.target.value)} />
@@ -197,7 +195,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
             {vis.startsWith("band:") && <option value={vis}>Only {bands.find(b => "band:" + b.id === vis)?.name || "one band"}</option>}
           </select>
         </label>
-        <ChartEditor value={edit} onChange={setEdit} ts={ts} />
+        <ChartEditor value={edit} onChange={setEdit} ts={ts} ai={{ ready: !!sheetName, busy: aiBusy, run: makeChart }} />
         {problems.length > 0 && <ul className="field-err" role="alert">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
         {pct !== null && file && <progress max={1} value={pct} aria-label="Uploading" />}
         <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null || aiBusy}>{pct !== null ? "Saving…" : o ? "Save" : "Save song"}</button></div>

@@ -33,6 +33,26 @@ export function irealChord(tok: string): string | null {
   return c && c.len === sym.length ? sym : null;
 }
 
+/** An iReal chord the way musicians write it (the reverse of irealChord): C^7 -> Cmaj7, D-7 -> Dm7, E-7b5 -> Em7b5 (h7), D-7/G -> Dm7/G. */
+export function displayChord(sym: string): string {
+  const m = /^([A-G][b#]?)([^/]*)(?:\/([A-G][b#]?))?$/.exec(sym);
+  if (!m) return sym;
+  const q = m[2].replace(/^-\^/, "mMaj").replace(/^\^/, "maj").replace(/^-/, "m").replace(/^h7?/, "m7b5")
+    .replace(/^o/, "dim").replace(/^\+/, "aug").replace(/sus(?!\d)/, "sus4");
+  return m[1] + q + (m[3] ? "/" + m[3] : "");
+}
+
+/** The chords typed for one bar (spaces or commas between), as iReal symbols. `bad` lists what can't be read. % is skipped. */
+export function readChords(text: string): { chords: string[]; bad: string[] } {
+  const chords: string[] = [], bad: string[] = [];
+  for (const t of text.split(/[\s,]+/).filter(Boolean)) {
+    if (t === "%") continue;
+    const c = /^n\.?c\.?$/i.test(t) ? "N.C." : irealChord(t);
+    if (c) chords.push(c); else bad.push(t);
+  }
+  return { chords, bad };
+}
+
 /** "Dm7 G7 | Cmaj7" to bars of iReal chord symbols: [["D-7","G7"],["C^7"]]. Throws a readable error. */
 export function parseProgression(text: string): string[][] {
   const bars: string[][] = [];
