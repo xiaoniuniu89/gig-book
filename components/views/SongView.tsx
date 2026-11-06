@@ -17,6 +17,7 @@ import { More } from "../More";
 import { Modal } from "../Modal";
 import { newItem } from "../TunePicker";
 import { isBuiltin } from "@/lib/seeds";
+import { useWakeLock } from "@/lib/useWakeLock";
 import { ChartPane, ChartTabs, useCharts } from "../Charts";
 import { LyricsPane } from "../Lyrics";
 import { formOf } from "@/lib/lyrics";
@@ -88,6 +89,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const arr = cur0.kind === "arr" ? app.arrangements.find(a => a.id === cur0.arrId) : undefined;
   const vs = useVersions(cur0.song); // R3.5: the picked version's chords replace the tune's for everything below
   const cur = useMemo<TuneCurrent>(() => !vs.song || vs.song === cur0.song ? cur0 : { ...cur0, song: vs.song }, [cur0, vs.song]);
+  useWakeLock(); // a chart left open on a gig shouldn't let the screen sleep
   const sg = cur.song;
   const shift = app.shiftOf(cur);
   const s = cur.kind === "set" ? setlist : undefined;

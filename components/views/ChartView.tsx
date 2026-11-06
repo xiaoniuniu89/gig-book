@@ -10,6 +10,7 @@ import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song, songKey } from "@/lib/songs";
 import { isBuiltin } from "@/lib/seeds";
+import { useWakeLock } from "@/lib/useWakeLock";
 import { FileChart } from "../Attachments";
 import { Icon } from "../Icon";
 import { ChartAudio, useCharts } from "../Charts";
@@ -78,21 +79,7 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
   useEffect(() => { if (cur) setCurrent(cur); }, [cur, setCurrent]);
   useEffect(() => () => setCurrent(null), [setCurrent]);
 
-  // keep the screen awake while open; a hidden tab loses the lock, so ask again when it returns
-  useEffect(() => {
-    let lock: WakeLockSentinel | null = null, gone = false;
-    const get = async () => {
-      try {
-        const l = await navigator.wakeLock?.request("screen");
-        if (!l) return;
-        if (gone) l.release().catch(() => {}); else lock = l;
-      } catch { /* unsupported or refused */ }
-    };
-    const vis = () => { if (document.visibilityState === "visible") get(); };
-    get();
-    document.addEventListener("visibilitychange", vis);
-    return () => { gone = true; document.removeEventListener("visibilitychange", vis); lock?.release().catch(() => {}); };
-  }, []);
+  useWakeLock(); // keep the screen awake while open
 
   // fullscreen button only where the API exists (not iOS Safari)
   useEffect(() => {
