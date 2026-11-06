@@ -169,6 +169,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
   const [armed, setArmed] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [plays, setPlays] = useState(band.plays);
+  const [editPlays, setEditPlays] = useState(false);
 
   const load = useCallback(() => store.listBandMembers(band.id).then(setMembers, e => { setMembers([]); toast(errText(e, "Couldn't load the people.")); }), [store, band.id, toast]);
   useEffect(() => { void load(); }, [load]);
@@ -189,7 +190,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
     void act("Couldn't remove them.", () => store.removeBandMember(band.id, m.userId));
   };
   const savePlays = async () => {
-    try { await store.setBandPlays(band.id, plays); toast("Saved."); await Promise.all([load(), reloadBand()]); } catch (e) { toast(errText(e, "Couldn't save.")); }
+    try { await store.setBandPlays(band.id, plays); setEditPlays(false); toast("Saved."); await Promise.all([load(), reloadBand()]); } catch (e) { toast(errText(e, "Couldn't save.")); }
   };
   const leave = async () => {
     if (armed !== "leave") { setArmed("leave"); return; }
@@ -208,7 +209,8 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
               return (
                 <div className="member-block" key={m.userId}>
                   <div className="member">
-                    <span className="name"><span><b>{m.name}{me ? " (you)" : ""}</b>{m.plays.length > 0 && <span className="plays"> · {m.plays.join(", ")}</span>}</span></span>
+                    <span className="name"><span><b>{m.name}{me ? " (you)" : ""}</b>{m.plays.length > 0 && <span className="plays"> · {m.plays.join(", ")}</span>}</span>
+                      {me && <button className="btn icon-btn small" aria-label="Change what you play in this band" title="Change what you play" onClick={() => { setPlays(band.plays); setEditPlays(true); }}><Icon name="edit" size={16} /></button>}</span>
                     <span className="k">{m.role}</span>
                     {admin && !me && (
                       <span className="tune-btns">
@@ -248,16 +250,15 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
 
       <section className="panel">
         <h2>You in this band</h2>
-        <div className="acct-field">
-          <span>What you play here</span>
-          <InstrumentPicker label="What you play here" value={plays} onChange={setPlays} />
-          <div><button className="btn" onClick={savePlays} disabled={plays.join("|") === band.plays.join("|")}>Save</button></div>
-        </div>
         <div className="row-btns">
           <button className="btn" onClick={() => setSharing(true)}>What the band sees of my profile</button>
           <button className="btn" onClick={leave}>{armed === "leave" ? "Tap again to leave" : "Leave band"}</button>
         </div>
       </section>
+      <Modal open={editPlays} title="What you play in this band" onClose={() => setEditPlays(false)}>
+        <InstrumentPicker label="What you play in this band" dropdown value={plays} onChange={setPlays} />
+        <div className="row-btns"><button className="btn primary" onClick={savePlays} disabled={plays.join("|") === band.plays.join("|")}>Save</button></div>
+      </Modal>
       <Modal open={sharing} title="What the band sees" onClose={() => setSharing(false)}>
         <BandShareForm bandId={band.id} bandName={band.name} cta="Save" onSaved={() => { setSharing(false); toast("Saved."); void load(); }} />
       </Modal>
