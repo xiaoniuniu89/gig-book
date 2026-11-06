@@ -1,5 +1,6 @@
 "use client";
 // /settings: look and feel that follow your account (signed out, this browser). Another section (Music…) is one more <section> in the list.
+import Link from "next/link";
 import { useEffect } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
@@ -63,7 +64,12 @@ export function SettingsView() {
         </section>
       )}
 
-      <section className="acct-sec">
+      {store.kind === "supabase" ? (
+        <section className="acct-sec">
+          <h2>Music</h2>
+          <p className="hint">Your player (YouTube or Spotify) is now under <Link href="/account">Account</Link>, in the Connections tab.</p>
+        </section>
+      ) : <section className="acct-sec">
         <h2>Music</h2>
         <div className="acct-field">
           <span>Play recordings with</span>
@@ -80,7 +86,7 @@ export function SettingsView() {
           </div>
         </div>
         {settings.player === "youtube" && <div className="acct-field"><ConnectPremium /></div>}
-      </section>
+      </section>}
     </>
   );
 }

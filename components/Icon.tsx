@@ -24,6 +24,7 @@ const PATHS = {
   search: "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14zM16 16l4 4",
   sparkle: "M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6zM19 3v4M17 5h4",
   drum: "M4 10c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 10v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6M7 4l4 4M17 4l-4 4",
+  calendar: "M4 6h16v14H4V6zM4 10h16M8 3v4M16 3v4",
   tools:"M8 21h8l-2.5-17h-3L8 21zM12 16l4-8M6 21h12",
 } as const;
 export type IconName = keyof typeof PATHS;
