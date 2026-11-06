@@ -9,9 +9,11 @@ export const metadata: Metadata = {
   title: { default: "Niu Real Book", template: "%s · Niu Real Book" },
   description: "A real book for working jazz musicians: setlists from iReal Pro, analysed charts, a built-in backing band, licks and your band in one place.",
   applicationName: "Niu Real Book",
+  appleWebApp: { capable: true, title: "Real Book", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#faf9f6" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

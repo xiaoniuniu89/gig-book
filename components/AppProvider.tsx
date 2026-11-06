@@ -1,6 +1,7 @@
 "use client";
 // App-wide client state: storage, preferences, the backing band, the Spotify embed and practice-gig mode.
 // Lives in the root layout so audio and the embed keep going while you move between pages.
+import "@/lib/install"; // keeps the browser's install prompt for Account > Help
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";

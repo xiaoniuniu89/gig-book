@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
 import { Info } from "../Info";
+import { InstallApp } from "../InstallApp";
 import { TOUR_EVENT } from "../Tour";
 import { WHATS_NEW_EVENT } from "../WhatsNew";
 import { ThemeToggle } from "../TopBar";
@@ -67,7 +68,7 @@ const ABOUT: Record<Tab, string> = {
   files: "Press photos and a press kit PDF, ready to send to venues and agents. Each file shows who can see it.",
   page: "A web page with your press kit that you can send to anyone. It only shows what you've made public.",
   connections: "Put your gigs in your phone's calendar, and choose what plays recordings.",
-  help: "Take the tour again, see what's new, or switch between light and dark.",
+  help: "Take the tour again, see what's new, switch between light and dark, or install the app on this device.",
 };
 let lastTab: Tab = "about"; // remembered while the app is open
 
@@ -98,7 +99,8 @@ export function AccountView() {
   const uploads = useUploads(store, "profile", useCallback((a: Attachment) => setFiles(l => l.concat(a)), []));
 
   if (!signedIn) return <><div className="page-head"><h1>Account</h1></div><p className="hint">Sign in to set up your profile.</p>
-    <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div></>;
+    <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div>
+        <div className="row-btns"><InstallApp /></div></>;
   if (!p) return <><div className="page-head"><h1>Account</h1></div><p className="hint" role="status">Loading…</p></>;
 
   const x = open && d ? d : p;
