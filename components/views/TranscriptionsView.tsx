@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "../AppProvider";
 import { Info } from "../Info";
-import { TranscriptionDialog, TranscriptionRows, UploadMenu, type UploadMode } from "../Transcriptions";
+import { TranscriptionDialog, TranscriptionRows } from "../Transcriptions";
+import { Icon } from "../Icon";
 import { INSTRUMENTS } from "@/lib/instruments";
 import { PAGE_SIZES, type Transcription, type TranscriptionQuery } from "@/lib/data/types";
 
@@ -22,7 +23,7 @@ export function TranscriptionsView() {
   const [perPage, setPerPage] = useState<number>(20);
   const [page, setPage] = useState(0);
   const [res, setRes] = useState<{ items: Transcription[]; total: number } | null>(null);
-  const [adding, setAdding] = useState<UploadMode | null>(null);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
   useEffect(() => { const h = setTimeout(() => { setTerm(q); setPage(0); }, 250); return () => clearTimeout(h); }, [q]);
@@ -41,7 +42,7 @@ export function TranscriptionsView() {
     <>
       <div className="page-head">
         <h1>Transcriptions <Info label="About transcriptions">Written-out solos and parts: a PDF, a photo or a MusicXML file. Keep them private, share them with people by email, or make them public for everyone signed in.</Info></h1>
-        {online && <UploadMenu label="Upload transcription" className="btn primary" onPick={setAdding} />}
+        {online && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="upload" size={18} /> Upload transcription</button>}
       </div>
       {!ready ? <p className="hint">Loading…</p> : !online ? <p className="hint">Transcriptions need an account. Sign in to upload and find them.</p> : (
         <>
@@ -77,7 +78,7 @@ export function TranscriptionsView() {
           )}
         </>
       )}
-      {adding && <TranscriptionDialog mode={adding} onClose={() => setAdding(null)} onSaved={t => { setAdding(null); router.push("/transcriptions/" + t.id); }} />}
+      {adding && <TranscriptionDialog onClose={() => setAdding(false)} onSaved={t => { setAdding(false); router.push("/transcriptions/" + t.id); }} />}
     </>
   );
 }
