@@ -8,6 +8,8 @@ import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
 import { prettyDate } from "@/lib/poster";
+import { searchVenues } from "@/lib/venueSearchClient";
+import type { VenueHit } from "@/lib/venues";
 import type { Band, Gig, GigRef } from "@/lib/data/types";
 
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
@@ -53,6 +55,17 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
     return { ...x, venue: name, address: x.address.trim() || !v ? x.address : v.address };
   });
 
+  const [hits, setHits] = useState<VenueHit[] | null>(null);
+  const [finding, setFinding] = useState(false);
+  const findAddress = async () => {
+    const q = [f.venue, f.address.replace(/\s*\n\s*/g, ", ")].map(s => s.trim()).filter(Boolean).join(", ");
+    if (q.length < 3) { toast("Type a venue name or address first."); return; }
+    setFinding(true);
+    try { setHits(await searchVenues(q)); } catch (er) { setHits(null); toast(errText(er, "Address search isn't working right now.")); }
+    setFinding(false);
+  };
+  const pickHit = (h: VenueHit) => { setF(x => ({ ...x, venue: x.venue.trim() ? x.venue : h.name, address: h.address })); setHits(null); };
+
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!f.title.trim()) { toast("Give the gig a title."); return; }
@@ -83,9 +96,21 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
           </div>
         ) : <label className="field"><span className="field-label">Date</span><input type="date" required value={f.date} onChange={set("date")} /></label>}
         <label className="field"><span className="field-label">Venue{venues.length > 0 && <> <Info label="About venues">Start typing to pick a venue you&apos;ve played before, most used first. Its address fills in too.</Info></>}</span>
-          <input type="text" maxLength={200} list="gig-venues" autoComplete="off" value={f.venue} onChange={e => pickVenue(e.target.value)} />
+          <input type="text" maxLength={200} list="gig-venues" autoComplete="off" value={f.venue} onChange={e => pickVenue(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && store.kind === "supabase") { e.preventDefault(); void findAddress(); } }} />
           <datalist id="gig-venues">{venues.map(v => <option key={v.name} value={v.name}>{v.address ? v.address.split("\n")[0] : ""}</option>)}</datalist>
         </label>
+        {store.kind === "supabase" && <div className="field">
+          <div className="row-btns">
+            <button className="btn small" type="button" disabled={finding} onClick={findAddress}><Icon name="search" size={16} /> {finding ? "Searching…" : "Find address"}</button>
+            <Info label="About finding an address">Searches OpenStreetMap for what is typed in Venue (and Address, if filled). Pick a result to fill in the address.</Info>
+          </div>
+          {hits && (hits.length === 0 ? <p className="sub">Nothing found. Try the street or town too.</p> : <>
+            <div className="panel list">
+              {hits.map((h, i) => <button key={i} className="row" type="button" onClick={() => pickHit(h)}><span className="tr-main"><span className="tr-title">{h.name}</span><span className="sub">{h.address}</span></span></button>)}
+            </div>
+            <p className="sub">Search by OpenStreetMap</p>
+          </>)}
+        </div>}
         <label className="field"><span className="field-label">Address</span><textarea rows={2} maxLength={400} value={f.address} onChange={set("address")} /></label>
         {gig && <>
         <label className="field"><span className="field-label">Notes <Info label="About notes">Load-in and set times, parking, dress code, who to ask for at the door. Everyone on the lineup sees them.</Info></span><textarea rows={3} maxLength={5000} value={f.notes} onChange={set("notes")} /></label>

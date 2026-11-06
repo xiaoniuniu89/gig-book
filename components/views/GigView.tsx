@@ -13,11 +13,11 @@ import { PeoplePicker, type Picked } from "../PeoplePicker";
 import { GigPoster } from "../Poster";
 import { GigDialog, gigWhen } from "../Gigs";
 import { hrefFor } from "@/lib/contact";
+import { mapsLink } from "@/lib/venues";
 import { isEmail } from "@/lib/validate";
 import { CONTACT_FIELDS, newItemId, type Gig, type GigPerson, type GigSetlist } from "@/lib/data/types";
 
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
-const mapsHref = (g: Gig) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent([g.venue, g.address].filter(Boolean).join(", "));
 
 export function GigView() {
   const id = decodeURIComponent(useParams<{ id: string }>().id);
@@ -71,7 +71,7 @@ export function GigView() {
           {gig.schedule && <div><dt>Schedule</dt><dd style={{ whiteSpace: "pre-wrap" }}>{gig.schedule}</dd></div>}
           {gig.notes && <div><dt>Notes</dt><dd style={{ whiteSpace: "pre-wrap" }}>{gig.notes}</dd></div>}
         </dl>
-        {(gig.venue || gig.address) && <div className="row-btns"><a className="btn small" href={mapsHref(gig)} target="_blank" rel="noopener noreferrer"><Icon name="search" size={16} /> Find on a map</a></div>}
+        {mapsLink(gig) && <div className="row-btns"><a className="btn small" href={mapsLink(gig)} target="_blank" rel="noopener noreferrer"><Icon name="search" size={16} /> Open in Google Maps</a></div>}
       </section>
 
       <GigSetlists gig={gig} />
