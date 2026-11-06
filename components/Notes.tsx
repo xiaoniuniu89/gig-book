@@ -82,8 +82,10 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   );
 }
 
-export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, tour, tabs }: {
+export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, tour, tabs, head }: {
   title: string;
+  /** Replaces the title in the panel head (the song page puts its Notes / Licks / … tabs there). */
+  head?: React.ReactNode;
   /** Tabs shown under the title (Band / Private on a setlist tune). */
   tabs?: React.ReactNode;
   /** Marks the panel for the first-run tour. */
@@ -231,7 +233,7 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
   return (
     <section className="panel notes" aria-label={title} data-tour={tour}>
       <div className="panel-head">
-        <h2>{title}</h2>
+        {head ?? <h2>{title}</h2>}
         {!readOnly && <button className="btn small" onClick={() => setComposing(true)}><Icon name="plus" size={16} /> Add note</button>}
       </div>
       {tabs}

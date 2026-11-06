@@ -208,12 +208,12 @@ export function LickCard({ lick, sheet, actions }: { lick: Lick; sheet?: Attachm
 }
 
 /** "Licks" on a tune: licks attached here, and one "Attach a lick" dialog to pick yours or a starter, or write a new one. */
-export function Licks(props: { title: string; hint?: string; home: LickHome; setlist?: Setlist; tabs?: React.ReactNode }) {
+export function Licks(props: { title: string; hint?: string; home: LickHome; setlist?: Setlist; tabs?: React.ReactNode; head?: React.ReactNode }) {
   const { store } = useApp();
   return store.kind === "supabase" ? <LicksHere {...props} /> : null; // local mode has no licks
 }
 
-function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?: string; home: LickHome; setlist?: Setlist; tabs?: React.ReactNode }) {
+function LicksHere({ title, hint, home, setlist, tabs, head }: { title: string; hint?: string; home: LickHome; setlist?: Setlist; tabs?: React.ReactNode; head?: React.ReactNode }) {
   const app = useApp();
   const { store, toast } = app;
   const [links, setLinks] = useState<LickLink[] | null>(null);
@@ -283,7 +283,7 @@ function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?:
   return (
     <section className="panel notes licks" aria-label={title}>
       <div className="panel-head">
-        <h2>{title}</h2>
+        {head ?? <h2>{title}</h2>}
         <button className="btn small" onClick={open}><Icon name="plus" size={16} /> Attach a lick</button>
       </div>
       {tabs}

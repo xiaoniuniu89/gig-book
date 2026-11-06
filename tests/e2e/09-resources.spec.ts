@@ -43,6 +43,7 @@ test("9. resources: a YouTube link embeds, a PDF uploads, and attached to a tune
   await go(page, "/library");
   await page.getByPlaceholder(/^Search/).fill("Autumn Leaves");
   await page.locator("#lib-list a.tune", { hasText: "Autumn Leaves" }).first().click();
+  await page.getByRole("tab", { name: "Resources" }).click();
   const mine = page.getByRole("region", { name: "My resources on this song" });
   await expect(mine).toContainText(linkTitle);
   await expect(mine).toContainText(pdfTitle);

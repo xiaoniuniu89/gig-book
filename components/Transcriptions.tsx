@@ -252,7 +252,7 @@ export function TranscriptionRows({ items }: { items: Transcription[] }) {
 }
 
 /** The "Transcriptions" section at the bottom of a tune's page: those you can see that are tagged with this tune. */
-export function TuneTranscriptions({ tune }: { tune: TuneTag }) {
+export function TuneTranscriptions({ tune, head }: { tune: TuneTag; head?: React.ReactNode }) {
   const { store } = useApp();
   const [items, setItems] = useState<Transcription[] | null>(null);
   const [adding, setAdding] = useState<UploadMode | null>(null);
@@ -267,7 +267,7 @@ export function TuneTranscriptions({ tune }: { tune: TuneTag }) {
   return (
     <section className="panel" aria-label="Transcriptions">
       <div className="panel-head">
-        <h2>Transcriptions</h2>
+        {head ?? <h2>Transcriptions</h2>}
         {online && <UploadMenu label="Upload" className="btn small accent" onPick={setAdding} />}
       </div>
       {!online ? <p className="hint">Transcriptions need an account.</p>

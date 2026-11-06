@@ -93,12 +93,12 @@ export function ResourceRow({ r, actions }: { r: Resource; actions?: ReactNode }
 }
 
 /** "My resources on this song": yours pinned to this tune. Private to you; pin from a resource's page. Signed in only. */
-export function MyResources({ songKey }: { songKey: string }) {
+export function MyResources({ songKey, head }: { songKey: string; head?: ReactNode }) {
   const { store } = useApp();
-  return store.kind === "supabase" ? <ResourcesHere songKey={songKey} /> : null; // local mode has no resources
+  return store.kind === "supabase" ? <ResourcesHere songKey={songKey} head={head} /> : null; // local mode has no resources
 }
 
-function ResourcesHere({ songKey }: { songKey: string }) {
+function ResourcesHere({ songKey, head }: { songKey: string; head?: ReactNode }) {
   const { store, toast } = useApp();
   const [links, setLinks] = useState<{ id: string; resource: Resource }[] | null>(null);
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
@@ -114,7 +114,7 @@ function ResourcesHere({ songKey }: { songKey: string }) {
   return (
     <section className="panel notes licks" aria-label="My resources on this song">
       <div className="panel-head">
-        <h2>My resources on this song</h2>
+        {head ?? <h2>My resources on this song</h2>}
         <Link className="btn small" href="/resources">Resources</Link>
       </div>
       <p className="hint">Private to you. Pin a book, PDF or link from its page in Resources.</p>

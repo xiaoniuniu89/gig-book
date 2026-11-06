@@ -107,6 +107,10 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const band = cur.kind === "set" && !!s && !!item && !isBuiltin(s.id);
   const [notesTab, setNotesTab] = useState<Who>("band");
   const [licksTab, setLicksTab] = useState<Who>("band");
+  const online = app.store.kind === "supabase"; // licks, resources and transcriptions need an account
+  const kinds: Kind[] = online ? (arr ? ["notes", "licks", "transcriptions"] : ["notes", "licks", "resources", "transcriptions"]) : ["notes"];
+  const [kind0, setKind] = useState<Kind>("notes");
+  const kind = kinds.includes(kind0) ? kind0 : "notes";
   const mineHint = arr ? "Private to you. They stay with this arrangement." : "Private to you. They show on this song in every setlist and in the library.";
   // saved recordings: a setlist tune's, or the arrangement's
   const versions = item ? item.versions : arr?.versions;
@@ -229,26 +233,32 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
       </section>
-      {band && s && item ? <>
-        {notesTab === "band"
-          ? <Notes tour="notes" key={"band:" + item.id} title="Notes" tabs={whoTabs("Whose notes", notesTab, setNotesTab)} hint="For this tune in this setlist. Everyone in the band can read and reply."
-            home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw}
-            legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
-          : <Notes tour="notes" key={"mine:" + mineKey} title="Notes" tabs={whoTabs("Whose notes", notesTab, setNotesTab)} hint={mineHint}
-            home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />}
-        {licksTab === "band"
-          ? <Licks key={"band-licks:" + item.id} title="Licks" tabs={whoTabs("Whose licks", licksTab, setLicksTab)} hint="Attached to this tune in this setlist. Everyone in the band can see them here."
-            home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} />
-          : <Licks key={"my-licks:" + mineKey} title="Licks" tabs={whoTabs("Whose licks", licksTab, setLicksTab)} hint={mineHint}
-            home={{ kind: "song", songKey: mineKey }} />}
-      </> : <>
-        <Licks key={"my-licks:" + mineKey} title={"My licks on " + mineWhere} hint={mineHint}
-          home={{ kind: "song", songKey: mineKey }} />
-        <Notes tour="notes" key={"mine:" + mineKey} title={"My notes on " + mineWhere} hint={mineHint}
-          home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />
-      </>}
-      {!arr && <MyResources key={"my-res:" + mineKey} songKey={mineKey} />}
-      <TuneTranscriptions key={"tr:" + songKey(sg.raw)} tune={{ songKey: songKey(sg.raw), title: meta(sg.raw).title, composer: meta(sg.raw).composer }} />
+      {(() => {
+        // one panel, one kind at a time: Notes / Licks / Resources / Transcriptions (local mode has notes only)
+        const head = kinds.length > 1 ? kindTabs(kinds, kind, setKind) : undefined;
+        const tag = { songKey: songKey(sg.raw), title: meta(sg.raw).title, composer: meta(sg.raw).composer };
+        return <>
+          <div hidden={kind !== "notes"}>{band && s && item
+            ? notesTab === "band"
+              ? <Notes tour="notes" key={"band:" + item.id} title="Notes" head={head} tabs={whoTabs("Whose notes", notesTab, setNotesTab)} hint="For this tune in this setlist. Everyone in the band can read and reply."
+                home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} itemRaw={item.raw}
+                legacy={item.note ? { text: item.note, clear: () => app.updateItem(s.id, s.items.indexOf(item), it => ({ ...it, note: null })) } : undefined} />
+              : <Notes tour="notes" key={"mine:" + mineKey} title="Notes" head={head} tabs={whoTabs("Whose notes", notesTab, setNotesTab)} hint={mineHint}
+                home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />
+            : <Notes tour="notes" key={"mine:" + mineKey} title={"My notes on " + mineWhere} head={head} hint={mineHint}
+              home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />}</div>
+          {online && <div hidden={kind !== "licks"}>{band && s && item
+            ? licksTab === "band"
+              ? <Licks key={"band-licks:" + item.id} title="Licks" head={head} tabs={whoTabs("Whose licks", licksTab, setLicksTab)} hint="Attached to this tune in this setlist. Everyone in the band can see them here."
+                home={{ kind: "item", setlistId: s.id, itemId: item.id }} setlist={s} />
+              : <Licks key={"my-licks:" + mineKey} title="Licks" head={head} tabs={whoTabs("Whose licks", licksTab, setLicksTab)} hint={mineHint}
+                home={{ kind: "song", songKey: mineKey }} />
+            : <Licks key={"my-licks:" + mineKey} title={"My licks on " + mineWhere} head={head} hint={mineHint}
+              home={{ kind: "song", songKey: mineKey }} />}</div>}
+          {online && !arr && <div hidden={kind !== "resources"}><MyResources key={"my-res:" + mineKey} songKey={mineKey} head={head} /></div>}
+          {online && <div hidden={kind !== "transcriptions"}><TuneTranscriptions key={"tr:" + tag.songKey} tune={tag} head={head} /></div>}
+        </>;
+      })()}
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>
         <Recordings cur={cur} versions={versions} onVersions={cur.kind === "lib" ? undefined : editVersions} canEdit={canEdit} />
@@ -679,6 +689,16 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
       </form>
     </Modal>
   </>;
+}
+
+type Kind = "notes" | "licks" | "resources" | "transcriptions";
+const KIND_LABEL: Record<Kind, string> = { notes: "Notes", licks: "Licks", resources: "Resources", transcriptions: "Transcriptions" };
+function kindTabs(kinds: Kind[], v: Kind, set: (k: Kind) => void) {
+  return (
+    <div className="pl-tabs" role="tablist" aria-label="On this tune">
+      {kinds.map(k => <button key={k} role="tab" className="pl-tab" aria-selected={v === k} onClick={() => set(k)}>{KIND_LABEL[k]}</button>)}
+    </div>
+  );
 }
 
 type Who = "band" | "mine";
