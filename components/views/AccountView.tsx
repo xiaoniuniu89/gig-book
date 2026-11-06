@@ -59,6 +59,15 @@ function Field({ label, open, busy, onEdit, onSave, onCancel, view, chip, childr
 const empty = <span className="hint">Not set</span>;
 const TABS = [["about", "About you"], ["contact", "Contact"], ["files", "Promo files"], ["page", "Public page"], ["connections", "Connections"], ["help", "Help"]] as const;
 type Tab = typeof TABS[number][0];
+/** One line under the tabs saying what the open tab is for. */
+const ABOUT: Record<Tab, string> = {
+  about: "Your name, instruments and bio: what agents and venues ask for. Each item shows who can see it.",
+  contact: "How people reach you and pay you. Each item shows who can see it: only you, your bands, or anyone with your public page.",
+  files: "Press photos, a one-sheet and demos, ready to send. Each file shows who can see it.",
+  page: "A web page with your press kit that you can send to anyone. It only shows what you've made public.",
+  connections: "Put your gigs in your phone's calendar, and choose what plays recordings.",
+  help: "Take the tour again, see what's new, or switch between light and dark.",
+};
 let lastTab: Tab = "about"; // remembered while the app is open
 
 export function AccountView() {
@@ -177,12 +186,12 @@ export function AccountView() {
           <button className="btn" type="button" disabled={busy} onClick={() => setAsk(null)}>Keep editing</button>
         </div>
       </Modal>
-      <p className="hint">Keep what agents and venues ask for in one place. Each item shows who can see it: only you, your bands, or anyone with your public page.</p>
       <div className="pl-tabs" role="tablist" aria-label="Account sections">
         {TABS.map(([id, name]) => (
           <button key={id} role="tab" type="button" aria-selected={tab === id} className="pl-tab" onClick={() => leave(() => { setTab(id); lastTab = id; })}>{name}</button>
         ))}
       </div>
+      <p className="hint">{ABOUT[tab]}</p>
 
       {tab === "about" && <section className="acct-sec" role="tabpanel" aria-label="About you">
         <ProfileAi p={p} busy={busy} guard={leave} onApply={persist} />
