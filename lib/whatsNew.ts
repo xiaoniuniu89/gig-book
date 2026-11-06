@@ -1,6 +1,15 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-10",
+    items: [
+      "Your gigs in your phone's calendar: connect once in Account → Connections, and every gig you're on shows up by itself, including ones other people add you to. If a gig moves or is cancelled, your calendar changes too.",
+      "Forms check what you type before saving and tell you plainly what's missing.",
+      "Promo files and band press kits are now just photos and a press kit PDF. Share recordings with your Spotify, SoundCloud or Bandcamp link.",
+      "Each Account tab says what it's for.",
+    ],
+  },
+  {
     date: "2026-11-09",
     items: [
       "New: your own songs. Tap New song in the library, keep it private, share it with a band or make it public, and upload the lead sheet. AI can read the lead sheet and write the chart for you to fix up, then move whole sections around.",
