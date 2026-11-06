@@ -17,6 +17,7 @@ export function ResourcesView() {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<Tab>("all");
   const [adding, setAdding] = useState<"choose" | Resource["kind"] | null>(null);
+  const [formDirty, setFormDirty] = useState(false);
   const signedIn = store.kind === "supabase";
   const err = (e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback);
   const uploads = useUploads(store, "resource", useCallback(() => toast("Uploaded."), [toast]));
@@ -52,9 +53,9 @@ export function ResourcesView() {
         {signedIn && <button className="btn primary" onClick={() => setAdding("choose")}><Icon name="plus" size={18} /> Add</button>}
       </div>
       {!signedIn ? <section className="panel"><p className="hint">Sign in to keep bookmarks, books and PDFs.</p></section> : <>
-        <Modal open={adding !== null} title={adding === "link" ? "Save a link" : adding === "file" ? "Upload a PDF or file" : "Add a resource"} onClose={() => setAdding(null)}>
+        <Modal open={adding !== null} title={adding === "link" ? "Save a link" : adding === "file" ? "Upload a PDF or file" : "Add a resource"} onClose={() => setAdding(null)} dirty={adding === "link" || adding === "file" ? formDirty : false}>
           {adding === "link" || adding === "file"
-            ? <ResourceForm kind={adding} cta="Save" onSubmit={create} onCancel={() => setAdding("choose")} />
+            ? <ResourceForm kind={adding} cta="Save" onDirty={setFormDirty} onSubmit={create} onCancel={() => setAdding("choose")} />
             : <div className="res-kind">
                 <button className="btn primary" onClick={() => setAdding("link")}>Save a link</button>
                 <button className="btn primary" onClick={() => setAdding("file")}>Upload a PDF or file</button>

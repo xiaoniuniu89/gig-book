@@ -89,7 +89,7 @@ function PosterBuilder({ heading, name, initial, people, photos, photosLabel, no
             <div className="acct-field"><label htmlFor="po-date">Date</label><input id="po-date" type="date" value={f.date} onChange={set("date")} /></div>
             <div className="acct-field"><label htmlFor="po-time">Time</label><input id="po-time" type="text" value={f.time} maxLength={30} placeholder="8pm" onChange={set("time")} /></div>
           </div>
-          <div className="acct-field"><label htmlFor="po-tix">Ticket link</label><input id="po-tix" type="text" value={f.tickets} maxLength={120} onChange={set("tickets")} /></div>
+          <div className="acct-field"><label htmlFor="po-tix">Ticket link</label><input id="po-tix" type="text" inputMode="url" value={f.tickets} maxLength={120} onChange={set("tickets")} /></div>
           <div className="acct-field"><label htmlFor="po-line">A line of text</label><textarea id="po-line" rows={2} value={f.line} maxLength={140} onChange={set("line")} /></div>
           <div className="acct-field">
             <span>{photosLabel}</span>

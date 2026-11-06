@@ -488,6 +488,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
 function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
   const app = useApp();
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const own = app.setlists.filter(s => s.role !== "viewer" && !isBuiltin(s.id));
   const examples = app.setlists.filter(s => isBuiltin(s.id)); // read-only: picking one adds the tune to your own copy
@@ -506,13 +507,16 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
   const fresh = async () => {
     const n = name.trim().slice(0, 200);
     if (!n) { app.toast("Give the new setlist a name."); return; }
+    if (busy) return;
+    setBusy(true);
     const s: Setlist = { id: app.store.newId(n, id => !!app.setlistById(id)), name: n, spotify: null, items: [item()], visibility: "private", role: "owner" };
-    await app.addSetlist(s);
-    app.toast(`Added to ${n}.`); setOpen(false); setName("");
+    try { await app.addSetlist(s); app.toast(`Added to ${n}.`); setOpen(false); setName(""); }
+    catch (e) { app.toast(e instanceof Error ? e.message : "Couldn't make that setlist."); }
+    setBusy(false);
   };
   return <>
     <button className="btn" onClick={() => setOpen(true)}><Icon name="plus" size={18} /> Add to setlist</button>
-    <Modal open={open} title={"Add " + sg.title + " to a setlist"} onClose={() => setOpen(false)}>
+    <Modal open={open} title={"Add " + sg.title + " to a setlist"} onClose={() => setOpen(false)} dirty={!!name.trim() && !busy}>
       {own.length > 0 && <div className="pick-list">{own.map(s => (
         <button key={s.id} className="pick-row" onClick={() => into(s)}>
           <b>{s.name}</b><span className="hint">{s.items.length} tunes{s.items.some(it => it.raw === sg.raw) ? " · already has this tune" : ""}</span>
@@ -528,8 +532,8 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
       </>}
       <h3 className="modal-sub">New setlist</h3>
       <form className="new-set" onSubmit={e => { e.preventDefault(); void fresh(); }}>
-        <input aria-label="New setlist name" maxLength={200} placeholder="Setlist name (required)" value={name} onChange={e => setName(e.target.value)} />
-        <button className="btn primary" type="submit">Create and add</button>
+        <input aria-label="New setlist name" required maxLength={200} placeholder="Setlist name (required)" value={name} onChange={e => setName(e.target.value)} />
+        <button className="btn primary" type="submit" disabled={busy}>{busy ? "Creating…" : "Create and add"}</button>
       </form>
     </Modal>
   </>;

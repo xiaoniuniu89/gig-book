@@ -14,6 +14,7 @@ import { InstrumentPicker } from "../Instruments";
 import { Connections } from "../Connections";
 import { ProfileAi } from "../ProfileAi";
 import { canonInstruments } from "@/lib/instruments";
+import { contactProblem, tidyContact } from "@/lib/validate";
 import { MAX_PHOTOS, resizeImage } from "@/lib/photos";
 import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, slug, type Attachment, type Profile, type Share } from "@/lib/data/types";
 
@@ -104,7 +105,9 @@ export function AccountView() {
   const persist = async (next: Profile) => {
     setBusy(true);
     try {
-      const contact = Object.fromEntries(Object.entries(next.contact).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
+      const bad = contactProblem(next.contact);
+      if (bad) { toast(bad); setBusy(false); return false; }
+      const contact = tidyContact(next.contact);
       const clean = { ...next, contact, instruments: canonInstruments(next.instruments) };
       await store.updateMyProfile(clean);
       setP(clean); setAccountName(clean.displayName); setOpen(null); setD(null);

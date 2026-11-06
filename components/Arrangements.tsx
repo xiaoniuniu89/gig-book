@@ -75,9 +75,9 @@ export function ArrangementActions({ arr }: { arr: Arrangement }) {
         </button>
       ))}</div> : <p className="hint">You have no setlist you can edit yet. Make one on the Setlists page.</p>}
     </Modal>
-    <Modal open={editing} title="Rename arrangement" onClose={() => setEditing(false)}>
+    <Modal open={editing} title="Rename arrangement" onClose={() => setEditing(false)} dirty={name.trim() !== arr.name}>
       <form className="new-set" onSubmit={e => { e.preventDefault(); rename(); }}>
-        <input aria-label="Arrangement name" autoFocus maxLength={200} value={name} onChange={e => setName(e.target.value)} />
+        <input aria-label="Arrangement name" autoFocus required maxLength={200} value={name} onChange={e => setName(e.target.value)} />
         <button className="btn primary" type="submit">Save</button>
       </form>
     </Modal>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
+import { checkFile } from "@/lib/validate";
 import { splitPlaylists, type Playlist } from "@/lib/ireal";
 import { newItemId, slug, type Setlist } from "@/lib/data/types";
 
@@ -15,6 +16,10 @@ export function ImportPanel({ onDone }: { onDone?: () => void }) {
   const [over, setOver] = useState(false);
 
   const handle = (t: string) => setFound(splitPlaylists(t));
+  const handleFile = (f: File) => {
+    const why = checkFile(f, { maxMB: 5, types: /^(text\/|$)/, typeName: "an HTML or .txt file from iReal Pro", exts: /\.(html?|txt)$/i });
+    if (why) app.toast(why); else void f.text().then(handle);
+  };
 
   const importAs = async (p: Playlist, as: "set" | "lib") => {
     if (as === "lib") {
@@ -41,12 +46,12 @@ export function ImportPanel({ onDone }: { onDone?: () => void }) {
     <div className={"import" + (over ? " over" : "")}
       onDragOver={e => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
-      onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) f.text().then(handle); }}>
+      onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}>
       <p className="hint">In iReal Pro, share a playlist as HTML, then choose the file or drop it here. You can also paste an irealb:// link.</p>
       <div className="drop">
         <label className="btn primary" htmlFor="imp-file">Choose file</label>
         <input className="file-in" id="imp-file" type="file" accept=".html,.htm,.txt"
-          onChange={e => { const f = e.target.files && e.target.files[0]; if (f) f.text().then(handle); }} />
+          onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) handleFile(f); }} />
       </div>
       <div className="new-set">
         <input aria-label="iReal Pro link" placeholder="irealb://…" value={text} onChange={e => setText(e.target.value)}

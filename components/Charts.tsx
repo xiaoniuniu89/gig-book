@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Versions } from "./Versions";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
+import { Info } from "./Info";
 import { Modal } from "./Modal";
 import { FileChart, Recorder, useSignedUrl } from "./Attachments";
 import { CHART_NAMES, MAX_FILE_MB, attachmentKind, type Chart, type Setlist } from "@/lib/data/types";
@@ -68,7 +69,7 @@ function RecordingPick({ audio, onAudio }: { audio: File | null; onAudio: (f: Fi
   );
 }
 
-function AddChart({ songKey, setlist, taken, onDone }: { songKey: string; setlist?: Setlist; taken: string[]; onDone: (c: Chart) => void }) {
+function AddChart({ songKey, setlist, taken, onDone, onDirty }: { songKey: string; setlist?: Setlist; taken: string[]; onDone: (c: Chart) => void; onDirty: (d: boolean) => void }) {
   const { store, toast } = useApp();
   const [name, setName] = useState(() => CHART_NAMES.find(n => !taken.includes(n)) ?? "");
   const [file, setFile] = useState<File | null>(null);
@@ -76,6 +77,9 @@ function AddChart({ songKey, setlist, taken, onDone }: { songKey: string; setlis
   const [share, setShare] = useState(false);
   const [pct, setPct] = useState<number | null>(null);
   const [touch, setTouch] = useState(false);
+  const [name0] = useState(name);
+  const changed = name !== name0 || !!file || !!audio;
+  useEffect(() => { onDirty(changed && pct === null); }, [changed, pct, onDirty]);
   const fileIn = useRef<HTMLInputElement>(null), photoIn = useRef<HTMLInputElement>(null);
   useEffect(() => { setTouch(window.matchMedia("(pointer: coarse)").matches); }, []);
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,12 +103,12 @@ function AddChart({ songKey, setlist, taken, onDone }: { songKey: string; setlis
   return (
     <form className="chart-form" onSubmit={save}>
       <label className="field"><span className="field-label">Name</span>
-        <input type="text" maxLength={60} value={name} onChange={e => setName(e.target.value)} placeholder="Lead sheet, Intro, Outro…" />
+        <input type="text" required maxLength={60} value={name} onChange={e => setName(e.target.value)} placeholder="Lead sheet, Intro, Outro…" />
       </label>
       <div className="chips chart-names" role="group" aria-label="Suggested names">
         {CHART_NAMES.map(n => <button key={n} type="button" className="chip" aria-pressed={name === n} onClick={() => setName(n)}>{n}</button>)}
       </div>
-      <div className="field"><span className="field-label">Chart</span>
+      <div className="field"><span className="field-label">Chart <Info label="About the chart file">A PDF, a photo of a printed chart, or a MusicXML score. Up to {MAX_FILE_MB} MB.</Info></span>
         <input ref={fileIn} type="file" accept={CHART_ACCEPT} hidden onChange={pick} />
         <input ref={photoIn} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
         <div className="attach-opts">
@@ -113,22 +117,20 @@ function AddChart({ songKey, setlist, taken, onDone }: { songKey: string; setlis
             {touch && <button className="btn small" type="button" onClick={() => photoIn.current?.click()}>Take photo</button>}
           </>}
         </div>
-        <span className="field-hint">A PDF, a photo of a printed chart, or a MusicXML score. Up to {MAX_FILE_MB} MB.</span>
       </div>
-      <div className="field"><span className="field-label">Recording <span className="field-opt">(optional)</span></span>
+      <div className="field"><span className="field-label">Recording <span className="field-opt">(optional)</span> <Info label="About the recording">Plays under the chart when this tab is open, e.g. how the intro goes. Up to {MAX_FILE_MB} MB.</Info></span>
         <RecordingPick audio={audio} onAudio={setAudio} />
-        <span className="field-hint">Plays under the chart when this tab is open, e.g. how the intro goes.</span>
       </div>
       {setlist && <label className="sp-check"><input type="checkbox" checked={share} onChange={e => setShare(e.target.checked)} /> Share with everyone in {setlist.name}</label>}
-      {!setlist && <p className="hint">Only you see it, on this tune in the library and in every setlist.</p>}
+      {!setlist && <p className="hint"><Info label="Who sees this chart">Only you see it, on this tune in the library and in every setlist.</Info></p>}
       {pct !== null && <progress max={1} value={pct} aria-label="Uploading" />}
       <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null}><Icon name="plus" size={18} /> {pct !== null ? "Uploading…" : "Add chart"}</button></div>
     </form>
   );
 }
 
-function EditChart({ c, setlist, canDelete, onSaved, onDeleted }: {
-  c: Chart; setlist?: Setlist; canDelete: boolean; onSaved: (c: Chart) => void; onDeleted: () => void;
+function EditChart({ c, setlist, canDelete, onSaved, onDeleted, onDirty }: {
+  c: Chart; setlist?: Setlist; canDelete: boolean; onSaved: (c: Chart) => void; onDeleted: () => void; onDirty: (d: boolean) => void;
 }) {
   const { store, toast } = useApp();
   const [name, setName] = useState(c.name);
@@ -137,6 +139,8 @@ function EditChart({ c, setlist, canDelete, onSaved, onDeleted }: {
   const [dropAudio, setDropAudio] = useState(false);
   const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState(false);
+  const changed = name !== c.name || share !== !!c.setlistId || !!audio || dropAudio;
+  useEffect(() => { onDirty(changed && !busy); }, [changed, busy, onDirty]);
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const n = name.trim().slice(0, 60);
@@ -165,7 +169,7 @@ function EditChart({ c, setlist, canDelete, onSaved, onDeleted }: {
   return (
     <form className="chart-form" onSubmit={save}>
       <label className="field"><span className="field-label">Name</span>
-        <input type="text" maxLength={60} value={name} onChange={e => setName(e.target.value)} />
+        <input type="text" required maxLength={60} value={name} onChange={e => setName(e.target.value)} />
       </label>
       <div className="field"><span className="field-label">Recording</span>
         {c.audio && !dropAudio && !audio
@@ -188,6 +192,7 @@ export function ChartTabs({ songKey, setlist, ch, vs, children }: {
 }) {
   const { store } = useApp();
   const [adding, setAdding] = useState(false);
+  const [addDirty, setAddDirty] = useState(false);
   const reharms = vs?.versions ?? [];
   const onIreal = ch.tab === "ireal";
   return (
@@ -210,8 +215,8 @@ export function ChartTabs({ songKey, setlist, ch, vs, children }: {
         {store.kind === "supabase" && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Upload chart</button>}
         {children}
       </div>
-      <Modal open={adding} title="Upload a chart" onClose={() => setAdding(false)}>
-        <AddChart songKey={songKey} setlist={setlist} taken={ch.charts.map(c => c.name)}
+      <Modal open={adding} title="Upload a chart" onClose={() => setAdding(false)} dirty={addDirty}>
+        <AddChart songKey={songKey} setlist={setlist} taken={ch.charts.map(c => c.name)} onDirty={setAddDirty}
           onDone={c => { ch.setCharts(l => l.concat(c)); ch.setTab(c.id); setAdding(false); }} />
       </Modal>
     </div>
@@ -235,6 +240,7 @@ export function ChartAudio({ c }: { c: Chart }) {
 export function ChartPane({ c, setlist, ch, transpose }: { c: Chart; setlist?: Setlist; ch: ReturnType<typeof useCharts>; transpose: number }) {
   const { store } = useApp();
   const [editing, setEditing] = useState(false);
+  const [editDirty, setEditDirty] = useState(false);
   const canDelete = c.mine || (!!c.setlistId && setlist?.role === "owner");
   return (
     <div className="chart-pane">
@@ -243,8 +249,8 @@ export function ChartPane({ c, setlist, ch, transpose }: { c: Chart; setlist?: S
         {(c.mine || canDelete) && <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit chart</button>}
       </div>}
       <div className="chart-pane-file"><FileChart store={store} a={c.file} transpose={c.file.kind === "musicxml" ? transpose : undefined} /></div>
-      <Modal open={editing} title={"Edit " + c.name} onClose={() => setEditing(false)}>
-        <EditChart c={c} setlist={setlist} canDelete={canDelete}
+      <Modal open={editing} title={"Edit " + c.name} onClose={() => setEditing(false)} dirty={editDirty}>
+        <EditChart c={c} setlist={setlist} canDelete={canDelete} onDirty={setEditDirty}
           onSaved={n => { ch.setCharts(l => l.map(x => x.id === n.id ? n : x)); setEditing(false); }}
           onDeleted={() => { ch.setCharts(l => l.filter(x => x.id !== c.id)); ch.setTab("ireal"); setEditing(false); }} />
       </Modal>

@@ -6,6 +6,7 @@ import { Info } from "./Info";
 import { Modal } from "./Modal";
 import { CONTACT_FIELDS, type Profile } from "@/lib/data/types";
 import { canonInstruments } from "@/lib/instruments";
+import { checkFile } from "@/lib/validate";
 import { readSource, requestProfile, type ProfileSource, type ProfileSuggestion } from "@/lib/ai/profileClient";
 
 const LENGTHS = [["50", "About 50 words"], ["100", "About 100 words"], ["250", "About 250 words"], ["long", "Long version"]] as const;
@@ -78,13 +79,18 @@ export function ProfileAi({ p, busy, guard, onApply }: { p: Profile; busy: boole
       <button className="btn small" type="button" onClick={() => guard(() => setOpen(true))}><Icon name="sparkle" size={16} /> Import from a press kit</button>
       <Info label="About importing a press kit">The AI only suggests. You choose what to keep, and your sharing settings don&apos;t change. What you send isn&apos;t stored. It counts toward your daily Niu AI requests.</Info>
     </div>
-    <Modal open={open} title="Import from a press kit" onClose={close}>
+    <Modal open={open} title="Import from a press kit" onClose={close} dirty={(!!text.trim() || !!file) && !sug && !working}>
       <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your text is sent to an AI service to read it. Remove anything you don&apos;t want shared before you continue.</span></div>
       {sug ? <Review p={p} s={sug} busy={busy} onBack={() => setSug(null)}
         onApply={async next => { if (await onApply(next)) close(); }} /> : <div className="pf-ai">
         <textarea aria-label="Your press kit text" rows={8} placeholder="Paste your bio, one-sheet or CV text here" value={text} disabled={!!file || working} maxLength={60000} onChange={e => setText(e.target.value)} />
         <div className="row-btns">
-          <input ref={pick} type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden onChange={e => { setFile(e.target.files?.[0] || null); setErr(""); e.target.value = ""; }} />
+          <input ref={pick} type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden onChange={e => {
+            const f = e.target.files?.[0] || null; e.target.value = "";
+            const why = f && checkFile(f, { maxMB: 2 });
+            if (why) { setErr(why); return; }
+            setFile(f); setErr("");
+          }} />
           <button className="btn small" type="button" disabled={working} onClick={() => pick.current?.click()}><Icon name="import" size={16} /> Upload a PDF, Word or .txt file</button>
           {file && <span className="hint">{file.name} <button className="btn small link-btn" type="button" disabled={working} onClick={() => setFile(null)}>Remove</button></span>}
           <span className="hint">Up to 2 MB</span>

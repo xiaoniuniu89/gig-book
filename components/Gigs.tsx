@@ -39,6 +39,8 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
     title: gig?.title ?? "", date: gig?.date ?? "", time: gig?.time ?? "", venue: gig?.venue ?? "", address: gig?.address ?? "",
     schedule: gig?.schedule ?? "", notes: gig?.notes ?? "", bandId: gig?.band?.id ?? bandId ?? "",
   });
+  const [init] = useState(f);
+  const dirty = JSON.stringify(f) !== JSON.stringify(init);
   const [bands, setBands] = useState<Band[]>([]);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(x => ({ ...x, [k]: e.target.value }));
@@ -69,7 +71,7 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
   };
 
   return (
-    <Modal open title={gig ? "Edit gig" : "New gig"} onClose={onClose}>
+    <Modal open title={gig ? "Edit gig" : "New gig"} onClose={onClose} dirty={dirty && !busy}>
       <form className="chart-form" onSubmit={save}>
         <label className="field"><span className="field-label">Title</span>
           <input type="text" maxLength={200} required value={f.title} onChange={set("title")} />

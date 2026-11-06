@@ -272,7 +272,7 @@ function SetBody({ s }: { s: Setlist }) {
         {!yTube && !s.spotify && !canEdit && <p className="hint">No playlist yet.</p>}
         {canEdit && (pasting || (!yTube && !s.spotify && !canMake)) && (
           <form className="inline-form" onSubmit={e => { e.preventDefault(); savePl(); }}>
-            <input id="pl-link" type="url" aria-label="Spotify playlist or album link" placeholder="Paste a playlist or album link" value={plLink} onChange={e => setPlLink(e.target.value)} />
+            <input id="pl-link" type="url" aria-label="Spotify playlist or album link" placeholder="Paste a playlist or album link" maxLength={500} value={plLink} onChange={e => setPlLink(e.target.value)} />
             <button className="btn" id="pl-save" type="submit">Save</button>
             {s.spotify && <button className="btn" type="button" onClick={() => { setPlLink(""); edit(x => ({ ...x, spotify: null })); setPasting(false); toast("Playlist removed."); }}>Remove</button>}
           </form>

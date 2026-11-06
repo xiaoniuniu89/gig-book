@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useApp } from "./AppProvider";
 import { AttachMenu, FileChart, dropProps, useUploads } from "./Attachments";
 import { Icon } from "./Icon";
+import { Info } from "./Info";
 import { Modal } from "./Modal";
 import { STARTER_LICKS } from "@/lib/starterLicks";
 import { Notation } from "./Notation";
@@ -33,8 +34,8 @@ export function useLickFiles(store: DataStore, ids: string[]) {
 export type LickFiles = ReturnType<typeof useLickFiles>;
 
 /** Title, text and tags. On a new lick you can queue files too; they upload once it's saved. */
-export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
-  initial?: LickFields; cta: string; newFiles?: boolean;
+export function LickForm({ initial, cta, newFiles, onSubmit, onCancel, onDirty }: {
+  initial?: LickFields; cta: string; newFiles?: boolean; onDirty?: (d: boolean) => void;
   onSubmit: (f: LickFields, files: File[]) => Promise<void>; onCancel?: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -66,6 +67,8 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
     progRef.current?.focus();
   };
 
+  const changed = [title, body, tags, prog, key, abc].join("\u0001") !== [initial?.title, initial?.body, (initial?.tags ?? []).join(", "), initial?.progression, initial?.key, initial?.notation].map(x => x ?? "").join("\u0001") || files.length > 0;
+  useEffect(() => { onDirty?.(changed); }, [changed, onDirty]);
   const submit = async () => {
     if (busy) return;
     const t = title.trim();
@@ -101,8 +104,7 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
       </label>
 
       <label className="field">
-        <span className="field-label">Chord progression <span className="field-opt">(optional — loops with the backing band)</span></span>
-        <span className="field-hint">Separate bars with <code>|</code> and chords inside the same bar with spaces.</span>
+        <span className="field-label">Chord progression <span className="field-opt">(optional — loops with the backing band)</span> <Info label="About the progression">Separate bars with <code>|</code> and chords inside the same bar with spaces.</Info></span>
         <div className="prog-row">
           <input ref={progRef} type="text" aria-label="Chord progression" aria-invalid={!!bad}
             placeholder="Dm7 G7 | Cmaj7" maxLength={400} value={prog}
@@ -129,7 +131,7 @@ export function LickForm({ initial, cta, newFiles, onSubmit, onCancel }: {
       <div className="field-grid">
         <label className="field">
           <span className="field-label">Tags <span className="field-opt">(optional, comma-separated)</span></span>
-          <input type="text" aria-label="Tags" placeholder="ii–V, ending, bebop" value={tags} onChange={e => setTags(e.target.value)} />
+          <input type="text" aria-label="Tags" placeholder="ii–V, ending, bebop" maxLength={300} value={tags} onChange={e => setTags(e.target.value)} />
         </label>
         <label className="field">
           <span className="field-label">Notes <span className="field-opt">(optional)</span></span>
@@ -215,6 +217,7 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
   const { store, toast } = app;
   const [links, setLinks] = useState<LickLink[] | null>(null);
   const [mode, setMode] = useState<"pick" | "new" | null>(null);
+  const [lickDirty, setLickDirty] = useState(false);
   const [mine, setMine] = useState<Lick[] | null>(null);
   const [armed, setArmed] = useState<string | null>(null);
   const files = useLickFiles(store, (links || []).map(l => l.lick.id));
@@ -279,8 +282,8 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
         <button className="btn small" onClick={open}><Icon name="plus" size={16} /> Attach a lick</button>
       </div>
       {hint && <p className="hint">{hint}</p>}
-      <Modal open={mode !== null} title={mode === "new" ? "New lick" : "Attach a lick"} onClose={() => setMode(null)}>
-        {mode === "new" ? <LickForm newFiles cta="Save and add" onSubmit={create} onCancel={() => setMode("pick")} /> : <>
+      <Modal open={mode !== null} title={mode === "new" ? "New lick" : "Attach a lick"} onClose={() => setMode(null)} dirty={mode === "new" && lickDirty}>
+        {mode === "new" ? <LickForm newFiles cta="Save and add" onSubmit={create} onCancel={() => setMode("pick")} onDirty={setLickDirty} /> : <>
           <button className="btn primary" onClick={() => setMode("new")}><Icon name="plus" size={18} /> Write a new lick</button>
           <h3 className="modal-sub">Your licks</h3>
           {mine === null ? <p className="hint">Loading…</p> : free.length

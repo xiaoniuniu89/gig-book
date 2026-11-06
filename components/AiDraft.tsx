@@ -47,6 +47,7 @@ export function AiDraft() {
   ].filter(Boolean).join(" ");
   const summary = [gig[0], feel.join(" and ").toLowerCase(), energy[0] && String(energy[0]).toLowerCase()].filter(Boolean).join(", ");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [name, setName] = useState("");
@@ -77,15 +78,20 @@ export function AiDraft() {
 
   const save = async () => {
     const n = name.trim().slice(0, 200);
-    if (!n) { app.toast("A setlist needs a name."); return; }
+    if (!n) { app.toast("Give the setlist a name."); return; }
     if (!rows?.length) { app.toast("Keep at least one tune."); return; }
-    const id = app.store.newId(n, id => !!app.setlistById(id));
-    const n_sets = Math.max(1, Number(sets[0]) || 1), per = Math.ceil(rows.length / n_sets);
-    await app.addSetlist({
-      id, name: n, spotify: null, visibility: "private", role: "owner",
-      items: rows.map((r, k) => newItem(r.tune.raw, Math.floor(k / per) + 1)),
-    });
-    router.push("/set/" + encodeURIComponent(id));
+    if (saving) return;
+    setSaving(true);
+    try {
+      const id = app.store.newId(n, id => !!app.setlistById(id));
+      const n_sets = Math.max(1, Number(sets[0]) || 1), per = Math.ceil(rows.length / n_sets);
+      await app.addSetlist({
+        id, name: n, spotify: null, visibility: "private", role: "owner",
+        items: rows.map((r, k) => newItem(r.tune.raw, Math.floor(k / per) + 1)),
+      });
+      router.push("/set/" + encodeURIComponent(id));
+    } catch (e) { app.toast(e instanceof Error ? e.message : "Couldn't save that setlist."); }
+    setSaving(false);
   };
 
   return (
@@ -111,7 +117,7 @@ export function AiDraft() {
       {rows && (
         <div className="ai-review">
           <p className="hint">Draft from your library. Remove, reorder or swap tunes, then save.</p>
-          <input type="text" aria-label="Setlist name" maxLength={200} value={name} onChange={e => setName(e.target.value)} />
+          <input type="text" aria-label="Setlist name" required maxLength={200} value={name} onChange={e => setName(e.target.value)} />
           <ol className="ai-rows">
             {rows.map((r, i) => (
               <li key={r.tune.raw + i}>
@@ -138,7 +144,7 @@ export function AiDraft() {
           </ol>
           <p className="hint">Once it&apos;s saved, use Create Spotify playlist on the setlist to get the recordings in Spotify.</p>
           <div className="row-btns">
-            <button className="btn primary" onClick={save}>Save setlist</button>
+            <button className="btn primary" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save setlist"}</button>
             <button className="btn" onClick={() => setRows(null)}>Discard</button>
           </div>
         </div>

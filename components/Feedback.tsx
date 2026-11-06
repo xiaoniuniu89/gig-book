@@ -44,12 +44,12 @@ export function Feedback() {
   return (
     <>
       <button className="btn small feedback-btn" data-tour="feedback" onClick={() => setOpen(true)} title="Report a bug or suggest a feature"><Icon name="chat" size={18} /><span>Bugs &amp; ideas</span></button>
-      <Modal open={open} title="Report a bug or suggest a feature" onClose={() => setOpen(false)}>
+      <Modal open={open} title="Report a bug or suggest a feature" onClose={() => setOpen(false)} dirty={!!text.trim() && !busy}>
         <form className="feedback-form" onSubmit={e => { e.preventDefault(); void send(); }}>
           <span className="seg" role="group" aria-label="What is it?">
             {KINDS.map(k => <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{k}</button>)}
           </span>
-          <textarea aria-label="Your message" rows={6} maxLength={5000} autoFocus value={text} onChange={e => setText(e.target.value)}
+          <textarea aria-label="Your message" rows={6} required maxLength={4900} autoFocus value={text} onChange={e => setText(e.target.value)}
             placeholder={HINTS[kind]} />
           <p className="hint">It goes to the project&apos;s public issue tracker, without your name or email. Leave out anything private.</p>
           {err && <p className="flag" role="alert">{err}</p>}

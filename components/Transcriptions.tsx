@@ -71,8 +71,11 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
   const [pct, setPct] = useState<number | null>(null);
   const [reading, setReading] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const snap = JSON.stringify([file?.name, tag?.songKey, title, instrument, player, recording, yt, vis]);
+  const [snap0] = useState(snap);
+  const dirty = pct === null && snap !== snap0;
 
-  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const pick =(e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; e.target.value = "";
     if (!f) return;
     const k = attachmentKind(f.type, f.name);
@@ -129,7 +132,7 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
   return (
     <>
       {/* the tune picker is a full-screen sheet, so the dialog steps aside while it is open */}
-      <Modal open={!picking} title={t ? "Edit transcription" : "Upload transcription"} onClose={() => { if (!picking) onClose(); }}>
+      <Modal open={!picking} title={t ? "Edit transcription" : "Upload transcription"} onClose={() => { if (!picking) onClose(); }} dirty={dirty}>
         <form className="chart-form" onSubmit={save}>
           {!t && mode === "ai" && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your file is sent to an AI service to fill in the details.</span></div>}
           {!t && <div className="field"><span className="field-label">File <Info label="About the file">A PDF, a photo, or a MusicXML score, up to {MAX_FILE_MB} MB.{mode === "ai" ? " AI reads the title, player, instrument and recording from it (PDFs up to 3 MB); it counts toward your daily Niu AI requests." : ""}</Info></span>
@@ -165,7 +168,7 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
             <input type="text" maxLength={200} value={recording} onChange={e => setRecording(e.target.value)} />
           </label>
           <label className="field"><span className="field-label">YouTube link <span className="field-opt">(optional)</span></span>
-            <input type="url" value={yt} onChange={e => setYt(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
+            <input type="url" maxLength={300} value={yt} onChange={e => setYt(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
           </label>
           <label className="field"><span className="field-label">Who can see it</span>
             <select value={vis} onChange={e => setVis(e.target.value as TranscriptionVisibility)}>
@@ -226,7 +229,7 @@ function ShareBody({ t }: { t: Transcription }) {
         </div>
       )}
       <form className="inline-form" onSubmit={add}>
-        <input type="email" aria-label="Email" placeholder="Add by email" autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} />
+        <input type="email" aria-label="Email" placeholder="Add by email" autoComplete="off" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} />
         <button className="btn primary" type="submit" disabled={busy || !email.trim()}>Share</button>
       </form>
       {err && <p className="hint" role="alert">{err}</p>}
