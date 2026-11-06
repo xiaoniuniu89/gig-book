@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
+import { Info } from "../Info";
 import { TOUR_EVENT } from "../Tour";
 import { WHATS_NEW_EVENT } from "../WhatsNew";
 import { ThemeToggle } from "../TopBar";
@@ -63,7 +64,7 @@ type Tab = typeof TABS[number][0];
 const ABOUT: Record<Tab, string> = {
   about: "Your name, instruments and bio: what agents and venues ask for. Each item shows who can see it.",
   contact: "How people reach you and pay you. Each item shows who can see it: only you, your bands, or anyone with your public page.",
-  files: "Press photos, a one-sheet and demos, ready to send. Each file shows who can see it.",
+  files: "Press photos and a press kit PDF, ready to send to venues and agents. Each file shows who can see it.",
   page: "A web page with your press kit that you can send to anyone. It only shows what you've made public.",
   connections: "Put your gigs in your phone's calendar, and choose what plays recordings.",
   help: "Take the tour again, see what's new, or switch between light and dark.",
@@ -150,7 +151,10 @@ export function AccountView() {
 
   const photos = files.filter(a => a.kind === "image"), others = files.filter(a => a.kind !== "image");
   // Images are resized in the browser; no more than MAX_PHOTOS of them.
-  const addFiles = async (fs: File[]) => {
+  const addFiles = async (all: File[]) => {
+    // photos and PDFs only: demos live on Spotify, SoundCloud or Bandcamp, linked under Contact
+    const fs = all.filter(f => f.type.startsWith("image/") || f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    if (fs.length < all.length) toast("Only photos and PDFs here. For recordings, add your Spotify, SoundCloud or Bandcamp link under Contact.");
     const isImg = (f: File) => f.type.startsWith("image/");
     const room = Math.max(0, MAX_PHOTOS - photos.length - uploads.ups.filter(u => isImg(u.file) && !u.error).length);
     const keep = new Set(fs.filter(isImg).slice(0, room));
@@ -222,15 +226,14 @@ export function AccountView() {
       </section>}
 
       {tab === "files" && <section className="acct-sec" role="tabpanel" aria-label="Promo files">
-        <p className="hint">Press photos (up to {MAX_PHOTOS}), a one-sheet or EPK PDF, demo recordings. New files start as Only me. Photos are resized before they upload.</p>
-        <AttachMenu onFiles={fs => void addFiles(fs)} />
+        <AttachMenu noAudio onFiles={fs => void addFiles(fs)} />
         <UploadRows ups={uploads.ups} noteId="profile" retry={uploads.retry} dismiss={uploads.dismiss} />
-        <h2 className="acct-sub">Press photos <span className="hint">{photos.length} of {MAX_PHOTOS}</span></h2>
+        <h2 className="acct-sub">Press photos <span className="hint">{photos.length} of {MAX_PHOTOS}</span> <Info label="About press photos">Up to {MAX_PHOTOS} photos of you for posters and listings. They&apos;re resized before they upload, and start as Only me.</Info></h2>
         {photos.map(fileRow)}
         {!photos.length && <p className="hint">No press photos yet.</p>}
-        <h2 className="acct-sub">Other files</h2>
+        <h2 className="acct-sub">Press kit PDF <Info label="About the press kit PDF">A one-page PDF about you (sometimes called a one-sheet or EPK) to send to venues and agents. It starts as Only me.</Info></h2>
         {others.map(fileRow)}
-        {!others.length && <p className="hint">No other files yet.</p>}
+        {!others.length && <p className="hint">No PDF yet.</p>}
       </section>}
 
       {tab === "page" && <section className="acct-sec" role="tabpanel" aria-label="Public page">
