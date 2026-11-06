@@ -41,8 +41,10 @@ export function SetView() {
     return () => { gone = true; };
   }, [ready, s, id, ensureSetlist]);
   useEffect(() => {
-    setCrumb(s ? <><Link href="/setlists">Setlists</Link> / {s.name}</> : <Link href="/setlists">Setlists</Link>);
-  }, [s, s?.name, setCrumb]);
+    // a band's setlist sits under its band (the band page opens on its Setlists tab)
+    const up = s?.band ? <><Link href="/bands">Bands</Link> / <Link href={"/bands/" + encodeURIComponent(s.band.id)}>{s.band.name}</Link></> : <Link href="/setlists">Setlists</Link>;
+    setCrumb(s ? <>{up} / {s.name}</> : up);
+  }, [s, s?.name, s?.band, setCrumb]);
 
   if (!s) return missing
     ? <Oops code={403} lines={["This setlist isn't shared with you, or it's been deleted."]} links={[{ href: "/setlists", label: "Your setlists" }, { href: "/", label: "Home" }]} />

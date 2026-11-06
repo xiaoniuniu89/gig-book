@@ -1,6 +1,10 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-18",
+    items: ["A band's setlist now shows the band in the trail at the top (Bands / your band / the setlist), so you can step back to the band."],
+  },
+  {
     date: "2026-11-17",
     items: [
       "Chart view can switch between every version of a tune: iReal, reharms, the lead sheet and your uploaded charts.",

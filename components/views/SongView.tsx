@@ -118,7 +118,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const arrName = arr?.name;
   useEffect(() => {
     setCrumb(s
-      ? <><Link href="/setlists">Setlists</Link> / <Link href={"/set/" + encodeURIComponent(s.id)}>{s.name}</Link> / {sg.title}</>
+      ? <>{s.band ? <><Link href="/bands">Bands</Link> / <Link href={"/bands/" + encodeURIComponent(s.band.id)}>{s.band.name}</Link></> : <Link href="/setlists">Setlists</Link>} / <Link href={"/set/" + encodeURIComponent(s.id)}>{s.name}</Link> / {sg.title}</>
       : arrName !== undefined ? <><Link href="/arrangements">Arrangements</Link> / {arrName}</>
       : <><Link href="/library">Library</Link> / {sg.title}</>);
   }, [s, sg, arrName, setCrumb]);
