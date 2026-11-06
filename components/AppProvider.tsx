@@ -16,11 +16,11 @@ import { autoPick, performersFor } from "@/lib/youtube/client";
 import { localStore } from "@/lib/data/local";
 import { supabaseStore } from "@/lib/data/supabase";
 import { createSaveQueue } from "@/lib/data/saveQueue";
-import type { Arrangement, DataStore, LibraryPlaylist, Setlist, SetlistItem } from "@/lib/data/types";
+import type { Arrangement, DataStore, LibraryPlaylist, OriginalSong, Setlist, SetlistItem } from "@/lib/data/types";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
 import { song as songOf, norm } from "@/lib/songs";
 import { DEFAULT_SETTINGS, applySettings, loadLocalSettings, normalizeSettings, type Settings } from "@/lib/settings";
-import { BUILTIN_LIBRARY, LEGACY_SEED_IDS, isBuiltin, withBuiltins } from "@/lib/seeds";
+import { BUILTIN_LIBRARY, LEGACY_SEED_IDS, ORIGINALS_ID, isBuiltin, withBuiltins } from "@/lib/seeds";
 
 /** One video in the YouTube list: a saved `id`, or null to use the song's automatic pick. setId/idx let "charts follow the music" open the tune. */
 export interface YtQueueItem { key: string; title: string; composer: string; id: string | null; performer?: string; setId?: string; idx?: number }
@@ -100,6 +100,11 @@ interface Ctx {
   setAccountName(name: string): void;
   setlists: Setlist[];
   library: LibraryPlaylist[];
+  /** Your original songs (R16), newest first; they are also the "My originals" playlist of the library. */
+  originals: OriginalSong[];
+  /** After saving: add a new original, or replace the one with the same id. */
+  putOriginal(o: OriginalSong): void;
+  dropOriginal(id: string): void;
   /** Your arrangements (R13), newest first. */
   arrangements: Arrangement[];
   addArrangement(a: Arrangement): Promise<void>;
@@ -209,6 +214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [library, setLibrary] = useState<LibraryPlaylist[]>([]);
   const [arrangements, setArrangements] = useState<Arrangement[]>([]);
+  const [originals, setOriginals] = useState<OriginalSong[]>([]);
   const [localCounts, setLocalCounts] = useState<{ setlists: number; library: number } | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -354,7 +360,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     // closed beta: signed out means no data at all, not even this device's
     if (supabaseConfigured && store.kind !== "supabase") {
-      applySetlists(() => []); setLibrary([]); setArrangements([]); setLocalCounts(null); setReady(false);
+      applySetlists(() => []); setLibrary([]); setArrangements([]); setOriginals([]); setLocalCounts(null); setReady(false);
       return;
     }
     (async () => {
@@ -363,6 +369,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const sls = await store.listSetlists();
         const lib = await store.listLibrary();
         const arrs = await store.listArrangements();
+        const orig = await store.listOriginals().catch(() => []);
         if (store.kind === "supabase") {
           const [ls, ll] = await Promise.all([localStore.listSetlists(), localStore.listLibrary()]);
           const done = loadCopied(account?.id || "");
@@ -371,7 +378,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (!cancelled) setLocalCounts(unseededLocal.length || pendingLib.length ? { setlists: unseededLocal.length, library: pendingLib.length } : null);
         } else if (!cancelled) setLocalCounts(null);
         if (cancelled) return;
-        applySetlists(() => withBuiltins(sls)); setLibrary(lib); setArrangements(arrs);
+        applySetlists(() => withBuiltins(sls)); setLibrary(lib); setArrangements(arrs); setOriginals(orig);
       } catch (e) {
         console.error(e);
         if (!cancelled) toast(e instanceof Error ? e.message : "Couldn't load your data.");
@@ -382,7 +389,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [store, account?.id, toast, applySetlists]);
 
   // the built-in playlist comes first and is never stored; a stored playlist of the same name is an old seeded copy
-  const allLibrary = useMemo(() => [BUILTIN_LIBRARY, ...library.filter(p => p.id !== BUILTIN_LIBRARY.id && p.name !== BUILTIN_LIBRARY.name)], [library]);
+  // your originals (R16) follow it as a playlist that is never stored as one
+  const allLibrary = useMemo(() => [
+    BUILTIN_LIBRARY,
+    ...(originals.length ? [{ id: ORIGINALS_ID, name: "My originals", songs: originals.map(o => o.raw) }] : []),
+    ...library.filter(p => p.id !== BUILTIN_LIBRARY.id && p.id !== ORIGINALS_ID && p.name !== BUILTIN_LIBRARY.name),
+  ], [library, originals]);
+  const putOriginal = useCallback((o: OriginalSong) => setOriginals(prev => prev.some(x => x.id === o.id) ? prev.map(x => x.id === o.id ? o : x) : [o, ...prev]), []);
+  const dropOriginal = useCallback((id: string) => setOriginals(prev => prev.filter(x => x.id !== id)), []);
 
   const setlistById = useCallback((id: string) => setlistsRef.current.find(s => s.id === id), []);
 
@@ -469,7 +483,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const removeLibraryPlaylist = useCallback(async (id: string) => {
-    if (id === BUILTIN_LIBRARY.id) return; // ships with the app, not stored
+    if (id === BUILTIN_LIBRARY.id || id === ORIGINALS_ID) return; // ships with the app / made from your originals, not stored
     try { await storeRef.current.deleteLibraryPlaylist(id); } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete."); return; }
     setLibrary(prev => prev.filter(x => x.id !== id));
   }, [toast]);
@@ -794,7 +808,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: Ctx = {
-    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, arrangements, addArrangement, updateArrangement, removeArrangement, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, hitsOf, addSetlist, removeSetlist, leaveSetlist,
+    ready, authChecked, store, account, setAccountName, setlists, library: allLibrary, originals, putOriginal, dropOriginal, arrangements, addArrangement, updateArrangement, removeArrangement, setlistById, ensureSetlist, updateSetlist, updateItem, flushSetlist: saves.flush, itemOf, hitsOf, addSetlist, removeSetlist, leaveSetlist,
     addLibraryPlaylist, removeLibraryPlaylist, copyLocalToAccount, localCounts,
     settings, updateSettings, prefs, updatePrefs, toast, toastMsg, crumb, setCrumb,
     current, setCurrent, shiftOf, setShift, tempoFor,

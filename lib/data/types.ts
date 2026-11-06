@@ -385,6 +385,28 @@ export const NEEDS_ACCOUNT_TRANSCRIPTIONS = "Transcriptions need an account.";
 export const NEEDS_ACCOUNT_GIGS = "Sign in to plan gigs.";
 export interface TranscriptionShare { userId: string; name: string; email: string | null }
 
+/** An original song (R16): your own tune, stored as an iReal song string. Private, shared with one of your bands, or public. */
+export type OriginalVisibility = "private" | "band" | "public";
+export interface LeadSheetFile { path: string; kind: "pdf" | "image"; name: string; mime: string; size: number }
+export interface OriginalSong {
+  id: string;
+  ownerId: string;
+  /** "You" for your own. */
+  ownerName: string;
+  mine: boolean;
+  raw: string;
+  title: string;
+  composer: string;
+  visibility: OriginalVisibility;
+  bandId: string | null;
+  leadSheet: LeadSheetFile | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export type OriginalFields = Pick<OriginalSong, "raw" | "visibility" | "bandId">;
+export const NEEDS_ACCOUNT_ORIGINALS = "Original songs need an account.";
+export const MAX_LEAD_SHEET_MB = 10;
+
 /** A version of a tune's changes (R3.5), shared with everyone and keyed by song key. `changes` is the text format of lib/versions.ts. */
 export interface TuneVersion {
   id: string;
@@ -495,6 +517,17 @@ export interface DataStore {
   deletePracticeTrack(t: PracticeTrack): Promise<void>;
   /** A URL the audio element can play (signed for an hour, or a blob URL locally). */
   practiceTrackUrl(t: PracticeTrack): Promise<string>;
+  /** Your own original songs (R16), newest first. Local mode has none. */
+  listOriginals(): Promise<OriginalSong[]>;
+  /** Other people's originals you can see (public, or your bands'), matching the words; at most 20. Local mode has none. */
+  searchOriginals(q: string): Promise<OriginalSong[]>;
+  /** The row first, then the lead sheet (PDF or photo, 10 MB) if there is one. Local mode rejects. */
+  createOriginal(f: OriginalFields, leadSheet?: File | null, onProgress?: (p: number) => void): Promise<OriginalSong>;
+  /** Changes the song; `leadSheet` replaces the file, `"remove"` deletes it, undefined leaves it. */
+  updateOriginal(o: OriginalSong, f: OriginalFields, leadSheet?: File | "remove"): Promise<OriginalSong>;
+  deleteOriginal(o: OriginalSong): Promise<void>;
+  /** A temporary link to the lead sheet. */
+  originalLeadSheetUrl(o: OriginalSong): Promise<string>;
   /** One page of the transcriptions you can see (yours, public, shared with you); `total` counts all pages. Local mode rejects. */
   listTranscriptions(q: TranscriptionQuery): Promise<{ items: Transcription[]; total: number }>;
   /** Null when not found or not allowed. */
