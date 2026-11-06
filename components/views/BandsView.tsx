@@ -52,7 +52,7 @@ export function BandsView() {
         <div className="shelf">
           {bands.map(b => (
             <Link key={b.id} className="book yellow" href={"/bands/" + b.id}>
-              <span className="m">{b.role === "admin" ? "Admin" : "Member"}{b.plays.length ? " · " + b.plays.join(", ") : ""}</span>
+              <span className="m">{b.role === "admin" ? "Admin" : "Member"}</span>
               <span className="t">{b.name}</span>
             </Link>
           ))}

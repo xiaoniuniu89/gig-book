@@ -9,7 +9,6 @@ import { useUploads } from "../Attachments";
 import { Bio } from "../Bio";
 import { PressKit } from "../PressKit";
 import { BandShareForm } from "../BandShare";
-import { InstrumentPicker } from "../Instruments";
 import { Modal } from "../Modal";
 import { Collaborators } from "../Collaborators";
 import { PeoplePicker, type Picked } from "../PeoplePicker";
@@ -274,8 +273,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
   const admin = band.role === "admin";
   const [members, setMembers] = useState<BandMember[] | null>(null);
   const [removing, setRemoving] = useState<BandMember | null>(null);
-  const [plays, setPlays] = useState(band.plays);
-  const [editPlays, setEditPlays] = useState(false);
+  const [handTo, setHandTo] = useState<BandMember | null>(null);
 
   const load = useCallback(() => store.listBandMembers(band.id).then(setMembers, e => { setMembers([]); toast(errText(e, "Couldn't load the people.")); }), [store, band.id, toast]);
   useEffect(() => { void load(); }, [load]);
@@ -294,9 +292,6 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
     await act("Couldn't remove them.", () => store.removeBandMember(band.id, m.userId));
     setRemoving(null); toast(m.name + " is out of the band.");
   };
-  const savePlays = async () => {
-    try { await store.setBandPlays(band.id, plays); setEditPlays(false); toast("Saved."); await Promise.all([load(), reloadBand()]); } catch (e) { toast(errText(e, "Couldn't save.")); }
-  };
 
   return (
     <>
@@ -310,12 +305,12 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
               return (
                 <div className="member-block" key={m.userId}>
                   <div className="member">
-                    <span className="name"><span><b>{m.name}{me ? " (you)" : ""}</b>{m.plays.length > 0 && <span className="plays"> · {m.plays.join(", ")}</span>}</span>
-                      {me && <button className="btn icon-btn small" aria-label="Change what you play in this band" title="Change what you play" onClick={() => { setPlays(band.plays); setEditPlays(true); }}><Icon name="edit" size={16} /></button>}</span>
+                    <span className="name"><span><b>{m.name}{me ? " (you)" : ""}</b>{m.instruments.length > 0 && <span className="plays"> · {m.instruments.join(", ")}</span>}</span></span>
                     <span className="k">{m.role}</span>
                     {admin && !me && (
                       <span className="tune-btns">
                         <button className="btn small" onClick={() => setRole(m)}>{m.role === "admin" ? "Make member" : "Make admin"}</button>
+                        <button className="btn small" onClick={() => setHandTo(m)}><Icon name="user" size={16} /> Hand over</button>
                         <button className="btn small" aria-label={"Remove " + m.name} onClick={() => setRemoving(m)}><Icon name="trash" size={16} /></button>
                       </span>
                     )}
@@ -353,10 +348,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
         onConfirm={() => removing ? remove(removing) : undefined}>
         They lose access to the band&apos;s setlists, notes and gigs, and their setlists leave the band. You can add them back later.
       </ConfirmTyped>
-      <Modal open={editPlays} title="What you play in this band" onClose={() => setEditPlays(false)}>
-        <InstrumentPicker label="What you play in this band" value={plays} onChange={setPlays} />
-        <div className="row-btns"><button className="btn primary" onClick={savePlays} disabled={plays.join("|") === band.plays.join("|")}>Save</button></div>
-      </Modal>
+      {handTo && <HandOver band={band} others={[handTo]} to={handTo.userId} onClose={() => setHandTo(null)} onDone={() => { setHandTo(null); void Promise.all([load(), reloadBand()]); }} />}
     </>
   );
 }
@@ -365,7 +357,6 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
 function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[]; onAdded: () => Promise<void> }) {
   const { store, toast } = useApp();
   const [picked, setPicked] = useState<Picked | null>(null);
-  const [plays, setPlays] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState("");
 
@@ -379,15 +370,14 @@ function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[];
       if (picked.kind === "email") { const r = await store.searchBandUsers(band.id, picked.email); c = r.length === 1 ? r[0] : undefined; }
       if (!c) toast("No one has that email. They need a Niu Real Book account first; send an invite link.");
       else {
-        await store.addBandMember(band.id, c.userId, plays);
+        await store.addBandMember(band.id, c.userId, []);
         toast(c.name + " is in the band.");
-        setPicked(null); setPlays([]);
+        setPicked(null);
         await onAdded();
       }
     } catch (x) { toast(errText(x, "Couldn't add them.")); }
     setBusy(false);
   };
-  const pickedPerson = picked?.kind === "person" ? picked.person : null;
   const makeLink = async () => {
     try { setLink(location.origin + "/bands/join/" + await store.createBandInvite(band.id)); } catch (e) { toast(errText(e, "Couldn't make a link.")); }
   };
@@ -407,14 +397,7 @@ function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[];
       }} />
       <form className="inline-form" onSubmit={add}>
         <PeoplePicker value={picked} exclude={memberIds} label="Find people" placeholder="Type a name or an email" disabled={busy}
-          onChange={v => { setPicked(v); setPlays(v?.kind === "person" && v.person.instruments.length === 1 ? v.person.instruments : []); }} />
-        {pickedPerson && (
-          <span className="add-as">
-            <span className="hint">Add as</span>
-            <InstrumentPicker dropdown label={"Add " + pickedPerson.name + " as"} options={pickedPerson.instruments.length > 1 ? pickedPerson.instruments : undefined}
-              value={plays} onChange={setPlays} />
-          </span>
-        )}
+          onChange={setPicked} />
         <button className="btn" type="submit" disabled={busy || !picked}>Add</button>
       </form>
       <p className="hint">Names come from people you already play with. For someone new, type their exact email or send an invite link.</p>
@@ -461,24 +444,10 @@ function SettingsTab({ band, reloadBand }: { band: Band; reloadBand: () => Promi
 function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
   const { store, toast, account } = useApp();
   const router = useRouter();
-  const [handing, setHanding] = useState(false);
-  const [others, setOthers] = useState<BandMember[]>([]);
-  const [to, setTo] = useState("");
-  const [stepDown, setStepDown] = useState(true);
+  const [others, setOthers] = useState<BandMember[] | null>(null);
   const openHandOver = async () => {
-    try { setOthers((await store.listBandMembers(band.id)).filter(m => m.userId !== account?.id)); setTo(""); setStepDown(true); setHanding(true); }
+    try { setOthers((await store.listBandMembers(band.id)).filter(m => m.userId !== account?.id)); }
     catch (e) { toast(errText(e, "Couldn't load the people.")); }
-  };
-  // they become an admin first, so the band is never left without one; then you step down if you chose to
-  const handOver = async () => {
-    const m = others.find(x => x.userId === to);
-    if (!m || !account) return;
-    try {
-      if (m.role !== "admin") await store.setBandMember(band.id, m.userId, "admin", m.perms);
-      if (stepDown) await store.setBandMember(band.id, account.id, "member", null);
-      setHanding(false); toast(m.name + (stepDown ? " runs the band now. You're a member." : " is an admin now."));
-      await reloadBand();
-    } catch (e) { toast(errText(e, "Couldn't hand it over.")); }
   };
   const [name, setName] = useState(band.name);
   const [perms, setPerms] = useState(band.defaultPerms);
@@ -512,24 +481,48 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
       <h3 className="modal-sub">Hand over the band <Info label="About handing over">Made the band for someone else? Hand it over: they become an admin, and you can step down to an ordinary member. You stay in the band either way.</Info></h3>
       <div className="row-btns"><button className="btn" onClick={() => void openHandOver()}><Icon name="user" size={18} /> Hand over</button></div>
       <div className="danger-zone"><button className="btn small" onClick={() => setDeleting(true)}><Icon name="trash" size={16} /> Delete this band</button></div>
-      <Modal open={handing} title={"Hand over " + band.name} onClose={() => setHanding(false)}>
-        {!others.length ? <p className="hint">There&apos;s nobody else in the band yet. Invite them under People first.</p> : (
-          <form className="chart-form" onSubmit={e => { e.preventDefault(); void handOver(); }}>
-            <label className="field"><span className="field-label">Who runs the band now</span>
-              <select required value={to} onChange={e => setTo(e.target.value)}>
-                <option value="" disabled>Choose someone…</option>
-                {others.map(m => <option key={m.userId} value={m.userId}>{m.name}{m.role === "admin" ? " (already an admin)" : ""}</option>)}
-              </select>
-            </label>
-            <label className="toggle"><input type="checkbox" checked={stepDown} onChange={e => setStepDown(e.target.checked)} /> Make me an ordinary member</label>
-            <div className="row-btns"><button className="btn primary" type="submit" disabled={!to}>Hand over</button></div>
-          </form>
-        )}
-      </Modal>
+      {others && <HandOver band={band} others={others} onClose={() => setOthers(null)} onDone={() => { setOthers(null); void reloadBand(); }} />}
       <ConfirmTyped open={deleting} title={"Delete " + band.name} action="Delete band" onClose={() => setDeleting(false)} onConfirm={del}>
         This deletes the band, its notes and its press kit for everyone. Setlists stay with whoever owns them.
       </ConfirmTyped>
     </section>
+  );
+}
+
+/** Hand the band to someone: they become an admin first (so there's always one), then you can step down to a member. */
+function HandOver({ band, others, to: preset, onClose, onDone }: { band: Band; others: BandMember[]; to?: string; onClose: () => void; onDone: () => void }) {
+  const { store, toast, account } = useApp();
+  const [to, setTo] = useState(preset ?? "");
+  const [stepDown, setStepDown] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const m = others.find(x => x.userId === to);
+  const go = async () => {
+    if (!m || !account || busy) return;
+    setBusy(true);
+    try {
+      if (m.role !== "admin") await store.setBandMember(band.id, m.userId, "admin", m.perms);
+      if (stepDown) await store.setBandMember(band.id, account.id, "member", null);
+      toast(m.name + (stepDown ? " runs the band now. You're a member." : " is an admin now."));
+      onDone();
+    } catch (e) { toast(errText(e, "Couldn't hand it over.")); }
+    setBusy(false);
+  };
+  return (
+    <Modal open title={preset && m ? "Hand " + band.name + " to " + m.name : "Hand over " + band.name} onClose={onClose}>
+      {!others.length ? <p className="hint">There&apos;s nobody else in the band yet. Invite them under People first.</p> : (
+        <form className="chart-form" onSubmit={e => { e.preventDefault(); void go(); }}>
+          {!preset && <label className="field"><span className="field-label">Who runs the band now</span>
+            <select required value={to} onChange={e => setTo(e.target.value)}>
+              <option value="" disabled>Choose someone…</option>
+              {others.map(x => <option key={x.userId} value={x.userId}>{x.name}{x.role === "admin" ? " (already an admin)" : ""}</option>)}
+            </select>
+          </label>}
+          {preset && m && <p className="hint">{m.name} becomes an admin and can run the band.</p>}
+          <label className="toggle"><input type="checkbox" checked={stepDown} onChange={e => setStepDown(e.target.checked)} /> Make me an ordinary member</label>
+          <div className="row-btns"><button className="btn primary" type="submit" disabled={!m || busy}><Icon name="user" size={16} /> Hand over</button></div>
+        </form>
+      )}
+    </Modal>
   );
 }
 

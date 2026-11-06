@@ -4,15 +4,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
-import { InstrumentPicker } from "../Instruments";
-import { canonInstruments } from "@/lib/instruments";
 
 export function BandJoin() {
   const { token } = useParams<{ token: string }>();
   const { store, ready, setCrumb, setCurrent, toast } = useApp();
   const router = useRouter();
   const [info, setInfo] = useState<{ bandId: string; name: string } | null | undefined>(undefined);
-  const [plays, setPlays] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const signedIn = store.kind === "supabase";
 
@@ -20,10 +17,8 @@ export function BandJoin() {
   useEffect(() => {
     if (!ready || !signedIn) return;
     let gone = false;
-    Promise.all([store.bandInviteInfo(decodeURIComponent(token)), store.getMyProfile().catch(() => null)]).then(([i, p]) => {
-      if (gone) return;
-      setInfo(i);
-      if (p && p.instruments.length === 1) setPlays(canonInstruments(p.instruments));
+    store.bandInviteInfo(decodeURIComponent(token)).then(i => {
+      if (!gone) setInfo(i);
     }, e => { if (!gone) { setInfo(null); toast(e instanceof Error ? e.message : "Couldn't check that invite."); } });
     return () => { gone = true; };
   }, [ready, signedIn, store, token, toast]);
@@ -34,17 +29,13 @@ export function BandJoin() {
 
   const join = async () => {
     setBusy(true);
-    try { router.push("/bands/" + await store.acceptBandInvite(decodeURIComponent(token), plays)); }
+    try { router.push("/bands/" + await store.acceptBandInvite(decodeURIComponent(token), [])); }
     catch (e) { toast(e instanceof Error ? e.message : "Couldn't join."); setBusy(false); }
   };
   return (
     <section className="panel">
       <h2>Join {info.name}?</h2>
       <p className="hint">You&apos;ll see the band&apos;s setlists, notes and people. Next you can choose what the band sees of your profile.</p>
-      <div className="acct-field">
-        <span>What do you play in this band?</span>
-        <InstrumentPicker label="What you play" value={plays} onChange={setPlays} />
-      </div>
       <div className="row-btns">
         <button className="btn primary" disabled={busy} onClick={join}>{busy ? "Joining…" : "Join " + info.name}</button>
         <Link className="btn" href="/bands">Not now</Link>

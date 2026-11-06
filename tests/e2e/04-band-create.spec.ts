@@ -1,6 +1,6 @@
 import { expect, expectClean, go, musician, noHScroll, test, unique } from "./helpers";
 
-test("4. Ava makes a band, adds Ben (instrument preselected) and a setlist; a multi-instrument player gets Add as", async ({ browser }, info) => {
+test("4. Ava makes a band, adds Ben and a setlist; people show the instruments from their account", async ({ browser }, info) => {
   const ava = await musician(browser, "ava", info.project);
   const dev = await musician(browser, "dev", info.project);
   const { page } = ava;
@@ -13,12 +13,10 @@ test("4. Ava makes a band, adds Ben (instrument preselected) and a setlist; a mu
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
   await expect(page.getByText("Band · admin")).toBeVisible();
 
-  // add Ben: one instrument on his profile, so it is preselected
+  // add Ben: what he plays comes from his account (he shares it with bands)
   await page.getByRole("tab", { name: "People" }).click();
   await page.getByLabel("Find people").fill("Ben");
   await page.getByRole("option", { name: /^Ben/ }).click();
-  const addAs = page.locator(".add-as");
-  await expect(addAs.locator("summary")).toHaveText("Bass");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.locator(".member-block", { hasText: "Ben" }).getByText("member", { exact: true })).toBeVisible();
   await expect(page.locator(".member-block", { hasText: "Ben" })).toContainText("Bass");
@@ -30,7 +28,7 @@ test("4. Ava makes a band, adds Ben (instrument preselected) and a setlist; a mu
   await page.getByRole("dialog").locator(".member", { hasText: "Ava Solo Ballads" }).getByRole("button", { name: "Share" }).click();
   await expect(page.locator("section.panel", { hasText: "Band setlists" }).getByText("Ava Solo Ballads")).toBeVisible();
 
-  // Dev starts his own band and looks for Ava, who plays piano and vocals: no guess, "Add as" lists both
+  // Dev starts his own band and adds Ava: her instruments come from her account, nobody picks them
   const d = dev.page;
   await go(d, "/bands");
   await d.getByRole("button", { name: "New band" }).click();
@@ -39,15 +37,9 @@ test("4. Ava makes a band, adds Ben (instrument preselected) and a setlist; a mu
   await d.getByRole("tab", { name: "People" }).click();
   await d.getByLabel("Find people").fill("Ava");
   await d.getByRole("option", { name: /^Ava/ }).click();
-  const ava2 = d.locator(".add-as");
-  await expect(ava2.getByText("Add as")).toBeVisible();
-  await expect(ava2.locator("summary")).toHaveText("Choose…");
-  await ava2.locator("summary").click();
-  await expect(ava2.getByLabel("Piano")).not.toBeChecked();
-  await expect(ava2.getByLabel("Vocals")).not.toBeChecked();
-  await expect(ava2.locator(".multi-list label")).toHaveCount(2);
-  await ava2.getByLabel("Piano").check();
-  await expect(ava2.locator("summary")).toHaveText("Piano");
+  await d.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(d.locator(".member-block", { hasText: "Ava" })).toContainText("Piano");
+  await expect(d.getByRole("button", { name: "Change what you play in this band" })).toHaveCount(0);
   await noHScroll(d);
   expectClean(page, d);
   await ava.ctx.close(); await dev.ctx.close();
