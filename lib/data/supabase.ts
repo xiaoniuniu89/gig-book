@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import { plainError } from "../validate";
 import type { Hit, Feels } from "../hits";
-import { MAX_FILE_MB, MAX_LEAD_SHEET_MB, type OriginalSong,MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MAX_FILE_MB, MAX_LEAD_SHEET_MB, MAX_RECORDING_MB, type OriginalSong,MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -87,12 +87,14 @@ const trFields = (f: TranscriptionFields) => ({
   recording: f.recording, youtube: f.youtube, visibility: f.visibility,
 });
 const LEADSHEET_BUCKET = "leadsheets";
+const RECORDING_BUCKET = "original-recordings";
 interface OriginalRow {
   id: string; owner: string; raw: string; title: string; composer: string; visibility: "private" | "band" | "public"; band_id: string | null;
   lead_sheet_path: string | null; lead_sheet_kind: "pdf" | "image" | null; lead_sheet_name: string | null; lead_sheet_mime: string | null; lead_sheet_size: number | null;
+  recording_path: string | null; recording_name: string | null; recording_mime: string | null; recording_size: number | null;
   created_at: string; updated_at: string;
 }
-const OR_COLS = "id, owner, raw, title, composer, visibility, band_id, lead_sheet_path, lead_sheet_kind, lead_sheet_name, lead_sheet_mime, lead_sheet_size, created_at, updated_at";
+const OR_COLS = "id, owner, raw, title, composer, visibility, band_id, lead_sheet_path, lead_sheet_kind, lead_sheet_name, lead_sheet_mime, lead_sheet_size, recording_path, recording_name, recording_mime, recording_size, created_at, updated_at";
 interface LickRow {
   id: string;
   owner: string;
@@ -269,6 +271,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     title: r.title, composer: r.composer, visibility: r.visibility, bandId: r.band_id, createdAt: r.created_at, updatedAt: r.updated_at,
     leadSheet: r.lead_sheet_path && r.lead_sheet_kind
       ? { path: r.lead_sheet_path, kind: r.lead_sheet_kind, name: r.lead_sheet_name || "lead sheet", mime: r.lead_sheet_mime || "", size: Number(r.lead_sheet_size) || 0 } : null,
+    recording: r.recording_path ? { path: r.recording_path, name: r.recording_name || "recording", mime: r.recording_mime || "", size: Number(r.recording_size) || 0 } : null,
   });
   const leadSheetCols = (path: string, file: File, mime: string) => {
     const kind = attachmentKind(file.type, file.name);
@@ -925,11 +928,40 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (error) fail("delete that song", error);
       if (!data?.length) throw new Error("Couldn't delete that song: you can't change it.");
       if (o.leadSheet) await sb.storage.from(LEADSHEET_BUCKET).remove([o.leadSheet.path]);
+      if (o.recording) await sb.storage.from(RECORDING_BUCKET).remove([o.recording.path]);
     },
 
     async originalLeadSheetUrl(o) {
       if (!o.leadSheet) throw new Error("This song has no lead sheet.");
       return signedUrl(LEADSHEET_BUCKET, o.leadSheet.path, "open the lead sheet");
+    },
+
+    async setOriginalRecording(o, file, onProgress) {
+      const none = { recording_path: null, recording_name: null, recording_mime: null, recording_size: null };
+      let patch: Record<string, unknown> = none, mime = "";
+      if (file !== "remove") {
+        if (attachmentKind(file.type, file.name) !== "audio") throw new Error("That isn't an audio file. Try an MP3, M4A or WAV.");
+        if (file.size > MAX_RECORDING_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_RECORDING_MB} MB.`);
+        mime = mimeOf(file);
+        patch = { recording_path: `${userId}/${o.id}/${newUuid()}-${safeName(file.name)}`, recording_name: file.name.slice(0, 300), recording_mime: mime, recording_size: file.size };
+      }
+      const { data, error } = await sb.from("original_songs").update(patch).eq("id", o.id).select(OR_COLS);
+      if (error) {
+        if (/new songs or lead sheets today/.test(error.message)) throw new Error(error.message);
+        fail("save the recording", error);
+      }
+      if (!data?.length) throw new Error("Couldn't save the recording: you can't change this song.");
+      if (file !== "remove") {
+        try { await putFile(RECORDING_BUCKET, patch.recording_path as string, file, mime, onProgress); }
+        catch (e) { await sb.from("original_songs").update(o.recording ? { recording_path: o.recording.path, recording_name: o.recording.name, recording_mime: o.recording.mime, recording_size: o.recording.size } : none).eq("id", o.id); throw e; }
+      }
+      if (o.recording) await sb.storage.from(RECORDING_BUCKET).remove([o.recording.path]);
+      return toOriginal(data[0] as unknown as OriginalRow, new Map([[o.ownerId, o.ownerName]]));
+    },
+
+    async originalRecordingUrl(o) {
+      if (!o.recording) throw new Error("This song has no recording.");
+      return signedUrl(RECORDING_BUCKET, o.recording.path, "play the recording");
     },
 
     async listTranscriptions(q) {

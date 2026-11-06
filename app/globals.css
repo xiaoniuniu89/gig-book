@@ -316,6 +316,14 @@ a.tune:hover { background: var(--hover); }
 .ch.sim { color: var(--muted); }
 .mbar { transition: background-color .15s; border-radius: 0; }
 .mbar.now { background: var(--now); box-shadow: inset 0 -3px 0 var(--brass); }
+/* drag across bars to loop them */
+.chart-host { position: relative; }
+.chart-host #chart-wrap { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.mbar.loop-sel { background: color-mix(in srgb, var(--cover-yellow) 45%, transparent); }
+.mbar.loop-sel.now { background: color-mix(in srgb, var(--cover-yellow) 70%, transparent); }
+.loop-pop { position: absolute; z-index: 5; transform: translateX(-100%); display: flex; gap: 4px; white-space: nowrap; }
+.loop-pop .btn { box-shadow: 0 2px 8px rgb(0 0 0 / 0.18); }
+.loop-pop .sub { font-weight: 400; opacity: 0.8; }
 #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 30;
   background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; width: max-content; max-width: min(90vw, 520px); }
 
@@ -353,6 +361,10 @@ span.chip { display: inline-block; padding: 2px 8px; }
 #sp-embed { min-height: 152px; border-radius: 12px; overflow: hidden; }
 .rec-empty { display: grid; gap: 6px; padding: 16px 18px; color: var(--muted); font-size: 0.875rem; line-height: 1.45; border: 1px dashed var(--rule); border-radius: 12px; }
 .rec-empty > b { color: var(--ink); }
+.orig-rec { display: grid; gap: 6px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.orig-rec .name { display: grid; gap: 2px; font-size: 0.9rem; overflow-wrap: anywhere; }
+.orig-rec-row { display: flex; align-items: center; gap: 8px; }
+.orig-rec-row audio { flex: 1; min-width: 0; height: 36px; }
 .dock-slot { display: grid; gap: 16px; }
 .dock-slot:not(:empty) { border-top: 1px solid var(--rule); padding-top: 16px; }
 .dock-slot .panel { padding: 0; border: 0; background: none; }
@@ -1147,3 +1159,4 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; line-height: 1.45; }
 .epk-member { padding: 12px 0; border-top: 1px solid var(--rule); }
 .epk-member h3 { margin: 0 0 6px; }
+.band-ctrls input.num { width: 4.5em; }

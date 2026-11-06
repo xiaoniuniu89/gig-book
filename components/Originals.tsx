@@ -8,13 +8,15 @@ import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
+import { MenuButton } from "./MenuButton";
+import { ConfirmTyped } from "./ConfirmTyped";
 import { PdfPages } from "./PdfPages";
 import { ChartEditor, blankSection, fromEdit, toEdit, type EditSection } from "./ChartEditor";
 import { chartFromLeadSheet } from "@/lib/ai/leadsheetClient";
 import { defaultTempo } from "@/lib/band/gen";
 import { encodeChart, sectionsFromBars, SONG_STYLES, TIME_SIGS } from "@/lib/irealExport";
 import { meta, prettyKey, song } from "@/lib/songs";
-import { MAX_LEAD_SHEET_MB, attachmentKind, type Band, type OriginalSong, type OriginalVisibility } from "@/lib/data/types";
+import { MAX_LEAD_SHEET_MB, MAX_RECORDING_MB, attachmentKind, type Band, type OriginalSong, type OriginalVisibility } from "@/lib/data/types";
 
 const ACCEPT = "application/pdf,image/*";
 const STYLES: readonly string[] = SONG_STYLES;
@@ -279,4 +281,53 @@ export function EditSongButton({ o }: { o: OriginalSong }) {
     <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit song</button>
     {editing && <NewSong o={o} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); toast("Saved."); }} />}
   </>;
+}
+
+/** An original's own recording (there's none on Spotify or YouTube to find): play it; the writer uploads, replaces or removes it. */
+export function OriginalRecording({ o }: { o: OriginalSong }) {
+  const { store, toast, putOriginal } = useApp();
+  const [url, setUrl] = useState<string | null>(null);
+  const [pct, setPct] = useState<number | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const path = o.recording?.path;
+  useEffect(() => {
+    let live = true;
+    setUrl(null);
+    if (path) store.originalRecordingUrl(o).then(u => { if (live) setUrl(u); }, () => { /* the player just stays empty */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, path]);
+  const save = async (file: File | "remove") => {
+    try {
+      if (file !== "remove") setPct(0);
+      putOriginal(await store.setOriginalRecording(o, file, p => setPct(Math.round(p * 100))));
+      toast(file === "remove" ? "Recording removed." : "Recording saved.");
+    } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save the recording."); }
+    finally { setPct(null); }
+  };
+  if (!o.recording && !o.mine) return null;
+  return (
+    <div className="orig-rec">
+      <input ref={input} type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void save(f); }} />
+      {pct !== null ? <p className="hint" role="status">Uploading… {pct}%</p>
+        : o.recording ? <>
+          <span className="name"><span className="eyebrow">{o.mine ? "Your recording" : "Recording by " + o.ownerName}</span> {o.recording.name}</span>
+          <span className="orig-rec-row">
+            <audio controls preload="none" src={url ?? undefined} aria-label={"Recording of " + o.title} />
+            {o.mine && <MenuButton className="btn icon-btn small" caret={false} ariaLabel="More for the recording" label="⋯" items={[
+              { label: <><Icon name="upload" size={16} /> Replace</>, onClick: () => input.current?.click() },
+              { label: <><Icon name="trash" size={16} /> Remove</>, onClick: () => setRemoving(true) },
+            ]} />}
+          </span>
+        </> : <span className="orig-rec-row">
+          <button className="btn" onClick={() => input.current?.click()}><Icon name="upload" size={16} /> Upload a recording</button>
+          <Info label="About the recording">An MP3, M4A or WAV of the song, up to {MAX_RECORDING_MB} MB. Whoever can see the song can play it.</Info>
+        </span>}
+      <ConfirmTyped open={removing} title="Remove the recording" action="Remove recording" onClose={() => setRemoving(false)}
+        onConfirm={async () => { await save("remove"); setRemoving(false); }}>
+        The recording is deleted. You can upload another one later.
+      </ConfirmTyped>
+    </div>
+  );
 }

@@ -1,6 +1,7 @@
 "use client";
 // The player drawer on the right: Band (built-in backing band), Record (YouTube or Spotify player) and the page's side panels.
 // Collapsed, it shrinks to a slim rail (a floating button on phones) so the chart gets the whole screen. Rendered once in the root layout.
+import { useState } from "react";
 import { useApp, sectionRanges } from "./AppProvider";
 import { Info } from "./Info";
 import { PlaybackHelpLink, useMyPlayback } from "./PlaybackHelp";
@@ -23,6 +24,8 @@ export function Dock() {
   const size = prefs.dockSize === "hidden" ? "hidden" : "full";
   const sg = bandPlaying ? bandFor : current && current.song;
   const sections = current ? sectionRanges(current.song) : [];
+  const nBars = current ? current.song.bars.length : 0;
+  const loopRange = app.loop ? app.loop.split("-").map(Number) as [number, number] : null;
 
   const onPlay = () => {
     if (!band) return;
@@ -91,6 +94,7 @@ export function Dock() {
                   <select id="band-loop" value={app.loop} disabled={bandPlaying} onChange={e => app.setLoop(e.target.value)}>
                     <option value="">Whole tune</option>
                     {sections.map(r => <option key={r.from} value={`${r.from}-${r.to}`}>Loop {r.label} (bars {r.from + 1}–{r.to + 1})</option>)}
+                    {loopRange && !sections.some(r => `${r.from}-${r.to}` === app.loop) && <option value={app.loop}>Loop bars {loopRange[0] + 1}–{loopRange[1] + 1}</option>}
                   </select>
                 </label>}
                 <label htmlFor="band-countin"><input id="band-countin" type="checkbox" checked={prefs.countIn} onChange={e => app.updatePrefs({ countIn: e.target.checked })} /> Count-in</label>
@@ -111,6 +115,7 @@ export function Dock() {
                     </label>
                   ))}
                 </div>
+                {!isLick && current && <LoopBars key={current.song.raw} bars={nBars} disabled={bandPlaying} />}
                 <div className="band-ctrls">
                   <label htmlFor="key-step">Change key
                     <select id="key-step" value={String(prefs.keyStep)} disabled={bandPlaying} onChange={e => app.updatePrefs({ keyStep: +e.target.value })}>
@@ -182,5 +187,29 @@ export function Dock() {
         <div className="dock-slot" ref={app.setDrawerSlot} />
       </div>
     </aside>
+  );
+}
+
+/** Loop by bar number (More settings): the loop is set once both numbers make sense; typing in between leaves it alone. */
+function LoopBars({ bars, disabled }: { bars: number; disabled: boolean }) {
+  const app = useApp();
+  const cur = app.loop ? app.loop.split("-").map(n => String(Number(n) + 1)) : ["", ""];
+  const [from, setFrom] = useState(cur[0]), [to, setTo] = useState(cur[1]);
+  const [seen, setSeen] = useState(app.loop);
+  if (seen !== app.loop) { setSeen(app.loop); setFrom(cur[0]); setTo(cur[1]); } // picked on the chart or the menu
+  const apply = (f: string, t: string) => {
+    const a = Math.round(Number(f)), b = Math.round(Number(t));
+    if (f && t && a >= 1 && b >= a && b <= bars) app.setLoop((a - 1) + "-" + (b - 1));
+  };
+  return (
+    <div className="band-ctrls" role="group" aria-label="Loop bars">
+      <span>Loop bars</span>
+      <label htmlFor="loop-from">from <input id="loop-from" className="num" type="number" inputMode="numeric" min={1} max={bars} disabled={disabled}
+        value={from} onChange={e => { setFrom(e.target.value); apply(e.target.value, to || e.target.value); if (!to) setTo(e.target.value); }} /></label>
+      <label htmlFor="loop-to">to <input id="loop-to" className="num" type="number" inputMode="numeric" min={1} max={bars} disabled={disabled}
+        value={to} onChange={e => { setTo(e.target.value); apply(from, e.target.value); }} /></label>
+      {app.loop && <button className="btn small" disabled={disabled} onClick={() => app.setLoop("")}>Whole tune</button>}
+      <Info label="About looping bars">The tune has {bars} bars. You can also drag across bars on the chart (on a phone, hold a bar, then slide) and press Loop.</Info>
+    </div>
   );
 }

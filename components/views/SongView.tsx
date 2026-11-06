@@ -9,7 +9,7 @@ import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey, meta } from "@/lib/songs";
 import { TuneTranscriptions } from "../Transcriptions";
-import { EditSongButton, LeadSheetDownload, LeadSheetPane, useOriginal } from "../Originals";
+import { EditSongButton, LeadSheetDownload, LeadSheetPane, OriginalRecording, useOriginal } from "../Originals";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
 import { MyResources } from "../Resources";
@@ -223,7 +223,8 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={marks?.feels}
           setFeel={(sec, f) => saveItem(it => ({ ...it, feels: { ...it.feels, [sec]: f } }))} />
         {editing && <TapAlong sg={sg} hits={validateHits(marks?.hits, sg.bars.length)} onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
-        <div className="chart-fit"><ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} fit={!editing} minFit={0.7} onBar={editing ? setSelBar : undefined} /></div>
+        <div className="chart-fit"><ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} fit={!editing} minFit={0.7} onBar={editing ? setSelBar : undefined}
+          loop={{ active: app.bandPlaying && app.bandFor === sg ? app.loop : "", start: (a, b) => void app.startBand(cur, { range: [a, b] }), stop: app.stopBand }} /></div>
         {editing && <HitEditor bars={sg.bars.length} sel={selBar} setSel={setSelBar} hits={validateHits(marks?.hits, sg.bars.length)}
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
@@ -264,7 +265,10 @@ const MIN_FIT = 0.45;
  */
 // `fit` scales the chart down (never up) to fill the parent's height without scrolling, stopping at MIN_FIT.
 /** `fit`: shrink (down to `minFit`) so the chart fits its box's height. */
-export function ChartHost({ html, live, fit, minFit = MIN_FIT, onBar }: { html: string; live: boolean; fit?: boolean; minFit?: number; onBar?: (bar: number) => void }) {
+/** Drag across bars to loop them: `active` is the loop playing now ("3-6"), or "" when the band isn't looping this tune. */
+export interface ChartLoop { active: string; start: (a: number, b: number) => void; stop: () => void }
+
+export function ChartHost({ html, live, fit, minFit = MIN_FIT, onBar, loop }: { html: string; live: boolean; fit?: boolean; minFit?: number; onBar?: (bar: number) => void; loop?: ChartLoop }) {
   const app = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const markRef = useRef(app.markBar); markRef.current = app.markBar;
@@ -276,7 +280,7 @@ export function ChartHost({ html, live, fit, minFit = MIN_FIT, onBar }: { html: 
     if (liveRef.current && bar.current !== null) markRef.current(bar.current); // re-apply the playing bar after a redraw
   }, [html, bar]);
   useLayoutEffect(() => {
-    const el = ref.current, box = el?.parentElement;
+    const el = ref.current, box = el?.parentElement?.parentElement;
     if (!fit || !el || !box) return;
     const run = () => {
       el.style.zoom = "1"; // measure at full size: a box that grows with the chart must not keep the last shrink
@@ -301,7 +305,99 @@ export function ChartHost({ html, live, fit, minFit = MIN_FIT, onBar }: { html: 
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-bar]");
     if (b) onBar(Number(b.dataset.bar));
   });
-  return <div id="chart-wrap" ref={ref} onClick={pick} />;
+  const drag = useBarDrag(ref, !!loop && !onBar, html);
+  const [a, b] = drag.sel ? [Math.min(drag.sel.a, drag.sel.b), Math.max(drag.sel.a, drag.sel.b)] : [0, 0];
+  const looping = !!loop && !!drag.sel && loop.active === a + "-" + b;
+  return (
+    <div className="chart-host">
+      <div id="chart-wrap" ref={ref} onClick={pick} {...drag.handlers} />
+      {loop && drag.sel && !drag.dragging && drag.at && (
+        <span className="loop-pop" style={{ left: drag.at.x, top: drag.at.y }}>
+          <button className={"btn small" + (looping ? "" : " primary")} onClick={() => looping ? loop.stop() : loop.start(a, b)}>
+            {looping ? "■ Stop" : "↻ Loop"} <span className="sub">{a === b ? "bar " + (a + 1) : "bars " + (a + 1) + "–" + (b + 1)}</span>
+          </button>
+          <button className="btn icon-btn small" aria-label="Clear the selection" onClick={() => { if (looping) loop.stop(); drag.clear(); }}><Icon name="close" size={14} /></button>
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Pick a run of bars by dragging over them (mouse or pen), or on a touch screen by holding a bar for a moment and then sliding.
+ * The picked bars get the class `loop-sel`; `at` is where the Loop button goes (under the last bar, in the host's coordinates).
+ */
+function useBarDrag(ref: React.RefObject<HTMLDivElement | null>, on: boolean, html: string) {
+  const [sel, setSel] = useState<{ a: number; b: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const st = useRef({ dragging: false, moved: false, x: 0, y: 0, timer: 0 as ReturnType<typeof setTimeout> | 0 });
+  const barAt = (x: number, y: number) => {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-bar]");
+    return el && ref.current?.contains(el) ? Number(el.dataset.bar) : null;
+  };
+  const begin = (i: number) => { st.current.dragging = true; st.current.moved = false; setDragging(true); setSel({ a: i, b: i }); };
+  const end = () => { clearTimeout(st.current.timer); if (st.current.dragging) { st.current.dragging = false; setDragging(false); } };
+
+  // a touch that has turned into a pick mustn't scroll the page
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !on) return;
+    const hold = (e: TouchEvent) => { if (st.current.dragging) e.preventDefault(); };
+    el.addEventListener("touchmove", hold, { passive: false });
+    return () => el.removeEventListener("touchmove", hold);
+  }, [ref, on]);
+  // Escape clears; the highlight is put back after the chart redraws
+  useEffect(() => {
+    if (!sel) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setSel(null); };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [sel]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.querySelectorAll(".loop-sel").forEach(x => x.classList.remove("loop-sel"));
+    if (!sel) { setAt(null); return; }
+    const lo = Math.min(sel.a, sel.b), hi = Math.max(sel.a, sel.b);
+    let last: HTMLElement | null = null;
+    el.querySelectorAll<HTMLElement>("[data-bar]").forEach(x => {
+      const n = Number(x.dataset.bar);
+      if (n >= lo && n <= hi) { x.classList.add("loop-sel"); last = x; }
+    });
+    const host = el.parentElement;
+    if (!last || !host) { setAt(null); return; }
+    const r = (last as HTMLElement).getBoundingClientRect(), h = host.getBoundingClientRect();
+    setAt({ x: Math.max(0, Math.min(r.right - h.left, h.width) - 4), y: r.bottom - h.top + 4 });
+  }, [sel, html, ref]);
+  useEffect(() => { if (!on) setSel(null); }, [on]);
+
+  const handlers = on ? {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      const i = barAt(e.clientX, e.clientY);
+      if (i === null) return;
+      Object.assign(st.current, { x: e.clientX, y: e.clientY, moved: false });
+      if (e.pointerType === "touch") {
+        clearTimeout(st.current.timer);
+        st.current.timer = setTimeout(() => { begin(i); navigator.vibrate?.(10); }, 350);
+      } else { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); begin(i); }
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const s = st.current;
+      if (!s.dragging) { if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 8) clearTimeout(s.timer); return; }
+      const i = barAt(e.clientX, e.clientY);
+      if (i !== null) setSel(p => { if (!p || p.b === i) return p; s.moved = true; return { ...p, b: i }; });
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      const s = st.current, click = s.dragging && !s.moved && e.pointerType !== "touch";
+      end();
+      if (click) setSel(null); // a plain click on the chart clears the pick; holding a bar on a phone picks that one bar
+    },
+    onPointerCancel: end,
+    onContextMenu: (e: React.MouseEvent) => { if (st.current.dragging || sel) e.preventDefault(); },
+  } : {};
+  return { sel, dragging, at, handlers, clear: () => setSel(null) };
 }
 
 const PER = 25, MAX_PAGES = 4; // "Find more" goes up to 100 results per search
@@ -435,7 +531,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
     setSaved(prev => new Set(prev).add(r.uri));
   };
   const canSave = !!onVersions && canEdit;
-  const original = !!useOriginal(cur.song.raw);
+  const orig = useOriginal(cur.song.raw), original = !!orig;
   const saveBtn = (r: Version) => {
     const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
     return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
@@ -450,6 +546,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
   return (
     <section className="panel" aria-label="Recordings">
       <div className="panel-head"><h2>Recordings</h2></div>
+      {orig && <OriginalRecording o={orig} />}
       <div id="versions">
         {!onVersions ? null
           : vs.length ? vs.map(v => (
@@ -458,7 +555,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
               <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
-          )) : !playing && original ? <p className="hint">This is an original, so there&apos;s no famous recording to find. Save a recording of it (your band on YouTube, say) and it will always play that.</p>
+          )) : !playing && original ? <p className="hint">This is an original, so there&apos;s no famous recording to find.{orig?.mine ? " Upload your own above, or save one from YouTube below." : " Save one from YouTube below and it will always play that."}</p>
           : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording below and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
         {playing && (
           <div className="ver">

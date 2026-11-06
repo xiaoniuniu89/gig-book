@@ -396,6 +396,8 @@ export interface TranscriptionShare { userId: string; name: string; email: strin
 /** An original song (R16): your own tune, stored as an iReal song string. Private, shared with one of your bands, or public. */
 /** "bands": everyone in any band with you; "band" (older songs): one band, `bandId`. */
 export type OriginalVisibility = "private" | "band" | "bands" | "public";
+export interface RecordingFile { path: string; name: string; mime: string; size: number }
+export const MAX_RECORDING_MB = 25;
 export interface LeadSheetFile { path: string; kind: "pdf" | "image"; name: string; mime: string; size: number }
 export interface OriginalSong {
   id: string;
@@ -409,6 +411,8 @@ export interface OriginalSong {
   visibility: OriginalVisibility;
   bandId: string | null;
   leadSheet: LeadSheetFile | null;
+  /** A recording the writer uploaded (an original has none to find on Spotify or YouTube). */
+  recording: RecordingFile | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -541,6 +545,10 @@ export interface DataStore {
   deleteOriginal(o: OriginalSong): Promise<void>;
   /** A temporary link to the lead sheet. */
   originalLeadSheetUrl(o: OriginalSong): Promise<string>;
+  /** Owner only: puts in (or replaces) the song's recording, or removes it with "remove". Counts toward the daily uploads. */
+  setOriginalRecording(o: OriginalSong, file: File | "remove", onProgress?: (p: number) => void): Promise<OriginalSong>;
+  /** A temporary link to the recording. */
+  originalRecordingUrl(o: OriginalSong): Promise<string>;
   /** One page of the transcriptions you can see (yours, public, shared with you); `total` counts all pages. Local mode rejects. */
   listTranscriptions(q: TranscriptionQuery): Promise<{ items: Transcription[]; total: number }>;
   /** Null when not found or not allowed. */

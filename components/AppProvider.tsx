@@ -155,7 +155,8 @@ interface Ctx {
   setTempo(v: number): void;
   loop: string;
   setLoop(v: string): void;
-  startBand(c: Current | null, opts?: { fromGig?: boolean; loopAll?: boolean }): Promise<void>;
+  /** `range`: loop these bars (first and last index), and remember it as the loop. */
+  startBand(c: Current | null, opts?: { fromGig?: boolean; loopAll?: boolean; range?: [number, number] }): Promise<void>;
   /** Semitones the key-change setting has moved the band so far (0 when off or stopped). */
   bandKeyShift: number;
   setLevel(inst: Instrument, v: number): void;
@@ -564,13 +565,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (sg) setPrefs(p => ({ ...p, tempos: { ...p.tempos, [tempoKey(sg)]: v } }));
   }, [band]);
 
-  const startBand = useCallback(async (cur: Current | null, { fromGig = false, loopAll = false }: { fromGig?: boolean; loopAll?: boolean } = {}) => {
+  const startBand = useCallback(async (cur: Current | null, { fromGig = false, loopAll = false, range: pick }: { fromGig?: boolean; loopAll?: boolean; range?: [number, number] } = {}) => {
     if (!cur || !band) return;
     if (playerRef.current) playerRef.current.pause();
     ytPlayerRef.current?.pause();
     setDockTab("band");
     bandForRef.current = cur.song; setBandFor(cur.song);
-    const lp = fromGig ? "" : loop;
+    if (pick) setLoop(pick[0] + "-" + pick[1]);
+    const lp = fromGig ? "" : pick ? pick[0] + "-" + pick[1] : loop;
     const range = loopAll ? [0, cur.song.bars.length - 1] as [number, number] : lp ? (lp.split("-").map(Number) as [number, number]) : null;
     const p = prefsRef.current;
     setBandKeyShift(0);

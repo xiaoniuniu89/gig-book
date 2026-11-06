@@ -26,6 +26,9 @@ async function clear(who: Who) {
   const { data } = await a.from("original_songs").select("lead_sheet_path").eq("owner", USERS[who].id);
   const paths = (data ?? []).map(r => r.lead_sheet_path as string | null).filter((p): p is string => !!p);
   if (paths.length) await a.storage.from("leadsheets").remove(paths);
+  const recs = (await a.from("original_songs").select("recording_path").eq("owner", USERS[who].id)).data ?? [];
+  const rp = recs.map(r => r.recording_path as string | null).filter((p): p is string => !!p);
+  if (rp.length) await a.storage.from("original-recordings").remove(rp);
   await a.from("original_songs").delete().eq("owner", USERS[who].id);
   await a.from("original_upload_log").delete().eq("owner", USERS[who].id);
 }
@@ -178,8 +181,64 @@ describe("originals: the daily cap", () => {
     const path = `${USERS.dev.id}/${one.id}/new.pdf`;
     const sheet = await M.dev.sb.from("original_songs").update({ lead_sheet_path: path, lead_sheet_kind: "pdf", lead_sheet_name: "new.pdf", lead_sheet_mime: "application/pdf", lead_sheet_size: 1 }).eq("id", one.id);
     expect(sheet.error?.message).toMatch(/new songs or lead sheets today/);
+    // and so is a new recording
+    const rec = await M.dev.sb.from("original_songs").update({ recording_path: `${USERS.dev.id}/${one.id}/take.mp3`, recording_name: "take.mp3", recording_mime: "audio/mpeg", recording_size: 1 }).eq("id", one.id);
+    expect(rec.error?.message).toMatch(/new songs or lead sheets today/);
     // the log can't be read or changed by anyone signed in
     expect((await M.dev.sb.from("original_upload_log").select("owner")).error).toBeTruthy();
     await clear("dev");
+  });
+});
+
+describe("originals: the recording (0049)", () => {
+  const MP3 = new Blob(["ID3"], { type: "audio/mpeg" });
+  const addRec = async (who: Who, id: string, owner: Who = who) => {
+    const path = `${USERS[owner].id}/${id}/take.mp3`;
+    const up = await M[who].sb.from("original_songs").update({ recording_path: path, recording_name: "take.mp3", recording_mime: "audio/mpeg", recording_size: MP3.size }).eq("id", id).select("id");
+    return { path, up };
+  };
+  const canPlay = async (who: Who, path: string) => !(await M[who].sb.storage.from("original-recordings").download(path)).error;
+
+  it("whoever can see the song can play it; nobody else", async () => {
+    const s = await make("ava");
+    const { path, up } = await addRec("ava", s.id);
+    expect(up.error).toBeNull();
+    must(await M.ava.sb.storage.from("original-recordings").upload(path, MP3, { contentType: "audio/mpeg" }), "ava upload");
+    expect(await canPlay("ava", path)).toBe(true);
+    expect(await canPlay("ben", path)).toBe(false);
+    must(await M.ava.sb.from("original_songs").update({ visibility: "public" }).eq("id", s.id), "make public");
+    expect(await canPlay("ben", path)).toBe(true);
+    expect((await anon().storage.from("original-recordings").download(path)).error).toBeTruthy();
+    must(await M.ava.sb.from("original_songs").update({ visibility: "private" }).eq("id", s.id), "make private");
+    expect(await canPlay("ben", path)).toBe(false);
+  });
+
+  it("only the owner puts one in, and only under their own folder and song", async () => {
+    const s = await make("ava", { visibility: "public" });
+    // someone else can't set it on Ava's row
+    expect((await addRec("ben", s.id)).up.data ?? []).toHaveLength(0);
+    // Ava can't point it outside her folder
+    expect((await addRec("ava", s.id, "ben")).up.error).toBeTruthy();
+    // and nobody can upload a file no row names
+    const stray = `${USERS.ben.id}/${s.id}/stray.mp3`;
+    expect((await M.ben.sb.storage.from("original-recordings").upload(stray, MP3, { contentType: "audio/mpeg" })).error).toBeTruthy();
+  });
+
+  it("a recording's columns are all there or all empty", async () => {
+    const s = await make("ava");
+    const half = await M.ava.sb.from("original_songs").update({ recording_path: `${USERS.ava.id}/${s.id}/x.mp3` }).eq("id", s.id);
+    expect(half.error).toBeTruthy();
+  });
+
+  it("the store reads, plays and removes it (uploads go by XHR, which the tests can't run)", async () => {
+    const s = await make("ava");
+    const { path } = await addRec("ava", s.id);
+    must(await M.ava.sb.storage.from("original-recordings").upload(path, MP3, { contentType: "audio/mpeg" }), "ava upload");
+    const o = (await M.ava.store.listOriginals()).find(x => x.id === s.id)!;
+    expect(o.recording?.name).toBe("take.mp3");
+    expect(await M.ava.store.originalRecordingUrl(o)).toMatch(/^https?:/);
+    const gone = await M.ava.store.setOriginalRecording(o, "remove");
+    expect(gone.recording).toBeNull();
+    expect(await canPlay("ava", path)).toBe(false);
   });
 });
