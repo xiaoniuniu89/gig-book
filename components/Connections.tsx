@@ -87,7 +87,7 @@ function Music() {
   const { settings, updateSettings } = useApp();
   return <>
     <div className="acct-field">
-      <div className="acct-row acct-head"><span className="acct-label"><Icon name="youtube" size={18} /> Play recordings with</span></div>
+      <div className="acct-row acct-head"><span className="acct-label">Play recordings with</span></div>
       <div className="set-opt" role="group" aria-label="Play recordings with">
         <div className="seg">
           {PLAYERS.map(o => (
@@ -96,8 +96,7 @@ function Music() {
             </button>
           ))}
         </div>
-        <Info label="About YouTube">YouTube plays whole songs on every device, with no account needed. It may show ads.</Info>
-        <Info label="About Spotify">Spotify plays whole songs only in some browsers, and only when you&apos;re signed in to Spotify. Elsewhere you&apos;ll hear 30-second previews.</Info>
+        <Info label="About YouTube and Spotify">YouTube plays whole songs on every device, with no account needed, but may show ads. Spotify plays whole songs only in some browsers and when you&apos;re signed in to Spotify; elsewhere you&apos;ll hear 30-second previews.</Info>
       </div>
       {settings.player === "youtube" && <div className="acct-field"><ConnectPremium /></div>}
     </div>
