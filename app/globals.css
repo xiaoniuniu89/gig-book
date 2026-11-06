@@ -1080,3 +1080,6 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .tr-details { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 16px; margin: 0; }
 .tr-details dt { font-size: 0.75rem; color: var(--muted); }
 .tr-details dd { margin: 0; overflow-wrap: anywhere; }
+/* gigs (R15) */
+.gig-on { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.contact-rows { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 0 10px; font-size: 0.875rem; color: var(--muted); overflow-wrap: anywhere; }

@@ -56,6 +56,7 @@ export function Bell() {
   const go = async (n: AppNotification) => {
     if (!n.read) markRead([n.id]);
     setOpen(false);
+    if (n.gigId) { router.push("/gigs/" + encodeURIComponent(n.gigId)); return; }
     if (n.bandId) { router.push("/bands/" + encodeURIComponent(n.bandId)); return; }
     if (!n.setlistId) return;
     let path = "/set/" + encodeURIComponent(n.setlistId);
@@ -68,6 +69,7 @@ export function Bell() {
   };
 
   const text = (n: AppNotification) => {
+    if (n.kind === "added_to_gig") return <>{n.actorName} added you to the lineup of <b>{n.gigTitle}</b></>;
     if (n.kind === "added_to_band") return <>{n.actorName} added you to the band <b>{n.bandName}</b></>;
     if (n.kind === "note_in_band") return <>{n.actorName} added a note in <b>{n.bandName}</b></>;
     const sl = <b>{n.setlistName}</b>;

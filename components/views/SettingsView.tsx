@@ -54,7 +54,7 @@ export function SettingsView() {
           <h2>Email me when…</h2>
           <div className="acct-field">
             <span>Someone adds me to a setlist</span>
-            <Choice label="Email when added to a setlist" options={ONOFF} value={settings.emailAdded ? "on" : "off"} onPick={v => updateSettings({ emailAdded: v === "on" })} />
+            <Choice label="Email when added to a setlist or a gig" options={ONOFF} value={settings.emailAdded ? "on" : "off"} onPick={v => updateSettings({ emailAdded: v === "on" })} />
           </div>
           <div className="acct-field">
             <span>Someone replies to my note</span>
