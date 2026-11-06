@@ -790,6 +790,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .tr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 .tr-head h1 { margin: 0; }
 .stamp.wip { font-size: 1rem; }
+.stamp.wip { display: inline-block; justify-self: start; align-self: center; white-space: nowrap; }
+.book .stamp.wip { color: var(--cover-ink); border-color: var(--cover-ink); font-size: 0.875rem; }
 .tr-tracks { display: grid; gap: 8px; }
 .tr-tracks > .btn { justify-self: start; }
 .tr-video { width: 100%; }

@@ -22,7 +22,7 @@ export function ToolsView() {
         {TOOLS.map(t => (
           <Link key={t.href} className="book tool blue" href={t.href}>
             <span className="t">{t.name}</span>
-            {"wip" in t && t.wip && <span className="tag">Work in progress</span>}
+            {"wip" in t && t.wip && <span className="stamp wip">Work in progress</span>}
             <span className="m">{t.about}</span>
           </Link>
         ))}

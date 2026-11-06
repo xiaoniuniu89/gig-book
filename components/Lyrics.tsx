@@ -152,7 +152,7 @@ export function LyricsPane({ songKey, title, composer, form, chart }: {
         <span className="seg" role="group" aria-label="Lyrics view">
           {VIEWS.map(([k, label]) => <button key={k} aria-pressed={view === k} onClick={() => setView(k)}>{label}</button>)}
         </span>
-        {view !== "lyrics" && <span className="tag">Work in progress</span>}
+        {view !== "lyrics" && <span className="stamp wip">Work in progress</span>}
         <span className="seg" role="group" aria-label="Text size">
           <button aria-label="Smaller text" disabled={size === 0} onClick={() => setSize(size - 1)}>A−</button>
           <button aria-label="Bigger text" disabled={size === SIZES.length - 1} onClick={() => setSize(size + 1)}>A+</button>
