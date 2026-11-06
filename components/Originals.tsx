@@ -192,8 +192,10 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
         </Info></span>
           <select value={vis} onChange={e => setVis(e.target.value)}>
             <option value="private">Private: only you</option>
-            {bands.map(b => <option key={b.id} value={"band:" + b.id}>Band: {b.name}</option>)}
-            {vis.startsWith("band:") && !bands.some(b => "band:" + b.id === vis) && <option value={vis}>A band of yours</option>}
+            {(bands.length > 0 || vis.startsWith("band:")) && <optgroup label="A band you're in">
+              {bands.map(b => <option key={b.id} value={"band:" + b.id}>{b.name}</option>)}
+              {vis.startsWith("band:") && !bands.some(b => "band:" + b.id === vis) && <option value={vis}>A band of yours</option>}
+            </optgroup>}
             <option value="public">Public: anyone signed in</option>
           </select>
         </label>
