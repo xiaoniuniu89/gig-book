@@ -11,6 +11,7 @@ import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachmen
 import { Qr } from "../Qr";
 import { Modal } from "../Modal";
 import { InstrumentPicker } from "../Instruments";
+import { Connections } from "../Connections";
 import { ProfileAi } from "../ProfileAi";
 import { canonInstruments } from "@/lib/instruments";
 import { MAX_PHOTOS, resizeImage } from "@/lib/photos";
@@ -55,7 +56,7 @@ function Field({ label, open, busy, onEdit, onSave, onCancel, view, chip, childr
 }
 
 const empty = <span className="hint">Not set</span>;
-const TABS = [["about", "About you"], ["contact", "Contact"], ["files", "Promo files"], ["page", "Public page"], ["help", "Help"]] as const;
+const TABS = [["about", "About you"], ["contact", "Contact"], ["files", "Promo files"], ["page", "Public page"], ["connections", "Connections"], ["help", "Help"]] as const;
 type Tab = typeof TABS[number][0];
 let lastTab: Tab = "about"; // remembered while the app is open
 
@@ -234,6 +235,8 @@ export function AccountView() {
           </>}
         </Field>
       </section>}
+
+      {tab === "connections" && <Connections />}
 
       {tab === "help" && <section className="acct-sec" role="tabpanel" aria-label="Help">
         <div className="row-btns"><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}><Icon name="help" size={16} /> Take the tour</button><button className="btn small" type="button" onClick={() => window.dispatchEvent(new Event(WHATS_NEW_EVENT))}>What&apos;s new</button><ThemeToggle labelled /></div>
