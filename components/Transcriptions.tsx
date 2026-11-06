@@ -7,6 +7,7 @@ import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { Info } from "./Info";
+import { MenuButton } from "./MenuButton";
 import { TunePicker } from "./TunePicker";
 import { getSupabase } from "@/lib/supabase/client";
 import { INSTRUMENTS } from "@/lib/instruments";
@@ -40,10 +41,22 @@ export async function reportTranscription(t: Transcription) {
   if (!res.ok) throw new Error("Couldn't send the report.");
 }
 
-/** Upload (no `t`) or edit (`t`) dialog. `tune` pre-fills the tune. Uploading: choose the file, AI reads it and fills in
- *  what is still empty, then the fields show for you to check. Its state lives here so the tune picker sheet can open over it. */
-export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
-  t?: Transcription; tune?: TuneTag; onClose: () => void; onSaved: (t: Transcription) => void;
+/** How a new transcription is uploaded: everything typed in by hand, or AI reads the file first. */
+export type UploadMode = "manual" | "ai";
+
+/** "Upload ▾": with AI, or manually. */
+export function UploadMenu({ label, className, onPick }: { label: string; className?: string; onPick: (m: UploadMode) => void }) {
+  return <MenuButton className={className} label={<><Icon name="upload" size={18} /> {label}</>} items={[
+    { label: <><Icon name="sparkle" size={18} /> With AI</>, onClick: () => onPick("ai") },
+    { label: <><Icon name="edit" size={18} /> Manually</>, onClick: () => onPick("manual") },
+  ]} />;
+}
+
+/** Upload (no `t`) or edit (`t`) dialog. `tune` pre-fills the tune. Manual: the whole form, empty. AI: just the file first;
+ *  AI reads it and fills in what it can, then the form shows for you to accept or edit. State lives here so the tune
+ *  picker sheet can open over it. */
+export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved }: {
+  t?: Transcription; tune?: TuneTag; mode?: UploadMode; onClose: () => void; onSaved: (t: Transcription) => void;
 }) {
   const { store, library, toast } = useApp();
   const [file, setFile] = useState<File | null>(null);
@@ -65,7 +78,7 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
     const k = attachmentKind(f.type, f.name);
     if (k !== "pdf" && k !== "image" && k !== "musicxml") toast("Choose a PDF, a photo or a MusicXML file.");
     else if (f.size > MAX_FILE_MB * 1024 * 1024) toast(`Too big: files can be up to ${MAX_FILE_MB} MB.`);
-    else { setFile(f); void fill(f); }
+    else { setFile(f); if (mode === "ai") void fill(f); }
   };
   // AI mode: read the file and fill in only what is still empty; the tune is matched by title in your library.
   const fill = async (f: File) => {
@@ -118,8 +131,8 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
       {/* the tune picker is a full-screen sheet, so the dialog steps aside while it is open */}
       <Modal open={!picking} title={t ? "Edit transcription" : "Upload transcription"} onClose={() => { if (!picking) onClose(); }}>
         <form className="chart-form" onSubmit={save}>
-          {!t && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your file is sent to an AI service to fill in the details.</span></div>}
-          {!t && <div className="field"><span className="field-label">File <Info label="About the file">A PDF, a photo, or a MusicXML score, up to {MAX_FILE_MB} MB. AI reads the title, player, instrument and recording from it (PDFs up to 3 MB); it counts toward your daily Niu AI requests. Check what it fills in before you upload.</Info></span>
+          {!t && mode === "ai" && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your file is sent to an AI service to fill in the details.</span></div>}
+          {!t && <div className="field"><span className="field-label">File <Info label="About the file">A PDF, a photo, or a MusicXML score, up to {MAX_FILE_MB} MB.{mode === "ai" ? " AI reads the title, player, instrument and recording from it (PDFs up to 3 MB); it counts toward your daily Niu AI requests." : ""}</Info></span>
             <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
             <div className="attach-opts">
               {file ? <><span className="chip">{file.name}</span><button className="btn small" type="button" onClick={() => setFile(null)}>Change</button></>
@@ -127,7 +140,7 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
             </div>
             {reading && <span className="field-hint"><span className="spinner" aria-hidden="true" /> Reading the file…</span>}
           </div>}
-          {(t || (file && !reading)) && <>
+          {(t || mode === "manual" || (file && !reading)) && <>
           <div className="field"><span className="field-label">Tune <span className="field-opt">(optional)</span> <Info label="About the tune">Attaches it to that tune&apos;s page. Leave it empty if the tune isn&apos;t in a library.</Info></span>
             <div className="attach-opts">
               {tag && <span className="chip">{tag.title}</span>}
@@ -241,7 +254,7 @@ export function TranscriptionRows({ items }: { items: Transcription[] }) {
 export function TuneTranscriptions({ tune }: { tune: TuneTag }) {
   const { store } = useApp();
   const [items, setItems] = useState<Transcription[] | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<UploadMode | null>(null);
   const online = store.kind === "supabase";
   useEffect(() => {
     if (!online) return;
@@ -254,13 +267,13 @@ export function TuneTranscriptions({ tune }: { tune: TuneTag }) {
     <section className="panel" aria-label="Transcriptions">
       <div className="panel-head">
         <h2>Transcriptions</h2>
-        {online && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="upload" size={16} /> Upload</button>}
+        {online && <UploadMenu label="Upload" className="btn small accent" onPick={setAdding} />}
       </div>
       {!online ? <p className="hint">Transcriptions need an account.</p>
         : items === null ? <p className="hint">Loading…</p>
         : items.length ? <TranscriptionRows items={items} />
         : <p className="hint">No transcriptions of this tune yet.</p>}
-      {adding && <TranscriptionDialog tune={tune} onClose={() => setAdding(false)} onSaved={t => { setItems(l => (l ?? []).concat(t)); setAdding(false); }} />}
+      {adding && <TranscriptionDialog tune={tune} mode={adding} onClose={() => setAdding(null)} onSaved={t => { setItems(l => (l ?? []).concat(t)); setAdding(null); }} />}
     </section>
   );
 }
