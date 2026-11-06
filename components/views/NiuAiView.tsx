@@ -8,7 +8,7 @@ import { AiDraft } from "../AiDraft";
 export function NiuAiView() {
   const app = useApp();
   const { setCrumb, setCurrent } = app;
-  useEffect(() => { setCrumb("Niu AI"); setCurrent(null); }, [setCrumb, setCurrent]);
+  useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
   return (
     <>
       <h1>Niu AI</h1>

@@ -67,7 +67,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [sharing, setSharing] = useState(false);
   const [making, setMaking] = useState(false);
   const [pasting, setPasting] = useState(false);
-  const [view, setView] = useState<"tunes" | "playlist">("tunes");
+  const [view, setView] = useState<"tunes" | "notes" | "playlist">("tunes");
   const [playFor, setPlayFor] = useState<"all" | number | null>(null); // the Play choice: band or recordings, for the setlist or one set
   const [ireal, setIreal] = useState(false);
   const yTube = app.settings.player === "youtube";
@@ -207,6 +207,8 @@ function SetBody({ s }: { s: Setlist }) {
     toast(`Added ${raws.length} tune${raws.length === 1 ? "" : "s"}${count > 1 ? ` to set ${n}` : ""}.`);
   };
 
+  const shareable = !builtin && !s.viewOnly && app.store.kind === "supabase";
+  const hasNotes = !builtin && !s.viewOnly;
   return (
     <>
       <div className="set-head">
@@ -229,13 +231,16 @@ function SetBody({ s }: { s: Setlist }) {
           {builtin && <BusyButton id="copy-set" onClick={makeCopy}><Icon name="plus" size={18} /> Make a copy</BusyButton>}
           {s.viewOnly && <BusyButton className="btn primary" id="save-set" onClick={makeCopy}><Icon name="plus" size={18} /> Save to my setlists</BusyButton>}
           {s.items.length > 0 && <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => choosePlay("all")}><Icon name="play" size={18} /> Play setlist</button>}
-          {s.items.length > 0 && <button className="btn" id="to-ireal" onClick={() => setIreal(true)}><Icon name="share" size={18} /> iReal Pro</button>}
-          {!builtin && !s.viewOnly && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Who can see it" : "Members"}</button></More>}
+          {(s.items.length > 0 || shareable) && <More>
+            {s.items.length > 0 && <button className="btn" id="to-ireal" onClick={() => setIreal(true)}><Icon name="share" size={18} /> iReal Pro</button>}
+            {shareable && <button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Who can see it" : "Members"}</button>}
+          </More>}
         </div>
       </div>
       {!builtin && !s.viewOnly && <SetlistGigs setlistId={s.id} canAdd={canEdit} />}
       <div className="pl-tabs" role="tablist" aria-label="Setlist sections">
         <button role="tab" className="pl-tab" aria-selected={view === "tunes"} onClick={() => setView("tunes")}>Tunes<span>{s.items.length}</span></button>
+        {hasNotes && <button role="tab" className="pl-tab" aria-selected={view === "notes"} onClick={() => setView("notes")}><Icon name="chat" size={16} /> Notes</button>}
         {hasPl && <button role="tab" className="pl-tab" aria-selected={view === "playlist"} data-tour="playlist" onClick={() => setView("playlist")}><Icon name="spotify" size={16} /> Playlist</button>}
       </div>
       <div className="sets" data-tour="tunes" role="tabpanel" hidden={view !== "tunes"}>
@@ -298,7 +303,7 @@ function SetBody({ s }: { s: Setlist }) {
           </div>
         </form>
       </Modal>
-      {!builtin && !s.viewOnly && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
+      {hasNotes && <div role="tabpanel" hidden={view !== "notes"}><Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} /></div>}
       <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
       </Modal>

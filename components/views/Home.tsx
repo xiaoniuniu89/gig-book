@@ -3,6 +3,10 @@ import Link from "next/link";
 import { TOOLS } from "./ToolsView";
 import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
+import { Icon } from "../Icon";
+import { todayIso } from "../Gigs";
+import { prettyDate } from "@/lib/poster";
+import type { Gig } from "@/lib/data/types";
 
 export function Home() {
   const app = useApp();
@@ -11,11 +15,35 @@ export function Home() {
   useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
   const total = library.reduce((n, p) => n + p.songs.length, 0);
   const online = app.store.kind === "supabase";
+  // the next gig on your calendar, if there is one
+  const [next, setNext] = useState<Gig | null>(null);
+  useEffect(() => {
+    if (!online) return;
+    let gone = false;
+    app.store.listGigs().then(l => {
+      const t = todayIso();
+      const up = l.filter(g => g.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
+      if (!gone) setNext(up ?? null);
+    }, () => {});
+    return () => { gone = true; };
+  }, [app.store, online]);
   const names = (xs: { name: string }[]) => xs.slice(0, 3).map(x => x.name).join(", ") + (xs.length > 3 ? "…" : "");
 
   return (
     <>
       <h1>{app.account?.name ? `Welcome back, ${app.account.name}` : "Welcome back"}</h1>
+      {next && (
+        <section className="panel next-up" aria-label="Next up">
+          <div className="panel-head">
+            <div>
+              <span className="eyebrow">Next up</span>
+              <h2>{next.title}</h2>
+              <span className="hint">{[prettyDate(next.date), next.time, next.venue].filter(Boolean).join(" · ")}</span>
+            </div>
+            <Link className="btn primary" href={"/gigs/" + encodeURIComponent(next.id)}><Icon name="calendar" size={18} /> Open gig</Link>
+          </div>
+        </section>
+      )}
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelves" data-tour="home">
           <section aria-labelledby="shelf-gigs">

@@ -14,7 +14,7 @@ export const TOOLS = [
 
 export function ToolsView() {
   const { setCrumb, setCurrent } = useApp();
-  useEffect(() => { setCrumb("Tools"); setCurrent(null); }, [setCrumb, setCurrent]);
+  useEffect(() => { setCrumb(null); setCurrent(null); }, [setCrumb, setCurrent]);
   return (
     <>
       <h1>Tools</h1>

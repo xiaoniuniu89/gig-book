@@ -21,7 +21,9 @@ export function TranscriptionView() {
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setCrumb("Transcriptions"); setCurrent(null); }, [setCrumb, setCurrent]);
+  useEffect(() => { setCurrent(null); }, [setCurrent]);
+  const tTitle = t?.title;
+  useEffect(() => { setCrumb(<><Link href="/transcriptions">Transcriptions</Link>{tTitle ? " / " + tTitle : ""}</>); }, [tTitle, setCrumb]);
   useEffect(() => {
     if (!ready) return;
     let gone = false;

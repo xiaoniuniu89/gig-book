@@ -11,6 +11,7 @@ import { song, norm, songKey, meta } from "@/lib/songs";
 import { TuneTranscriptions } from "../Transcriptions";
 import { EditSongButton, LeadSheetDownload, LeadSheetPane, OriginalRecording, useOriginal } from "../Originals";
 import { Notes } from "../Notes";
+import { todayIso } from "../Gigs";
 import { Licks } from "../Licks";
 import { MyResources } from "../Resources";
 import { Icon } from "../Icon";
@@ -30,7 +31,7 @@ import type { TrackResult } from "@/lib/spotify/uri";
 import { searchVideos, videoInfo, type VideoResult } from "@/lib/youtube/client";
 import { isYtUri, parseRecordingLink, ytId } from "@/lib/youtube/ids";
 import { ArrangementActions, MakeArrangement } from "../Arrangements";
-import { arrangementKey, newItemId, type Setlist, type SetlistItem, type Version } from "@/lib/data/types";
+import { arrangementKey, newItemId, type GigRef, type Setlist, type SetlistItem, type Version } from "@/lib/data/types";
 
 /** /set/[id]/[index] */
 export function SetSongView() {
@@ -143,6 +144,20 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   }
   const isOverride = cur.kind === "lib" ? (sg.title + "|" + sg.composer) in prefs.libShift : cur.kind === "arr" ? arr?.shift != null : item?.shift !== null && item?.shift !== undefined;
   const pageHref = cur.kind === "set" ? songHref(cur.setId, cur.itemIdx) : cur.kind === "arr" ? "/arrangements/" + encodeURIComponent(cur.arrId) : "/library/" + encodeURIComponent(cur.plId) + "/" + cur.songIdx;
+  // the setlist's next gig (or its latest), so a tune links back to the gig it's for
+  const [onGig, setOnGig] = useState<GigRef | null>(null);
+  const gigSet = shareTo && app.store.kind === "supabase" ? shareTo.id : null;
+  useEffect(() => {
+    setOnGig(null);
+    if (!gigSet) return;
+    let gone = false;
+    app.store.listGigsOfSetlist(gigSet).then(l => {
+      const t = todayIso();
+      const up = l.filter(g => g.date >= t).sort((a, b) => a.date.localeCompare(b.date));
+      if (!gone) setOnGig(up[0] ?? l.slice().sort((a, b) => b.date.localeCompare(a.date))[0] ?? null);
+    }, () => {});
+    return () => { gone = true; };
+  }, [app.store, gigSet]);
   const gigLine = gig && cur.kind === "set" && gig.setId === cur.setId ? <span className="pill">Practice gig · {gig.pos + 1} of {gig.order.length}</span> : null;
 
   // R3.6: hits live on the setlist tune only; the library chart has none
@@ -178,7 +193,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
     <>
       <div className="song-head">
         <div className="song-title">
-          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} · ${cur.itemIdx + 1} of ${list.length}` : arr ? "Arrangement" : "Library"} {gigLine}</span>
+          <span className="eyebrow">{cur.kind === "set" && list ? `Set ${item?.set || 1} · ${cur.itemIdx + 1} of ${list.length}` : arr ? "Arrangement" : "Library"}{onGig && <> · Gig: <Link href={"/gigs/" + encodeURIComponent(onGig.id)}>{onGig.title}</Link></>} {gigLine}</span>
           <h1>{arr ? arr.name : sg.title}</h1>
           <div className="meta">
             {arr && arr.name !== cur0.song.title && <><span>{cur0.song.title}</span><span>·</span></>}
@@ -195,7 +210,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
           {cur.kind === "lib" && <AddToSetlist cur={cur} />}
           {cur.kind === "lib" && <MakeArrangement raw={cur0.song.raw} shift={prefs.libShift[sg.title + "|" + sg.composer] ?? null} versions={[]} />}
           {arr && <ArrangementActions arr={arr} />}
-          <Link className="btn" href={pageHref + "/chart"}>Chart view</Link>
+          <Link className="btn" href={pageHref + "/chart"}><Icon name="music" size={18} /> Chart view</Link>
           {!arr && (prevHref ? <Link className="btn icon-btn" href={prevHref} aria-label="Previous tune">‹</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Previous tune">‹</a>)}
           {!arr && (nextHref ? <Link className="btn icon-btn" href={nextHref} aria-label="Next tune">›</Link> : <a className="btn icon-btn" aria-disabled="true" aria-label="Next tune">›</a>)}
         </div>
