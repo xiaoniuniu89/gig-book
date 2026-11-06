@@ -187,6 +187,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   };
 
   const keyName = keyLabel(sg, shift);
+  const fixed = (ch.tab === "leadsheet" && !!orig?.leadSheet) || (!!ch.shown?.file && ch.shown.file.kind !== "musicxml"); // a PDF or photo can't change key
   const form = useMemo(() => formOf(cur0.song.bars), [cur0.song]);
 
   return (
@@ -199,11 +200,11 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
             {arr && arr.name !== cur0.song.title && <><span>{cur0.song.title}</span><span>·</span></>}
             <span>{sg.composer}</span><span>·</span><span>{sg.style}</span><span>·</span>
             <span className="keybox" aria-label="Key">
-              <button id="tr-down" aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>
+              {!fixed && <button id="tr-down" aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>}
               <b id="keyname">{keyName}</b>
-              <button id="tr-up" aria-label="Transpose up a half step" onClick={() => tr(1)}>+</button>
+              {!fixed && <button id="tr-up" aria-label="Transpose up a half step" onClick={() => tr(1)}>+</button>}
             </span>
-            {isOverride && <button className="btn small" id="tr-reset" onClick={() => app.setShift(cur, null)}>Back to iReal key</button>}
+            {isOverride && !fixed && <button className="btn small" id="tr-reset" onClick={() => app.setShift(cur, null)}>Back to iReal key</button>}
           </div>
         </div>
         <div className="nav-pair">

@@ -123,6 +123,7 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
     else { ch.setTab(v); vs.setPick(""); }
   };
   const source: ChartSource = file ? { kind: "file", att: file } : { kind: "ireal" };
+  const fixed = !!leadSheet || (!!file && file.kind !== "musicxml"); // a PDF or photo can't change key
 
   if (!cur || !sg) return (
     <div className="focus"><div className="focus-body">
@@ -154,10 +155,10 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
         {arrow(prev, "Previous tune", "‹")}
         {arrow(next, "Next tune", "›")}
         <div className="focus-title"><b>{sg.title}</b><span>{keyLabel(sg, shift)}</span></div>
-        <span className="keybox" aria-label="Transpose">
+        {!fixed && <span className="keybox" aria-label="Transpose">
           <button aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>
           <button aria-label="Transpose up a half step" onClick={() => tr(1)}>+</button>
-        </span>
+        </span>}
         {picks.length > 1 && (
           <select className="focus-pick" aria-label="Which chart" value={picked} onChange={e => pickChart(e.target.value)}>
             {picks.map(([v, label]) => <option key={v} value={v}>{label}</option>)}

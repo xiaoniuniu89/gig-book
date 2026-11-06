@@ -564,7 +564,7 @@ html, body { overflow-x: clip; }
 .file-chart { display: block; width: 100%; }
 .file-chart img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .focus-body:has(.file-chart img) { display: flex; }
-.focus-body .file-chart img { max-height: 100%; width: auto; object-fit: contain; }
+.focus-body .file-chart img { max-height: max(100%, 930px); width: auto; object-fit: contain; }
 .focus-body:has(.file-chart img) .file-chart { flex: 1; min-height: 0; display: flex; justify-content: center; }
 object.file-chart { height: 100%; min-height: 80vh; }
 .musicxml { display: grid; gap: 8px; width: 100%; min-width: 0; }
@@ -647,7 +647,7 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .lyrics-empty, .lyrics-edit { display: grid; gap: 10px; }
 .lyrics-edit textarea { width: 100%; min-height: 50vh; font: inherit; line-height: 1.5; }
 @media (max-width: 720px) { .lyrics-side { grid-template-columns: 1fr; } .lyrics-side .lyrics-text { position: static; max-height: none; } }
-.chart-pane-file .file-chart img { max-height: 85vh; width: auto; max-width: 100%; }
+.chart-pane-file .file-chart img { max-height: max(85vh, 930px); width: auto; max-width: 100%; }
 .chart-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .chart-audio audio { flex: 1; min-width: 220px; max-width: 520px; }
 .chart-form { display: grid; gap: 14px; }
@@ -1152,7 +1152,7 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .pdf-pages { display: grid; gap: 14px; width: 100%; }
 .pdf-page { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto; background: #fff; border: 1px solid var(--rule); border-radius: 6px; }
 @media (min-width: 700px) {
-  .lead-sheet .fit-img { width: auto; max-height: calc(100dvh - 140px); }
+  .lead-sheet .fit-img { width: auto; max-height: max(calc(100dvh - 140px), 930px); } /* fit the window, but stay readable (~720px wide) */
   /* the iReal chart on a tune's page shrinks a little if needed so the whole tune fits the window */
   .chart-fit { max-height: calc(100dvh - 140px); overflow-y: auto; }
 }

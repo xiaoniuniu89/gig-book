@@ -28,6 +28,8 @@ function openPdf(url: string): Promise<PdfDoc> {
   return p;
 }
 
+const READABLE = 720;
+
 /** `fit`: on screens 700px or wider, each page is sized so it fits the window height minus this many pixels. */
 export function PdfPages({ url, name, fit }: { url: string; name: string; fit?: number }) {
   const box = useRef<HTMLDivElement>(null);
@@ -72,7 +74,8 @@ function Page({ doc, n, width, tall }: { doc: PdfDoc; n: number; width: number; 
       if (!live || !c) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
       const base = p.getViewport({ scale: 1 });
-      const w = tall ? Math.min(width, Math.round(tall * base.width / base.height)) : width; // the whole page in view
+      // the whole page in view, but never narrower than READABLE (a short laptop screen scrolls a little instead)
+      const w = tall ? Math.min(width, Math.max(READABLE, Math.round(tall * base.width / base.height))) : width;
       c.style.width = w + "px";
       const vp = p.getViewport({ scale: (w / base.width) * dpr });
       c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
