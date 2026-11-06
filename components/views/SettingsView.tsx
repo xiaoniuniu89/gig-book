@@ -1,7 +1,6 @@
 "use client";
 // /settings: look and feel that follow your account (signed out, this browser). Another section (Music…) is one more <section> in the list.
-import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
 import { Info } from "../Info";
@@ -23,13 +22,19 @@ function Choice<T extends string>({ label, options, value, onPick }: { label: st
 export function SettingsView() {
   const { settings, updateSettings, store, setCrumb, setCurrent } = useApp();
   useEffect(() => { setCurrent(null); setCrumb(null); }, [setCrumb, setCurrent]);
+  const signedIn = store.kind === "supabase";
+  // one tab per section (signed in, the player lives under Account → Connections, so Music is signed-out only)
+  const TABS = signedIn ? [["look", "Look"], ["email", "Email"], ["ai", "AI"]] as const : [["look", "Look"], ["music", "Music"]] as const;
+  const [tab, setTab] = useState<"look" | "email" | "ai" | "music">("look");
   return (
     <>
       <div className="page-head" data-tour="settings"><h1>Settings</h1></div>
-      <p className="hint">{store.kind === "supabase" ? "These follow your account, so they're the same on every device you sign in on." : "These are saved on this device."}</p>
+      <div className="pl-tabs" role="tablist" aria-label="Settings sections">
+        {TABS.map(([k, label]) => <button key={k} role="tab" className="pl-tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}
+        <Info label="About settings">{signedIn ? "These follow your account, so they're the same on every device you sign in on." : "These are saved on this device."}</Info>
+      </div>
 
-      <section className="acct-sec">
-        <h2>Look</h2>
+      {tab === "look" && <section className="acct-sec" role="tabpanel" aria-label="Look">
         <div className="acct-field">
           <span>Colours</span>
           <Choice label="Colours" options={THEMES} value={settings.theme} onPick={theme => updateSettings({ theme })} />
@@ -48,11 +53,10 @@ export function SettingsView() {
             <Info label="About calm mode">For when busy screens are hard. Decorative motion stops (the spinner, the playing bar, the metronome and the tour keep moving), colours are softer, a few extra buttons go under &quot;More&quot;, and notifications are quiet: no pop-ups, a dot on the bell instead of a count. The layout doesn&apos;t change.</Info>
           </div>
         </div>
-      </section>
+      </section>}
 
-      {store.kind === "supabase" && (
-        <section className="acct-sec">
-          <h2>AI</h2>
+      {signedIn && tab === "ai" && (
+        <section className="acct-sec" role="tabpanel" aria-label="AI">
           <div className="acct-field">
             <span>Show a note before AI reads my work <Info label="About AI notes">Uploading with AI (your bio, press kit, lead sheets, transcriptions) shares that file or text with an outside AI company so it can fill things in for you. The note says so each time. Turn it off once you know.</Info></span>
             <Choice label="Show a note before AI reads my work" options={ONOFF} value={settings.aiNotes ? "on" : "off"} onPick={v => updateSettings({ aiNotes: v === "on" })} />
@@ -60,8 +64,8 @@ export function SettingsView() {
         </section>
       )}
 
-      {store.kind === "supabase" && (
-        <section className="acct-sec">
+      {signedIn && tab === "email" && (
+        <section className="acct-sec" role="tabpanel" aria-label="Email">
           <h2>Email me when…</h2>
           {([["emailBand", "Someone adds me to a band"], ["emailGig", "Someone puts me on a gig"]] as const).map(([k, label]) => (
             <div className="acct-field" key={k}>
@@ -76,13 +80,7 @@ export function SettingsView() {
         </section>
       )}
 
-      {store.kind === "supabase" ? (
-        <section className="acct-sec">
-          <h2>Music</h2>
-          <p className="hint">Your player (YouTube or Spotify) is now under <Link href="/account">Account</Link>, in the Connections tab.</p>
-        </section>
-      ) : <section className="acct-sec">
-        <h2>Music</h2>
+      {!signedIn && tab === "music" && <section className="acct-sec" role="tabpanel" aria-label="Music">
         <div className="acct-field">
           <span>Play recordings with</span>
           <div className="set-opt" role="group" aria-label="Play recordings with">
