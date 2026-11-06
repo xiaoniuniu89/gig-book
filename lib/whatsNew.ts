@@ -1,6 +1,14 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-09",
+    items: [
+      "New: your own songs. Tap New song in the library, keep it private, share it with a band or make it public, and upload the lead sheet. AI can read the lead sheet and write the chart for you to fix up, then move whole sections around.",
+      "Can't find a tune in the picker? Add your own song from there, for setlists, arrangements and transcriptions.",
+      "Make a new setlist straight from your band's Setlists tab; it's shared with the band as soon as it's made.",
+    ],
+  },
+  {
     date: "2026-11-08",
     items: [
       "New: Gigs. Give a gig a date and venue, put one or more setlists on it, add the lineup (guests too) and make a poster. A setlist can be on many gigs, and changing it changes it everywhere. Venues you've played before pop up as you type.",
