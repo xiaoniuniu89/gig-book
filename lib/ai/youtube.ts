@@ -45,7 +45,7 @@ export function validatePick(raw: unknown, count: number): number {
   return Number.isInteger(i) && i >= 0 && i < count ? i : -1;
 }
 
-export async function ask(system: string, user: string, maxTokens: number, model?: string, timeoutMs = 20000): Promise<unknown> {
+export async function ask(system: string, user: string | unknown[], maxTokens: number, model?: string, timeoutMs = 20000): Promise<unknown> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key || !isConfigured()) throw new AiError("AI isn't set up on this site yet.", 503);
   let res: Response;

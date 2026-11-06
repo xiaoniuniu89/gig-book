@@ -6,12 +6,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
+import { Info } from "./Info";
+import { MenuButton } from "./MenuButton";
 import { TunePicker } from "./TunePicker";
 import { getSupabase } from "@/lib/supabase/client";
 import { INSTRUMENTS } from "@/lib/instruments";
-import { meta, songKey } from "@/lib/songs";
+import { meta, norm, songKey } from "@/lib/songs";
 import { parseYoutube } from "@/lib/youtube/ids";
 import { suggestRecording } from "@/lib/ai/recordingClient";
+import { readTranscriptionFile } from "@/lib/ai/transcriptionClient";
 import { MAX_FILE_MB, MEMBER_NOT_FOUND, attachmentKind, type LibraryPlaylist, type Transcription, type TranscriptionShare, type TranscriptionVisibility } from "@/lib/data/types";
 
 const ACCEPT = "application/pdf,image/*,.musicxml,.mxl,.xml,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml";
@@ -39,9 +42,21 @@ export async function reportTranscription(t: Transcription) {
   if (!res.ok) throw new Error("Couldn't send the report.");
 }
 
-/** Upload (no `t`) or edit (`t`) dialog. `tune` pre-fills the tune. Its state lives here so the tune picker sheet can open over it. */
-export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
-  t?: Transcription; tune?: TuneTag; onClose: () => void; onSaved: (t: Transcription) => void;
+/** How a new transcription is uploaded: filled in by hand, or read by AI once the file is chosen. */
+export type UploadMode = "plain" | "ai";
+
+/** "Upload ▾": by hand, or with AI filling in the details from the file. */
+export function UploadMenu({ label, className, onPick }: { label: string; className?: string; onPick: (m: UploadMode) => void }) {
+  return <MenuButton className={className} label={<><Icon name="upload" size={18} /> {label}</>} items={[
+    { label: <><Icon name="upload" size={18} /> Fill in myself</>, onClick: () => onPick("plain") },
+    { label: <><Icon name="sparkle" size={18} /> Fill in with AI</>, onClick: () => onPick("ai") },
+  ]} />;
+}
+
+/** Upload (no `t`) or edit (`t`) dialog. `tune` pre-fills the tune; `mode` "ai" reads the file once it is chosen and fills
+ *  in what is still empty. Its state lives here so the tune picker sheet can open over it. */
+export function TranscriptionDialog({ t, tune, mode = "plain", onClose, onSaved }: {
+  t?: Transcription; tune?: TuneTag; mode?: UploadMode; onClose: () => void; onSaved: (t: Transcription) => void;
 }) {
   const { store, library, toast } = useApp();
   const [file, setFile] = useState<File | null>(null);
@@ -55,6 +70,7 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
   const [ai, setAi] = useState(false);
   const [picking, setPicking] = useState(false);
   const [pct, setPct] = useState<number | null>(null);
+  const [reading, setReading] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,7 +79,27 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
     const k = attachmentKind(f.type, f.name);
     if (k !== "pdf" && k !== "image" && k !== "musicxml") toast("Choose a PDF, a photo or a MusicXML file.");
     else if (f.size > MAX_FILE_MB * 1024 * 1024) toast(`Too big: files can be up to ${MAX_FILE_MB} MB.`);
-    else setFile(f);
+    else { setFile(f); if (mode === "ai") void fill(f); }
+  };
+  // AI mode: read the file and fill in only what is still empty; the tune is matched by title in your library.
+  const fill = async (f: File) => {
+    setReading(true);
+    try {
+      const g = await readTranscriptionFile(f);
+      let found: string | undefined;
+      if (g.title && !tag) {
+        const all = library.flatMap(p => p.songs), want = norm(g.title);
+        found = all.find(r => norm(meta(r).title) === want && (!g.composer || norm(meta(r).composer).includes(norm(g.composer).split(" ").pop() || "")))
+          ?? all.find(r => norm(meta(r).title) === want);
+        if (found) chosen(found);
+      }
+      if (g.title && !found && !tag) setTitle(v => v || g.title);
+      if (g.player) setPlayer(v => v || g.player);
+      if (g.instrument) setInstrument(v => v || g.instrument);
+      if (g.recording) setRecording(v => v || g.recording);
+      toast(g.title || g.player ? "Filled in from the file. Check it before you upload." : "AI couldn't read the details. Fill them in yourself.");
+    } catch (er) { toast(msg(er, "AI couldn't read the file.") + " Fill it in yourself."); }
+    finally { setReading(false); }
   };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +114,7 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
     }
     setPct(0);
     let rec = recording.trim();
-    if (ai && !rec && player.trim() && (tag?.title || name)) {
+    if (ai && mode !== "ai" && !rec && player.trim() && (tag?.title || name)) {
       // light and optional: if it fails, save without it
       try { rec = await suggestRecording({ tune: tag?.title || name, composer: tag?.composer ?? "", player: player.trim(), instrument }); }
       catch { toast("Couldn't fill in the recording details. Saved without them."); }
@@ -101,21 +137,20 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
       {/* the tune picker is a full-screen sheet, so the dialog steps aside while it is open */}
       <Modal open={!picking} title={t ? "Edit transcription" : "Upload transcription"} onClose={() => { if (!picking) onClose(); }}>
         <form className="chart-form" onSubmit={save}>
-          {!t && <div className="field"><span className="field-label">File</span>
+          {!t && <div className="field"><span className="field-label">File <Info label="About the file">A PDF, a photo, or a MusicXML score. Up to {MAX_FILE_MB} MB.{mode === "ai" ? " AI reads it to fill in the details below; it counts toward your daily Niu AI requests. PDFs up to 3 MB." : ""}</Info></span>
             <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
             <div className="attach-opts">
               {file ? <><span className="chip">{file.name}</span><button className="btn small" type="button" onClick={() => setFile(null)}>Change</button></>
                 : <button className="btn small" type="button" onClick={() => input.current?.click()}><Icon name="import" size={16} /> Choose file</button>}
             </div>
-            <span className="field-hint">A PDF, a photo, or a MusicXML score. Up to {MAX_FILE_MB} MB.</span>
+            {reading && <span className="field-hint"><span className="spinner" aria-hidden="true" /> Reading the file…</span>}
           </div>}
-          <div className="field"><span className="field-label">Tune <span className="field-opt">(optional)</span></span>
+          <div className="field"><span className="field-label">Tune <span className="field-opt">(optional)</span> <Info label="About the tune">Attaches it to that tune&apos;s page. Leave it empty if the tune isn&apos;t in a library.</Info></span>
             <div className="attach-opts">
               {tag && <span className="chip">{tag.title}</span>}
               <button className="btn small" type="button" onClick={() => setPicking(true)}>{tag ? "Change tune" : "Pick a tune"}</button>
               {tag && <button className="btn small" type="button" onClick={() => setTag(null)}>Clear</button>}
             </div>
-            <span className="field-hint">Attaches it to that tune&apos;s page. Leave it empty if the tune isn&apos;t in a library.</span>
           </div>
           <label className="field"><span className="field-label">Title</span>
             <input type="text" maxLength={200} value={title} onChange={e => setTitle(e.target.value)} placeholder={tag?.title || "Title"} />
@@ -132,7 +167,7 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
           <label className="field"><span className="field-label">Recording <span className="field-opt">(album or track)</span></span>
             <input type="text" maxLength={200} value={recording} onChange={e => setRecording(e.target.value)} placeholder="Somethin' Else (1958)" />
           </label>
-          <label className="sp-check"><input type="checkbox" checked={ai} onChange={e => setAi(e.target.checked)} /> Fill in the recording details with AI</label>
+          {mode !== "ai" && <label className="sp-check"><input type="checkbox" checked={ai} onChange={e => setAi(e.target.checked)} /> Fill in the recording details with AI</label>}
           <label className="field"><span className="field-label">YouTube link <span className="field-opt">(optional)</span></span>
             <input type="url" value={yt} onChange={e => setYt(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
           </label>
@@ -143,7 +178,7 @@ export function TranscriptionDialog({ t, tune, onClose, onSaved }: {
             </select>
           </label>
           {pct !== null && !t && <progress max={1} value={pct} aria-label="Uploading" />}
-          <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null}>
+          <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null || reading}>
             {!t && <Icon name="upload" size={18} />} {pct !== null ? (t ? "Saving…" : "Uploading…") : t ? "Save" : "Upload"}
           </button></div>
         </form>
@@ -223,7 +258,7 @@ export function TranscriptionRows({ items }: { items: Transcription[] }) {
 export function TuneTranscriptions({ tune }: { tune: TuneTag }) {
   const { store } = useApp();
   const [items, setItems] = useState<Transcription[] | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<UploadMode | null>(null);
   const online = store.kind === "supabase";
   useEffect(() => {
     if (!online) return;
@@ -236,13 +271,13 @@ export function TuneTranscriptions({ tune }: { tune: TuneTag }) {
     <section className="panel" aria-label="Transcriptions">
       <div className="panel-head">
         <h2>Transcriptions</h2>
-        {online && <button className="btn small accent" onClick={() => setAdding(true)}><Icon name="upload" size={16} /> Upload</button>}
+        {online && <UploadMenu label="Upload" className="btn small accent" onPick={setAdding} />}
       </div>
       {!online ? <p className="hint">Transcriptions need an account.</p>
         : items === null ? <p className="hint">Loading…</p>
         : items.length ? <TranscriptionRows items={items} />
         : <p className="hint">No transcriptions of this tune yet.</p>}
-      {adding && <TranscriptionDialog tune={tune} onClose={() => setAdding(false)} onSaved={t => { setItems(l => (l ?? []).concat(t)); setAdding(false); }} />}
+      {adding && <TranscriptionDialog tune={tune} mode={adding} onClose={() => setAdding(null)} onSaved={t => { setItems(l => (l ?? []).concat(t)); setAdding(null); }} />}
     </section>
   );
 }
