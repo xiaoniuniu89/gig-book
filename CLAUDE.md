@@ -12,6 +12,18 @@ Next.js (App Router) + TypeScript + React + plain CSS. See README.md for the lay
 - What to do next session: `docs/NEXT.md` (read it first; update it at the end of a session).
 - Product scope and build order: `docs/REQUIREMENTS.md`. Each issue names the requirement ids (R1, R5.2…) it implements.
 
+## UI standards
+Dan's rules from feedback. Every UI change follows them; check new work against them before committing.
+- **One thing at a time, tabs over stacking.** When a panel or page offers different kinds of thing (sources, owners, steps, kinds of content), split them into tabs (`.pl-tabs` / `.pl-tab`, `role="tablist"`), not blocks stacked down one page. Examples: Recordings → Find / Upload; Notes → Band / Private. A tab's description goes below the tabs, never above.
+- **Creation behind a button.** Adding or creating opens a modal (`Modal`) from a button; no inline create forms on list pages.
+- **Little text on screen.** Explanations, limits, file types and caveats go in an `Info` icon by the label. Exception: privacy and AI warnings stay visible (`AiNote`).
+- **Row actions in a ⋯ menu** (`MenuButton`, `caret={false}`) at the end of the row. Page-level actions stay on screen (only calm mode tucks them under More).
+- **Destructive or big actions** (delete, remove someone, hand over) confirm with `ConfirmTyped` (type "approve").
+- **Plain words.** Write for musicians, not developers: no dev labels ("Built in", storage names), no example placeholders, no jargon. Mark unfinished things with `<span className="stamp wip">Work in progress</span>`.
+- **Buttons have icons and text** (`Icon`); icon-only buttons need an `aria-label`.
+- **Consistent styles.** Reuse existing components and classes; no new one-off shapes (no rounded pills where the site uses flat tabs).
+- **Show only what applies.** Hide options that can't work here (an original has no famous recordings to search).
+
 ## Shipping
 - **`develop` is where work happens.** Commit straight to `develop` and push once typecheck and lint pass. No feature branches or PRs unless Dan asks for one. Pushes to `develop` run no CI and no Vercel deploy.
 - Dan smoke-tests `develop` on localhost against the **dev Supabase project** (`niu-real-book-dev`, ref supzlyiwwkrgendintmc; live is `gig-book`) (`.env.development.local`, see `.env.development.example`; `npm run dev` picks it up over `.env.local`). `npm run db:dev` applies migrations to it and `npm run seed:dev` (re)creates the fake musicians (`tests/fixtures.ts`, password in there).
