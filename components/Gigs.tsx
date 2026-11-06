@@ -53,13 +53,17 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
         <label className="field"><span className="field-label">Title</span>
           <input type="text" maxLength={200} required value={f.title} onChange={set("title")} />
         </label>
-        <div className="acct-row">
-          <label className="field"><span className="field-label">Date</span><input type="date" required value={f.date} onChange={set("date")} /></label>
-          <label className="field"><span className="field-label">Start time</span><input type="text" maxLength={30} value={f.time} onChange={set("time")} /></label>
-        </div>
+        {gig ? (
+          <div className="acct-row">
+            <label className="field"><span className="field-label">Date</span><input type="date" required value={f.date} onChange={set("date")} /></label>
+            <label className="field"><span className="field-label">Start time</span><input type="text" maxLength={30} value={f.time} onChange={set("time")} /></label>
+          </div>
+        ) : <label className="field"><span className="field-label">Date</span><input type="date" required value={f.date} onChange={set("date")} /></label>}
         <label className="field"><span className="field-label">Venue</span><input type="text" maxLength={200} value={f.venue} onChange={set("venue")} /></label>
         <label className="field"><span className="field-label">Address</span><textarea rows={2} maxLength={400} value={f.address} onChange={set("address")} /></label>
+        {gig && <>
         <label className="field"><span className="field-label">Notes <Info label="About notes">Load-in and set times, parking, dress code, who to ask for at the door. Everyone on the lineup sees them.</Info></span><textarea rows={3} maxLength={5000} value={f.notes} onChange={set("notes")} /></label>
+        </>}
         <label className="field"><span className="field-label">Band <span className="field-opt">(optional)</span> <Info label="About the band on a gig">Members of the band can see the gig, and the band&apos;s admins can edit it. Without a band, only you and the people on the lineup can see it.</Info></span>
           <select value={f.bandId} onChange={set("bandId")}>
             <option value="">No band</option>
