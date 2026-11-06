@@ -137,6 +137,7 @@ export function TranscriptionDialog({ t, tune, mode = "plain", onClose, onSaved 
       {/* the tune picker is a full-screen sheet, so the dialog steps aside while it is open */}
       <Modal open={!picking} title={t ? "Edit transcription" : "Upload transcription"} onClose={() => { if (!picking) onClose(); }}>
         <form className="chart-form" onSubmit={save}>
+          {mode === "ai" && !t && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your file is sent to an AI service to read the details.</span></div>}
           {!t && <div className="field"><span className="field-label">File <Info label="About the file">A PDF, a photo, or a MusicXML score. Up to {MAX_FILE_MB} MB.{mode === "ai" ? " AI reads it to fill in the details below; it counts toward your daily Niu AI requests. PDFs up to 3 MB." : ""}</Info></span>
             <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
             <div className="attach-opts">
