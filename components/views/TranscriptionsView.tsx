@@ -39,7 +39,7 @@ export function TranscriptionsView() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" data-tour="transcriptions">
         <h1>Transcriptions <Info label="About transcriptions">Written-out solos and parts: a PDF, a photo or a MusicXML file. Keep them private, share them with people by email, or make them public for everyone signed in.</Info></h1>
         {online && <UploadMenu label="Upload transcription" className="btn primary" onPick={setAdding} />}
       </div>

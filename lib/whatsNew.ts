@@ -1,6 +1,10 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-12",
+    items: ["The tour now covers Gigs, Transcriptions, band press kits and connecting your calendar."],
+  },
+  {
     date: "2026-11-11",
     items: [
       "Press kits (work in progress): one editor for you and your bands, with bold, italics, headings, lists and links in the bio.",

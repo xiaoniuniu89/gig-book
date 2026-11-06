@@ -31,7 +31,7 @@ export function GigsView() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" data-tour="gigs">
         <h1>Gigs <Info label="About gigs">A gig has a date, a venue, setlists, a lineup and a poster. Setlists are linked, so changing a setlist changes it on every gig it is on. Only you, the people on the lineup and your band can see a gig.</Info></h1>
         {online && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" size={18} /> New gig</button>}
       </div>
