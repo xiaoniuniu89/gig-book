@@ -850,6 +850,14 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       return rows.map(r => toOriginal(r, nm));
     },
 
+    async listBandOriginals(bandId) {
+      const { data, error } = await sb.from("original_songs").select(OR_COLS).eq("visibility", "band").eq("band_id", bandId).order("title");
+      if (error) fail("load the band's songs", error);
+      const rows = (data || []) as unknown as OriginalRow[];
+      const nm = await namesOf(rows.map(r => r.owner));
+      return rows.map(r => toOriginal(r, nm));
+    },
+
     async createOriginal(f, leadSheet, onProgress) {
       // the row first: the upload is only allowed to a path one of your rows names, so the daily cap holds
       const id = newUuid();

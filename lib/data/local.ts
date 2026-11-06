@@ -121,6 +121,7 @@ export const localStore: DataStore = {
   createChart: () => Promise.reject(new Error("Charts need an account.")),
   listOriginals: async () => [],
   searchOriginals: async () => [],
+  listBandOriginals: async () => [],
   createOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
   updateOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
   deleteOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),

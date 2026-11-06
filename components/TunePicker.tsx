@@ -27,8 +27,10 @@ export function libraryTunes(library: LibraryPlaylist[]): LibTune[] {
 export const newItem = (raw: string, set: number, shift: number | null = null): SetlistItem =>
   ({ id: newItemId(), raw, set, shift, versions: [] });
 
-export function TunePicker({ library, have, sets = 1, single, onAdd, onClose }: {
+export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onClose }: {
   library: LibraryPlaylist[];
+  /** the setlist's band: adds a Band songs tab with the originals its members shared */
+  bandId?: string;
   /** pick exactly one tune (the checkboxes act as radio buttons) */
   single?: boolean;
   /** raw strings already in the setlist, marked in the list */
@@ -58,6 +60,13 @@ export function TunePicker({ library, have, sets = 1, single, onAdd, onClose }: 
     return () => { live = false; clearTimeout(t); };
   }, [account, store, q, nq]);
   const extra = others.filter(o => !all.some(t => t.raw === o.raw));
+  const [tab, setTab] = useState<"all" | "band">("all");
+  const [bandSongs, setBandSongs] = useState<OriginalSong[] | null>(null);
+  useEffect(() => {
+    if (!account || !bandId) return;
+    store.listBandOriginals(bandId).then(setBandSongs, () => setBandSongs([]));
+  }, [account, store, bandId]);
+  const bandShown = (bandSongs ?? []).filter(o => !nq || norm(o.title + " " + o.composer).includes(nq));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !adding) onClose(); }; // Escape in New song closes only that
@@ -82,6 +91,28 @@ export function TunePicker({ library, have, sets = 1, single, onAdd, onClose }: 
           </span>
         )}
       </div>
+      {bandId && account && (
+        <div className="pl-tabs" role="tablist" aria-label="Where from">
+          <button role="tab" className="pl-tab" aria-selected={tab === "all"} onClick={() => setTab("all")}>All tunes</button>
+          <button role="tab" className="pl-tab" aria-selected={tab === "band"} onClick={() => setTab("band")}>Band songs</button>
+        </div>
+      )}
+      {tab === "band" ? (
+        <div className="sheet-list">
+          {bandSongs === null ? <p className="hint pad">Loading…</p> : !bandShown.length
+            ? <p className="hint pad">{bandSongs.length ? "No band song matches." : "No songs shared with the band yet. Add them from the band's Songs tab."}</p>
+            : bandShown.map(o => {
+              const on = picked.includes(o.raw), m = meta(o.raw);
+              return (
+                <label className={"pick" + (on ? " on" : "")} key={o.id}>
+                  <input type="checkbox" checked={on} onChange={() => toggle(o.raw)} />
+                  <span className="name">{m.title}<span className="sub">{m.composer} · {m.style} · by {o.ownerName}{inSet.has(idOf(m.title, m.composer)) ? " · already in this setlist" : ""}</span></span>
+                  <span className="k">{prettyKey(m.key)}</span>
+                </label>
+              );
+            })}
+        </div>
+      ) : (
       <div className="sheet-list">
         {shown.map(t => {
           const on = picked.includes(t.raw);
@@ -109,6 +140,7 @@ export function TunePicker({ library, have, sets = 1, single, onAdd, onClose }: 
         {!shown.length && !extra.length && <p className="hint pad">{all.length ? "No match in the library." : "The library is empty. Import a playlist first."}</p>}
         {account && <p className="pad"><button type="button" className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Can&apos;t find it? Add your own song</button></p>}
       </div>
+      )}
       <div className="sheet-foot">
         <span className="hint">{picked.length} selected</span>
         <button className="btn primary" disabled={!picked.length} onClick={() => { onAdd(picked, set); onClose(); }}>

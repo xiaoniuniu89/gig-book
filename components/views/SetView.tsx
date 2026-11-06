@@ -289,7 +289,7 @@ function SetBody({ s }: { s: Setlist }) {
         {isOwner && <BandPick s={s} />}
         <Band s={s} owner={isOwner} />
       </Modal>
-      {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} sets={count} onAdd={addTunes} onClose={() => setPicking(false)} />}
+      {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} sets={count} bandId={s.band?.id} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
         <section className="danger-zone">
           <button className="btn small" id="del-set" onClick={() => setDelArmed(true)}><Icon name="trash" size={16} /> Delete this setlist</button>

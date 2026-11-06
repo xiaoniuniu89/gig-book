@@ -20,14 +20,16 @@ import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
+import { NewSong } from "../Originals";
+import { ORIGINALS_ID } from "@/lib/seeds";
 import { hrefFor } from "@/lib/contact";
 import {
   BAND_PERMS, CONTACT_FIELDS, newItemId, slug,
-  type Attachment, type Band, type BandCandidate, type BandMember, type BandPerms, type BandSetlist, type Profile,
+  type Attachment, type Band, type OriginalSong, type BandCandidate, type BandMember, type BandPerms, type BandSetlist, type Profile,
 } from "@/lib/data/types";
 
-type Tab = "setlists" | "gigs" | "notes" | "people" | "kit" | "poster" | "settings";
-const TABS: [Tab, string][] = [["setlists", "Setlists"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"], ["settings", "Settings"]];
+type Tab = "setlists" | "songs" | "gigs" | "notes" | "people" | "kit" | "poster" | "settings";
+const TABS: [Tab, string][] = [["setlists", "Setlists"], ["songs", "Songs"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"], ["settings", "Settings"]];
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
 
 export function BandView() {
@@ -93,6 +95,7 @@ export function BandView() {
         {TABS.map(([k, label]) => <button key={k} role="tab" className="pl-tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}
       </div>
       {tab === "setlists" && <SetlistsTab band={band} />}
+      {tab === "songs" && <SongsTab band={band} />}
       {tab === "gigs" && <BandGigs band={band} />}
       {tab === "notes" && (
         <Notes title="Band notes" hint="For the whole band: plans, contacts, who's driving." home={{ kind: "band", bandId: band.id }}
@@ -207,6 +210,49 @@ function SetlistsTab({ band }: { band: Band }) {
           <button className="btn primary" type="submit" disabled={busy}>{busy ? "Creating…" : "Create"}</button>
         </form>
       </Modal>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------- songs */
+// Original songs shared with the band. Anyone in the band can add one of theirs; only its writer changes it.
+function SongsTab({ band }: { band: Band }) {
+  const { store, toast, originals } = useApp();
+  const [list, setList] = useState<OriginalSong[] | null>(null);
+  const [making, setMaking] = useState(false);
+  const [editing, setEditing] = useState<OriginalSong | null>(null);
+
+  const load = useCallback(() => store.listBandOriginals(band.id).then(setList, e => { setList([]); toast(errText(e, "Couldn't load the band's songs.")); }), [store, band.id, toast]);
+  useEffect(() => { void load(); }, [load]);
+  const open = async (o: OriginalSong) => {
+    try { window.open(await store.originalLeadSheetUrl(o), "_blank", "noopener"); } catch (e) { toast(errText(e, "Couldn't open the lead sheet.")); }
+  };
+  const saved = () => { setMaking(false); setEditing(null); void load(); };
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Band songs <Info label="About band songs">Original songs shared with the band. Everyone in the band can see them and add them to setlists with Add tunes. Only the person who wrote one can change it. To share one you already have, edit it in your Library and pick this band under Who can see it.</Info></h2>
+        <button className="btn small" onClick={() => setMaking(true)}><Icon name="plus" size={16} /> New song</button>
+      </div>
+      {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No songs shared with the band yet.</p> : (
+        <div className="list">
+          {list.map(o => {
+            const i = o.mine ? originals.findIndex(x => x.id === o.id) : -1;
+            return (
+              <div className="member" key={o.id}>
+                <span className="name">{i >= 0 ? <Link href={`/library/${ORIGINALS_ID}/${i}`}>{o.title}</Link> : o.title}<span className="sub">{o.composer} · {o.ownerName}</span></span>
+                <span className="tune-btns">
+                  {o.leadSheet && <button className="btn small" onClick={() => open(o)}><Icon name="import" size={16} /> Lead sheet</button>}
+                  {o.mine && <button className="btn small" onClick={() => setEditing(o)}><Icon name="edit" size={16} /> Edit</button>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {making && <NewSong bandId={band.id} onClose={() => setMaking(false)} onSaved={saved} />}
+      {editing && <NewSong o={editing} onClose={() => setEditing(null)} onSaved={saved} />}
     </section>
   );
 }

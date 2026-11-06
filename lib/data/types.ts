@@ -526,6 +526,8 @@ export interface DataStore {
   listOriginals(): Promise<OriginalSong[]>;
   /** Other people's originals you can see (public, or your bands'), matching the words; at most 20. Local mode has none. */
   searchOriginals(q: string): Promise<OriginalSong[]>;
+  /** Originals shared with one band (yours and the other members'), by title. Local mode has none. */
+  listBandOriginals(bandId: string): Promise<OriginalSong[]>;
   /** The row first, then the lead sheet (PDF or photo, 10 MB) if there is one. Local mode rejects. */
   createOriginal(f: OriginalFields, leadSheet?: File | null, onProgress?: (p: number) => void): Promise<OriginalSong>;
   /** Changes the song; `leadSheet` replaces the file, `"remove"` deletes it, undefined leaves it. */

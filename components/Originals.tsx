@@ -25,8 +25,8 @@ const storeComposer = (name: string) => name.trim().split(/\s+/).reverse().join(
 const where = (o: OriginalSong, bands: Band[]) =>
   o.visibility === "public" ? "Public" : o.visibility === "band" ? "Shared with " + (bands.find(b => b.id === o.bandId)?.name || "a band") : "Private";
 
-/** New song (no `o`) or edit one. `title` pre-fills the title. `onSaved` gets the saved song. */
-export function NewSong({ o, title: preTitle, onClose, onSaved }: { o?: OriginalSong; title?: string; onClose: () => void; onSaved: (o: OriginalSong) => void }) {
+/** New song (no `o`) or edit one. `title` pre-fills the title, `bandId` shares a new one with that band. `onSaved` gets the saved song. */
+export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: OriginalSong; title?: string; bandId?: string; onClose: () => void; onSaved: (o: OriginalSong) => void }) {
   const { store, account, toast, putOriginal } = useApp();
   const start = o ? song(o.raw) : null;
   const [title, setTitle] = useState(start?.title ?? preTitle?.trim() ?? "");
@@ -35,7 +35,7 @@ export function NewSong({ o, title: preTitle, onClose, onSaved }: { o?: Original
   const [key, setKey] = useState(start?.key || "C");
   const [tempo, setTempo] = useState(start?.tempo ? String(start.tempo) : "");
   const [ts, setTs] = useState(start?.bars[0] ? start.bars[0].ts.num + "/" + start.bars[0].ts.den : "4/4");
-  const [vis, setVis] = useState<string>(o ? (o.visibility === "band" ? "band:" + o.bandId : o.visibility) : "private");
+  const [vis, setVis] = useState<string>(o ? (o.visibility === "band" ? "band:" + o.bandId : o.visibility) : bandId ? "band:" + bandId : "private");
   const [bands, setBands] = useState<Band[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [dropSheet, setDropSheet] = useState(false);
