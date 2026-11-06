@@ -1,5 +1,6 @@
 // Pure code: iReal parsing and export, theory helpers, ABC headers, QR encoding.
 import { describe, expect, it } from "vitest";
+import { namesTune } from "@/lib/youtube/client";
 import { decodeSong, parseChordText, scramble, splitPlaylists, songLink } from "@/lib/ireal";
 import { encodeSong, lickLink, lickSongs, parseProgression, progressionMusic, transposeProgression } from "@/lib/irealExport";
 import { detectTonic, irealShift, kind, mod12, numeral, pcOf, prefersSharps, prettyQ, spell } from "@/lib/theory";
@@ -225,5 +226,17 @@ describe("small helpers", () => {
     expect(norm("The Girl From Ipanema (Bossa)")).toBe("girl from ipanema");
     expect(songKey("Autumn Leaves=Kosma Joseph=x=Swing=G-=n=m")).toBe(songKey("autumn leaves=Kosma Joseph=y=Ballad=C-=n=m"));
     expect(meta("Autumn Leaves=Kosma Joseph==Medium Swing=G-").title).toBe("Autumn Leaves");
+  });
+});
+
+describe("namesTune (automatic YouTube pick)", () => {
+  it("needs the tune's name as whole words in the video title", () => {
+    expect(namesTune("Bill Evans - Autumn Leaves (Live)", "Autumn Leaves")).toBe(true);
+    expect(namesTune("Body & Soul | Coleman Hawkins", "Body And Soul")).toBe(true);
+    expect(namesTune("Miles Davis: So What", "So What")).toBe(true);
+    expect(namesTune("Girl From Ipanema - Getz/Gilberto", "The Girl From Ipanema")).toBe(true);
+    expect(namesTune("What'll I Do - Kathleen Grace", "What Would Larry Do ?")).toBe(false);
+    expect(namesTune("How One Hit Wonder Andrew WK Is a Fictional Character", "What Would Larry Do ?")).toBe(false);
+    expect(namesTune("Ladybird", "Lady Bird")).toBe(false);
   });
 });

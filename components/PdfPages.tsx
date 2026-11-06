@@ -9,10 +9,23 @@ type PdfPage = {
   render(o: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }): { promise: Promise<void>; cancel(): void };
 };
 
-async function openPdf(url: string): Promise<PdfDoc> {
+async function load(url: string): Promise<PdfDoc> {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
   return (await pdfjs.getDocument({ url, isEvalSupported: false }).promise) as unknown as PdfDoc;
+}
+// opened PDFs stay open (the last few), so flipping between iReal and a PDF tab doesn't download and read it again
+const docs = new Map<string, Promise<PdfDoc>>();
+function openPdf(url: string): Promise<PdfDoc> {
+  const key = url.split("?")[0]; // the file, whatever signed link it came with
+  let p = docs.get(key);
+  if (!p) {
+    p = load(url);
+    p.catch(() => docs.delete(key));
+    docs.set(key, p);
+    if (docs.size > 6) { const [old, d] = docs.entries().next().value!; docs.delete(old); d.then(x => x.destroy(), () => {}); }
+  } else { docs.delete(key); docs.set(key, p); } // most recently used last
+  return p;
 }
 
 /** `fit`: on screens 700px or wider, each page is sized so it fits the window height minus this many pixels. */
@@ -23,10 +36,10 @@ export function PdfPages({ url, name, fit }: { url: string; name: string; fit?: 
   const [tall, setTall] = useState(0);
 
   useEffect(() => {
-    let live = true, d: PdfDoc | null = null;
+    let live = true;
     setDoc(undefined);
-    openPdf(url).then(x => { d = x; if (live) setDoc(x); else void x.destroy(); }, () => { if (live) setDoc(null); });
-    return () => { live = false; void d?.destroy(); };
+    openPdf(url).then(x => { if (live) setDoc(x); }, () => { if (live) setDoc(null); });
+    return () => { live = false; };
   }, [url]);
 
   useEffect(() => {

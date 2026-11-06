@@ -426,6 +426,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
     setSaved(prev => new Set(prev).add(r.uri));
   };
   const canSave = !!onVersions && canEdit;
+  const original = !!useOriginal(cur.song.raw);
   const saveBtn = (r: Version) => {
     const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
     return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
@@ -448,7 +449,8 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
               <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
-          )) : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording below and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
+          )) : !playing && original ? <p className="hint">This is an original, so there&apos;s no famous recording to find. Save a recording of it (your band on YouTube, say) and it will always play that.</p>
+          : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording below and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
         {playing && (
           <div className="ver">
             <span className="name"><span className="eyebrow">Playing now</span> {playing.title}<span className="sub">Picked automatically</span></span>

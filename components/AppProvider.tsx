@@ -751,7 +751,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       else setRecStatus(queue.length > 1 ? `${it.title} (${i + 1} of ${queue.length})` : "");
       return;
     }
-    setRecStatus(dir > 0 ? "That was the last one." : "");
+    setRecStatus(queue.length === 1 && !queue[0].id ? "No recording of this tune turned up. Find one under Recordings and save it." : dir > 0 ? "That was the last one." : "");
   }, [openFromSpotify, toast]);
 
   const playYoutube = useCallback(async (queue: YtQueueItem[], start = 0, setName?: string) => {

@@ -5,6 +5,8 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
     items: [
       "Chart view can switch between every version of a tune: iReal, reharms, the lead sheet and your uploaded charts.",
       "On a tablet or computer, the chart and PDF pages size themselves to fit the screen, so you see the whole tune at once.",
+      "Switching between iReal and a PDF chart is instant now: the PDF isn't downloaded again each time.",
+      "Listen only picks a recording by itself when the video is named after the tune, so no more unrelated videos. Your originals say there's no famous recording and invite you to save your own.",
     ],
   },
   {

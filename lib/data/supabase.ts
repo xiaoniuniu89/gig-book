@@ -210,6 +210,18 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   };
 
   const names = new Map<string, string>();
+  // signed file links last an hour; the same one is handed out again while it has 10 minutes left, so a file the browser
+  // already fetched (a PDF chart you flip back to) isn't downloaded again under a new address
+  const signed = new Map<string, { url: string; until: number }>();
+  const signedUrl = async (bucket: string, path: string, what: string): Promise<string> => {
+    const k = bucket + "/" + path, hit = signed.get(k);
+    if (hit && hit.until > Date.now() + 10 * 60e3) return hit.url;
+    const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
+    if (error || !data) fail(what, error);
+    if (signed.size > 300) signed.clear();
+    signed.set(k, { url: data.signedUrl, until: Date.now() + 3600e3 });
+    return data.signedUrl;
+  };
   const namesOf = async (ids: string[]): Promise<Map<string, string>> => {
     const need = [...new Set(ids)].filter(i => !names.has(i));
     if (need.length) {
@@ -717,9 +729,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async attachmentUrl(a) {
-      const { data, error } = await sb.storage.from(a.bucket || BUCKET).createSignedUrl(a.path, 3600);
-      if (error || !data) fail("open that file", error);
-      return data.signedUrl;
+      return signedUrl(a.bucket || BUCKET, a.path, "open that file");
     },
 
     async listCharts(key, setlistId) {
@@ -917,9 +927,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
 
     async originalLeadSheetUrl(o) {
       if (!o.leadSheet) throw new Error("This song has no lead sheet.");
-      const { data, error } = await sb.storage.from(LEADSHEET_BUCKET).createSignedUrl(o.leadSheet.path, 3600);
-      if (error || !data) fail("open the lead sheet", error);
-      return data.signedUrl;
+      return signedUrl(LEADSHEET_BUCKET, o.leadSheet.path, "open the lead sheet");
     },
 
     async listTranscriptions(q) {

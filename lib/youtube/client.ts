@@ -96,6 +96,13 @@ export function performersFor(name: string, tunes: { title: string; composer: st
   return p;
 }
 
+const words = (s: string) => " " + s.toLowerCase().replace(/&/g, " and ").replace(/['’]/g, "").replace(/[^a-z0-9]+/g, " ").trim() + " ";
+/** A video only counts if its title has the tune's name in it as whole words ("The" and anything in brackets can be left out). */
+export function namesTune(videoTitle: string, title: string): boolean {
+  const t = words(title.replace(/\(.*?\)|\[.*?\]/g, "").replace(/^\s*the\s+/i, ""));
+  return t.trim().length > 0 && words(videoTitle).includes(t);
+}
+
 /** The pick for a song: the cached one, else search once (with the performer if known), let the AI choose, and keep it. */
 export function autoPick(songKey: string, title: string, composer: string, performer = ""): Promise<Pick | null> {
   const key = pickKey(songKey, performer);
@@ -103,10 +110,11 @@ export function autoPick(songKey: string, title: string, composer: string, perfo
   if (going) return going;
   const run = (async () => {
     const hit = await cachedPick(key);
-    if (hit) return hit;
+    if (hit && namesTune(hit.title, title)) return hit; // older picks were kept without this check
     const { videos } = await searchVideos((performer ? `${title} ${performer}` : `${title} ${composer}`).trim());
-    if (!videos.length) return null;
-    const top = videos.slice(0, 10);
+    // nothing named after the tune (an original nobody has recorded, say) means no pick, rather than a wrong video
+    const top = videos.filter(v => namesTune(v.title, title)).slice(0, 10);
+    if (!top.length) return null;
     const d = await ai<{ index?: unknown }>({ kind: "pick", title, composer, performer, results: top.map(v => ({ title: v.title, channel: v.channel })) });
     const v = top[typeof d?.index === "number" && d.index >= 0 && d.index < top.length ? d.index : 0];
     const p = { id: v.id, title: v.title };
