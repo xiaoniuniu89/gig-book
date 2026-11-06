@@ -39,7 +39,7 @@ export function useCharts(songKey: string, setlistId?: string) {
     try { const m = readTabs(); if (t === "ireal") delete m[songKey]; else m[songKey] = t; localStorage.setItem(TAB_KEY, JSON.stringify(m)); } catch { /* private mode */ }
   }, [songKey]);
   const shown = charts.find(c => c.id === tab) ?? null; // a remembered chart that's gone falls back to iReal
-  return { charts, setCharts, tab: shown || tab === "lyrics" ? tab : "ireal", shown, setTab };
+  return { charts, setCharts, tab: shown || tab === "lyrics" || tab === "leadsheet" ? tab : "ireal", shown, setTab };
 }
 
 /** Picks a chart file and an optional recording; shared by "Upload chart" and "Edit chart". */
@@ -187,8 +187,10 @@ function EditChart({ c, setlist, canDelete, onSaved, onDeleted, onDirty }: {
 }
 
 /** The one tab row: iReal, its reharms, each uploaded chart, Lyrics; then Upload chart and whatever buttons the page adds (`children`). */
-export function ChartTabs({ songKey, setlist, ch, vs, children }: {
+export function ChartTabs({ songKey, setlist, ch, vs, leadSheet, children }: {
   songKey: string; setlist?: Setlist; ch: ReturnType<typeof useCharts>; vs?: Versions; children?: React.ReactNode;
+  /** an original song's lead sheet: a tab right after iReal */
+  leadSheet?: boolean;
 }) {
   const { store } = useApp();
   const [adding, setAdding] = useState(false);
@@ -199,6 +201,7 @@ export function ChartTabs({ songKey, setlist, ch, vs, children }: {
     <div className="chart-tabs-row">
       <div className="pl-tabs chart-tabs" role="tablist" aria-label="Charts">
         <button role="tab" className="pl-tab" aria-selected={onIreal && !vs?.pick} onClick={() => { ch.setTab("ireal"); vs?.setPick(""); }}>iReal</button>
+        {leadSheet && <button role="tab" className="pl-tab" aria-selected={ch.tab === "leadsheet"} onClick={() => ch.setTab("leadsheet")}>Lead sheet</button>}
         {reharms.map(x => (
           <button key={x.id} role="tab" className="pl-tab" aria-selected={onIreal && vs?.pick === x.id} onClick={() => { ch.setTab("ireal"); vs?.setPick(x.id); }}>
             {x.name}<span>reharm</span>

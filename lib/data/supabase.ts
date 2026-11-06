@@ -850,6 +850,15 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       return rows.map(r => toOriginal(r, nm));
     },
 
+    async findOriginal(title, composer) {
+      const { data, error } = await sb.from("original_songs").select(OR_COLS).eq("title", title.slice(0, 200)).eq("composer", composer.slice(0, 200))
+        .order("owner", { ascending: true }).limit(5);
+      if (error || !data?.length) return null;
+      const rows = data as unknown as OriginalRow[];
+      const r = rows.find(x => x.owner === userId) ?? rows[0];
+      return toOriginal(r, await namesOf([r.owner]));
+    },
+
     async listBandOriginals(bandId) {
       const mem = await sb.from("band_members").select("user_id").eq("band_id", bandId);
       if (mem.error) fail("load the band's originals", mem.error);

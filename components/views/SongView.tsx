@@ -9,7 +9,7 @@ import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey, meta } from "@/lib/songs";
 import { TuneTranscriptions } from "../Transcriptions";
-import { OriginalPanel } from "../Originals";
+import { EditSongButton, LeadSheetPane, useOriginal } from "../Originals";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
 import { MyResources } from "../Resources";
@@ -88,6 +88,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const app = useApp();
   const { prefs, updatePrefs, setCrumb, setCurrent, gig, library } = app;
   const arr = cur0.kind === "arr" ? app.arrangements.find(a => a.id === cur0.arrId) : undefined;
+  const orig = useOriginal(cur0.song.raw); // an original song: Lead sheet tab, Edit song, no famous reharms
   const vs = useVersions(cur0.song); // R3.5: the picked version's chords replace the tune's for everything below
   const cur = useMemo<TuneCurrent>(() => !vs.song || vs.song === cur0.song ? cur0 : { ...cur0, song: vs.song }, [cur0, vs.song]);
   useWakeLock(); // a chart left open on a gig shouldn't let the screen sleep
@@ -192,8 +193,12 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         </div>
       </div>
       <section className="panel" aria-label="Chord chart" data-tour="chart">
-        <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} vs={vs}><ReharmButtons sg={cur0.song} vs={vs} /></ChartTabs>
-        {ch.tab === "lyrics" ? <LyricsPane songKey={songKey(cur0.song.raw)} title={cur0.song.title} composer={composerName(cur0.song.composer)} form={form}
+        <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} vs={vs} leadSheet={!!orig?.leadSheet}>
+          {orig?.mine && cur.kind === "lib" && <EditSongButton o={orig} />}
+          <ReharmButtons sg={cur0.song} vs={vs} original={!!orig} />
+        </ChartTabs>
+        {ch.tab === "leadsheet" && orig?.leadSheet ? <LeadSheetPane o={orig} />
+        : ch.tab === "lyrics" ? <LyricsPane songKey={songKey(cur0.song.raw)} title={cur0.song.title} composer={composerName(cur0.song.composer)} form={form}
           chart={<ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />} />
         : ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
         <VersionBar sg={cur0.song} vs={vs} />
@@ -232,7 +237,6 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
       {!arr && <MyResources key={"my-res:" + mineKey} songKey={mineKey} />}
       <Notes tour="notes" key={"mine:" + mineKey} title={"My notes on " + mineWhere} hint={mineHint}
         home={{ kind: "song", songKey: mineKey }} itemRaw={sg.raw} />
-      <OriginalPanel key={"or:" + sg.raw} raw={sg.raw} editable={cur.kind === "lib"} />
       <TuneTranscriptions key={"tr:" + songKey(sg.raw)} tune={{ songKey: songKey(sg.raw), title: meta(sg.raw).title, composer: meta(sg.raw).composer }} />
       {/* the side panels live in the player drawer, so the chart gets the full width and height */}
       {app.drawerSlot && createPortal(<>

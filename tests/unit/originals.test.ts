@@ -114,5 +114,9 @@ describe("validateChart (the AI's answer)", () => {
     const h = validateChart({ ...good, title: "<b>x</b>", style: "Polka" });
     expect([h.title, h.style, h.errors]).toEqual(["", "", []]);
   });
+  it("keeps an ending's number on its first bar only", () => {
+    const g = validateChart({ sections: [{ name: "A", bars: [{ chords: ["C"] }, { chords: ["D-7"], ending: 1 }, { chords: ["G7"], ending: 1, repeatEnd: true }, { chords: ["C"], ending: 2 }, { chords: ["C"], ending: 2 }] }] });
+    expect(g.sections[0].bars.map(b => b.ending ?? 0)).toEqual([0, 1, 0, 2, 0]);
+  });
   it("ignores a key it doesn't know", () => expect(validateChart({ ...good, key: "H#" }).key).toBe(""));
 });

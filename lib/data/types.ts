@@ -527,6 +527,8 @@ export interface DataStore {
   listOriginals(): Promise<OriginalSong[]>;
   /** Other people's originals you can see (public, or your bands'), matching the words; at most 20. Local mode has none. */
   searchOriginals(q: string): Promise<OriginalSong[]>;
+  /** The original song (yours or one you can see) with this title and composer, if there is one. Local mode: none. */
+  findOriginal(title: string, composer: string): Promise<OriginalSong | null>;
   /** Originals by the band's members that the band can see (Bands I'm in, shared with it, or public), by title. Local mode has none. */
   listBandOriginals(bandId: string): Promise<OriginalSong[]>;
   /** The row first, then the lead sheet (PDF or photo, 10 MB) if there is one. Local mode rejects. */

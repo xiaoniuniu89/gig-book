@@ -22,15 +22,15 @@ const msg = (e: unknown, fallback: string) => e instanceof Error ? e.message : f
 /** iReal keeps the composer as "Last First"; the app reads it back reversed. */
 const storeComposer = (name: string) => name.trim().split(/\s+/).reverse().join(" ");
 
-const where = (o: OriginalSong, bands: Band[]) =>
-  o.visibility === "public" ? "Public" : o.visibility === "bands" ? "Bands you're in" : o.visibility === "band" ? "Shared with " + (bands.find(b => b.id === o.bandId)?.name || "a band") : "Private";
 
 /** New song (no `o`) or edit one. `title` pre-fills the title, `bandId` shares a new one with that band. `mode` "ai": the lead
  *  sheet first; AI reads it and fills in the form (title, composer, style, key, tempo, chart) for you to check. `onSaved` gets the saved song. */
 export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, onSaved }: {
   o?: OriginalSong; title?: string; bandId?: string; mode?: "manual" | "ai"; onClose: () => void; onSaved: (o: OriginalSong) => void;
 }) {
-  const { store, account, toast, putOriginal } = useApp();
+  const { store, account, toast, putOriginal, dropOriginal } = useApp();
+  const router = useRouter();
+  const [armed, setArmed] = useState(false);
   const start = o ? song(o.raw) : null;
   const [title, setTitle] = useState(start?.title ?? preTitle?.trim() ?? "");
   const [composer, setComposer] = useState(o ? meta(o.raw).composer : account?.name ?? "");
@@ -107,6 +107,13 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
     finally { setAiBusy(false); }
   };
 
+  const del = async () => {
+    if (!o) return;
+    try { await store.deleteOriginal(o); } catch (e) { toast(msg(e, "Couldn't delete that song.")); return; }
+    dropOriginal(o.id);
+    onClose();
+    router.push("/library");
+  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pct !== null || aiBusy) return;
@@ -198,58 +205,64 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
         <ChartEditor value={edit} onChange={setEdit} ts={ts} ai={{ ready: !!sheetName, busy: aiBusy, run: makeChart }} />
         {problems.length > 0 && <ul className="field-err" role="alert">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
         {pct !== null && file && <progress max={1} value={pct} aria-label="Uploading" />}
-        <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null || aiBusy}>{pct !== null ? "Saving…" : o ? "Save" : "Save song"}</button></div>
+        <div className="row-btns">
+          <button className="btn primary" type="submit" disabled={pct !== null || aiBusy}>{pct !== null ? "Saving…" : o ? "Save" : "Save song"}</button>
+          {o && <button className="btn" type="button" onBlur={() => setArmed(false)} onClick={() => { if (!armed) { setArmed(true); return; } void del(); }}>
+            <Icon name="trash" size={16} /> {armed ? "Tap again to delete the song" : "Delete song"}</button>}
+        </div>
         </>}
       </form>
     </Modal>
   );
 }
 
-/** On a song's own page, when the song is one of your originals: who can see it, the lead sheet, Edit and Delete. */
-export function OriginalPanel({ raw, editable }: { raw: string; editable: boolean }) {
-  const { originals, store, dropOriginal, toast } = useApp();
-  const router = useRouter();
-  const o = originals.find(x => x.raw === raw);
-  const [bands, setBands] = useState<Band[]>([]);
-  const [url, setUrl] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [armed, setArmed] = useState(false);
-  const sheet = o?.leadSheet?.path;
-  useEffect(() => { if (o?.visibility === "band") store.listBands().then(setBands).catch(() => setBands([])); }, [store, o?.visibility]);
+/** The original song behind a tune, if it is one: yours from the library, else one you can see (band or public). */
+export function useOriginal(raw: string): OriginalSong | null {
+  const { originals, store } = useApp();
+  const [title = "", composer = ""] = raw.split("=");
+  const mine = originals.find(x => x.raw === raw) ?? originals.find(x => x.title === title && x.composer === composer) ?? null;
+  const [found, setFound] = useState<{ key: string; o: OriginalSong | null } | null>(null);
+  const key = title + "=" + composer;
+  useEffect(() => {
+    if (mine || store.kind !== "supabase" || !title) return;
+    let live = true;
+    store.findOriginal(title, composer).then(o => { if (live) setFound({ key, o }); }, () => { if (live) setFound({ key, o: null }); });
+    return () => { live = false; };
+  }, [mine, store, title, composer, key]);
+  return mine ?? (found?.key === key ? found.o : null);
+}
+
+/** The Lead sheet tab: the file itself, and Download. */
+export function LeadSheetPane({ o }: { o: OriginalSong }) {
+  const { store } = useApp();
+  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  const path = o.leadSheet?.path;
   useEffect(() => {
     let live = true;
-    setUrl(null);
-    if (o?.leadSheet) store.originalLeadSheetUrl(o).then(u => { if (live) setUrl(u); }).catch(() => { if (live) setUrl(null); });
+    setUrl(undefined);
+    store.originalLeadSheetUrl(o).then(u => { if (live) setUrl(u); }, () => { if (live) setUrl(null); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, sheet]);
-  if (!o) return null;
-  const del = async () => {
-    try { await store.deleteOriginal(o); } catch (e) { toast(msg(e, "Couldn't delete that song.")); return; }
-    dropOriginal(o.id);
-    router.push("/library");
-  };
+  }, [store, path]);
+  if (!o.leadSheet) return null;
   return (
-    <section className="panel" aria-label="Original song">
-      <div className="panel-head">
-        <h2>Original song</h2>
-        <span className="pill">{where(o, bands)}</span>
-        {editable && <span className="row-btns">
-          <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit song</button>
-          <button className="btn small" onBlur={() => setArmed(false)} onClick={() => { if (!armed) { setArmed(true); return; } void del(); }}>{armed ? "Tap again to delete" : <Icon name="trash" size={16} />}</button>
-        </span>}
-      </div>
-      {o.leadSheet ? (
-        <div className="lead-sheet">
-          {url ? (o.leadSheet.kind === "image"
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={url} alt={"Lead sheet: " + o.title} />
-            : <iframe src={url} title={"Lead sheet: " + o.title} />)
-            : <p className="hint pad">Loading the lead sheet…</p>}
-          {url && <a className="btn small" href={url} target="_blank" rel="noreferrer">Open the lead sheet</a>}
-        </div>
-      ) : <p className="hint pad">No lead sheet uploaded.</p>}
-      {editing && <NewSong o={o} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); toast("Saved."); }} />}
-    </section>
+    <div className="lead-sheet">
+      {url && <a className="btn small" href={url} download={o.leadSheet.name} target="_blank" rel="noreferrer"><Icon name="import" size={16} /> Download</a>}
+      {url ? (o.leadSheet.kind === "image"
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={url} alt={"Lead sheet: " + o.title} />
+        : <iframe src={url} title={"Lead sheet: " + o.title} />)
+        : <p className="hint pad">{url === null ? "Couldn't load the lead sheet." : "Loading the lead sheet…"}</p>}
+    </div>
   );
+}
+
+/** Edit song, for your own original on its library page. */
+export function EditSongButton({ o }: { o: OriginalSong }) {
+  const { toast } = useApp();
+  const [editing, setEditing] = useState(false);
+  return <>
+    <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit song</button>
+    {editing && <NewSong o={o} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); toast("Saved."); }} />}
+  </>;
 }

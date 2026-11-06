@@ -166,7 +166,8 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
 }
 
 /** Find famous reharms (once per tune) and Add a reharm: buttons for the chart tab row. Signed-in only. */
-export function ReharmButtons({ sg, vs }: { sg: Song; vs: Versions }) {
+/** `original`: someone's own song, so there are no famous recordings to look up. */
+export function ReharmButtons({ sg, vs, original }: { sg: Song; vs: Versions; original?: boolean }) {
   const { store, toast } = useApp();
   const [adding, setAdding] = useState(false);
   const [addDirty, setAddDirty] = useState(false);
@@ -191,7 +192,7 @@ export function ReharmButtons({ sg, vs }: { sg: Song; vs: Versions }) {
   };
   return (
     <>
-      {!vs.aiDone && <>
+      {!vs.aiDone && !original && <>
         <button className="btn small" disabled={finding} onClick={find}><Icon name="sparkle" size={16} /> {finding ? "Looking…" : "Find famous reharms"}</button>
         <Info label="About famous reharms">Looks up well-known recordings that play different chords on this tune and adds each one as a reharm tab. AI can make mistakes, so each one says whether a player has checked it.</Info>
       </>}

@@ -122,6 +122,7 @@ export const localStore: DataStore = {
   listOriginals: async () => [],
   searchOriginals: async () => [],
   listBandOriginals: async () => [],
+  findOriginal: async () => null,
   createOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
   updateOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
   deleteOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
