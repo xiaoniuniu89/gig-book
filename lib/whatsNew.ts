@@ -1,6 +1,13 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-19",
+    items: [
+      "You get an email when someone adds you to a band, like you already do for gigs and setlists.",
+      "Settings → Email me when… now has a separate on/off for bands, gigs, setlists and replies.",
+    ],
+  },
+  {
     date: "2026-11-18",
     items: [
       "A band's setlist now shows the band in the trail at the top (Bands / your band / the setlist), so you can step back to the band.",

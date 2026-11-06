@@ -1,24 +1,35 @@
 // Plain transactional email through Resend's HTTP API (no SDK). Without RESEND_API_KEY nothing is sent.
 
-export const EMAIL_KINDS = ["added_to_setlist", "added_to_gig", "reply_to_note"] as const;
+export const EMAIL_KINDS = ["added_to_setlist", "added_to_gig", "added_to_band", "reply_to_note"] as const;
 
 const ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ENTITIES[c]);
 
 /** Subject and body for a notification; null for kinds that never email. */
 export function composeEmail(kind: string, actor: string, setlistName: string, link: string): { subject: string; text: string; html: string } | null {
-  const gig = kind === "added_to_gig";
-  const who = actor || "Someone", name = setlistName || (gig ? "a gig" : "a setlist");
+  const gig = kind === "added_to_gig", band = kind === "added_to_band";
+  const thing = gig ? "gig" : band ? "band" : "setlist";
+  const who = actor || "Someone", name = setlistName || "a " + thing;
   const line = kind === "added_to_setlist" ? `${who} added you to the setlist "${name}".`
     : gig ? `${who} added you to the lineup of the gig "${name}".`
+    : band ? `${who} added you to the band "${name}".`
     : kind === "reply_to_note" ? `${who} replied to your note on "${name}".` : "";
   if (!line) return null;
-  const foot = "You can turn these emails off in Settings.";
+  const foot = "You can choose which emails you get in Settings.";
   return {
-    subject: kind === "added_to_setlist" || gig ? `${who} added you to "${name}"` : `${who} replied to your note on "${name}"`,
+    subject: kind === "reply_to_note" ? `${who} replied to your note on "${name}"` : `${who} added you to "${name}"`,
     text: `${line}\n\nOpen it: ${link}\n\n${foot}\n`,
-    html: `<p>${esc(line)}</p><p><a href="${esc(link)}">Open the ${gig ? "gig" : "setlist"}</a></p><p style="color:#666;font-size:13px">${foot}</p>`,
+    html: `<p>${esc(line)}</p><p><a href="${esc(link)}">Open the ${thing}</a></p><p style="color:#666;font-size:13px">${foot}</p>`,
   };
+}
+
+/** Whether this person wants an email for this kind. Each "added" kind has its own switch; the older all-in-one emailAdded
+ *  is the default for them. Replies are off unless switched on. */
+export function wantsEmail(kind: string, s: Record<string, unknown>): boolean {
+  const added = s.emailAdded !== false;
+  const own = (k: string) => typeof s[k] === "boolean" ? s[k] as boolean : added;
+  return kind === "added_to_setlist" ? own("emailSetlist") : kind === "added_to_gig" ? own("emailGig") : kind === "added_to_band" ? own("emailBand")
+    : kind === "reply_to_note" ? s.emailReplies === true : false;
 }
 
 export type SendResult = "sent" | "skipped" | "failed";

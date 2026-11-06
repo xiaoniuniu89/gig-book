@@ -53,10 +53,12 @@ export function SettingsView() {
       {store.kind === "supabase" && (
         <section className="acct-sec">
           <h2>Email me when…</h2>
-          <div className="acct-field">
-            <span>Someone adds me to a setlist</span>
-            <Choice label="Email when added to a setlist or a gig" options={ONOFF} value={settings.emailAdded ? "on" : "off"} onPick={v => updateSettings({ emailAdded: v === "on" })} />
-          </div>
+          {([["emailBand", "Someone adds me to a band"], ["emailGig", "Someone puts me on a gig"], ["emailSetlist", "Someone adds me to a setlist"]] as const).map(([k, label]) => (
+            <div className="acct-field" key={k}>
+              <span>{label}</span>
+              <Choice label={"Email: " + label} options={ONOFF} value={settings[k] ? "on" : "off"} onPick={v => updateSettings({ [k]: v === "on" })} />
+            </div>
+          ))}
           <div className="acct-field">
             <span>Someone replies to my note</span>
             <Choice label="Email when someone replies to my note" options={ONOFF} value={settings.emailReplies ? "on" : "off"} onPick={v => updateSettings({ emailReplies: v === "on" })} />

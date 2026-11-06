@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { EMAIL_KINDS, composeEmail, sendEmail } from "@/lib/email";
+import { EMAIL_KINDS, composeEmail, sendEmail, wantsEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +27,9 @@ export async function POST(req: NextRequest) {
   const { data: n } = await sb.from("notifications").select("id, user_id, kind, payload, actor, emailed_at").eq("id", id).maybeSingle();
   if (!n || n.emailed_at || !(EMAIL_KINDS as readonly string[]).includes(n.kind) || n.actor === n.user_id) return NextResponse.json({ ok: true, skipped: "nothing to send" });
 
-  // per-person choice: setlist invites on by default, replies off
+  // per-person choice, per kind (Settings → Email me when…)
   const { data: us } = await sb.from("user_settings").select("settings").eq("user_id", n.user_id).maybeSingle();
-  const s = (us?.settings ?? {}) as Record<string, unknown>;
-  const wanted = n.kind === "added_to_setlist" || n.kind === "added_to_gig" ? s.emailAdded !== false : s.emailReplies === true;
-  if (!wanted) return NextResponse.json({ ok: true, skipped: "turned off" });
+  if (!wantsEmail(n.kind, (us?.settings ?? {}) as Record<string, unknown>)) return NextResponse.json({ ok: true, skipped: "turned off" });
 
   // claim it; losing the race means another delivery already has it
   const { data: claimed } = await sb.from("notifications").update({ emailed_at: new Date().toISOString() }).eq("id", id).is("emailed_at", null).select("id");
@@ -40,10 +38,11 @@ export async function POST(req: NextRequest) {
   const release = () => sb.from("notifications").update({ emailed_at: null }).eq("id", id);
   const { data: user } = await sb.auth.admin.getUserById(n.user_id);
   const to = user?.user?.email;
-  const p = (n.payload ?? {}) as { setlist_id?: string; setlist_name?: string; gig_id?: string; gig_title?: string };
+  const p = (n.payload ?? {}) as { setlist_id?: string; setlist_name?: string; gig_id?: string; gig_title?: string; band_id?: string; band_name?: string };
   const { data: actor } = n.actor ? await sb.from("profiles").select("display_name").eq("id", n.actor).maybeSingle() : { data: null };
   const base = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, "");
   const msg = !to ? null : n.kind === "added_to_gig" ? (p.gig_id ? composeEmail(n.kind, actor?.display_name ?? "", p.gig_title ?? "", `${base}/gigs/${p.gig_id}`) : null)
+    : n.kind === "added_to_band" ? (p.band_id ? composeEmail(n.kind, actor?.display_name ?? "", p.band_name ?? "", `${base}/bands/${p.band_id}`) : null)
     : p.setlist_id ? composeEmail(n.kind, actor?.display_name ?? "", p.setlist_name ?? "", `${base}/set/${p.setlist_id}`) : null;
   if (!to || !msg) return NextResponse.json({ ok: true, skipped: "no address" });
 

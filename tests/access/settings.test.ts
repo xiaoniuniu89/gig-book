@@ -10,8 +10,8 @@ afterAll(async () => { await admin().from("user_settings").delete().in("user_id"
 describe("user_settings", () => {
   it("starts empty, then saves and reads back, keeping keys it doesn't know", async () => {
     expect(await M.ava.store.getSettings()).toBeNull();
-    await M.ava.store.saveSettings({ theme: "dark", textSize: "large", player: "spotify", calm: false, emailAdded: true, emailReplies: false, future: { x: 1 } });
-    await M.ava.store.saveSettings({ theme: "system", textSize: "large", player: "spotify", calm: false, emailAdded: true, emailReplies: false, future: { x: 1 } }); // second save updates
+    await M.ava.store.saveSettings({ theme: "dark", textSize: "large", player: "spotify", calm: false, emailAdded: true, emailSetlist: true, emailGig: true, emailBand: true, emailReplies: false, future: { x: 1 } });
+    await M.ava.store.saveSettings({ theme: "system", textSize: "large", player: "spotify", calm: false, emailAdded: true, emailSetlist: true, emailGig: true, emailBand: true, emailReplies: false, future: { x: 1 } }); // second save updates
     const s = await M.ava.store.getSettings();
     expect(s).toMatchObject({ theme: "system", textSize: "large", player: "spotify", future: { x: 1 } });
   });
