@@ -648,6 +648,8 @@ object.file-chart { height: 100%; min-height: 80vh; }
 .lib-tools { display: flex; gap: 8px; align-items: center; }
 .lib-tools .search { flex: 1; min-width: 0; }
 .lib-tools select { width: auto; flex: none; max-width: 45%; }
+.cal-ok { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); padding: 6px 0; }
+.cal-ok::after { content: "✓"; color: var(--cover-green); font-weight: 900; }
 .chart-form textarea { font-family: inherit; font-size: 1rem; }
 @media (max-width: 900px), (pointer: coarse) { .pl-tab { min-height: 44px; } }
 /* tags are labels, not buttons: no tap-target height */

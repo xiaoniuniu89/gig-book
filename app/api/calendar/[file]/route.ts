@@ -16,6 +16,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ file
   const sb = createClient(url, svc, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: f } = await sb.from("calendar_feeds").select("owner").eq("token", token).maybeSingle();
   if (!f) return none();
+  // note which calendar app is fetching, so Account > Connections can show it as connected
+  const ua = req.headers.get("user-agent") || "";
+  const who = /Google/i.test(ua) ? "google_seen_at" : /iCal|CalendarAgent|dataaccessd|remindd|iOS\/|macOS\//i.test(ua) ? "apple_seen_at" : "other_seen_at";
+  await sb.from("calendar_feeds").update({ [who]: new Date().toISOString() }).eq("token", token);
   const { data, error } = await sb.rpc("calendar_feed_gigs", { p_token: token });
   if (error) return new NextResponse("Couldn't load the calendar.", { status: 500 });
   const body = buildIcs((data ?? []) as FeedGig[], req.nextUrl.origin);
