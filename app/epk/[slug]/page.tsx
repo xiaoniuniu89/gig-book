@@ -24,11 +24,14 @@ async function load(slug: string) {
   const sb = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   let p = ((await sb.rpc("public_profile", { p_slug: slug })).data as Kit[] | null)?.[0];
   let fn = "public_profile_files";
+  type Musician = { user_id: string; name: string | null; plays: string[] | null; bio: string | null; instruments: string[] | null; contact: Record<string, string> | null };
+  let musicians: Musician[] = [];
   if (!p) {
     const b = ((await sb.rpc("public_band", { p_slug: slug })).data as { name: string; bio: string | null; contact: Record<string, string> | null }[] | null)?.[0];
     if (!b) return null;
     p = { display_name: b.name, bio: b.bio, instruments: [], contact: b.contact };
     fn = "public_band_files";
+    musicians = ((await sb.rpc("public_band_members", { p_slug: slug })).data as Musician[] | null) || [];
   }
   const files: (PubFile & { url: string })[] = [];
   if (SERVICE) {
@@ -38,7 +41,7 @@ async function load(slug: string) {
     const signed = await admin.storage.from("attachments").createSignedUrls(rows.map(r => r.storage_path), EXPIRES);
     rows.forEach((r, i) => { const u = signed.data?.[i]?.signedUrl; if (u) files.push({ ...r, url: u }); });
   }
-  return { p, files };
+  return { p, files, musicians };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -49,7 +52,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const r = await load((await params).slug);
   if (!r) notFound();
-  const { p, files } = r;
+  const { p, files, musicians } = r;
   const contact = p.contact || {};
   const rows = CONTACT_FIELDS.filter(f => f.key !== "payment" && contact[f.key]);
   const pay = contact.payment;
@@ -79,6 +82,25 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             <Qr text={pay} label="QR code for the payment link" />
             {payHref && <a href={payHref} target="_blank" rel="noopener noreferrer">{pay}</a>}
           </div>
+        </section>
+      )}
+      {musicians.length > 0 && (
+        <section>
+          <h2>The musicians</h2>
+          {musicians.map(m => {
+            const c = m.contact || {}, tags = m.plays?.length ? m.plays : m.instruments || [];
+            const links = CONTACT_FIELDS.filter(f => f.key !== "payment" && c[f.key]);
+            return (
+              <div className="epk-member" key={m.user_id}>
+                <h3>{m.name || "Musician"}{tags.length > 0 && <span className="sub"> · {tags.join(", ")}</span>}</h3>
+                {m.bio && <Bio bio={m.bio} className="epk-bio" />}
+                {links.length > 0 && <dl className="epk-contact">{links.map(f => {
+                  const href = hrefFor(f.key, c[f.key]);
+                  return <div key={f.key}><dt>{f.label}</dt><dd>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{c[f.key]}</a> : c[f.key]}</dd></div>;
+                })}</dl>}
+              </div>
+            );
+          })}
         </section>
       )}
       {files.length > 0 && (

@@ -13,6 +13,8 @@ export interface KitPrint {
   photoUrl?: string;
   /** The public page, when it's on: shown as a QR code and a link. */
   pageUrl?: string;
+  /** A band's musicians, each on their own page: only what they share as Public. */
+  members?: { name: string; plays: string[]; bio: string; contact: { label: string; value: string }[] }[];
 }
 
 const CSS = `@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:11pt/1.45 Georgia,serif;color:#111;margin:0}
@@ -20,7 +22,7 @@ const CSS = `@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:11pt/1.
 h2{font:700 9pt/1 sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#555;margin:6mm 0 2mm;border-bottom:1px solid #ccc;padding-bottom:1mm}
 .bio p{margin:0 0 2.5mm}.bio h3{font-size:12pt;margin:3mm 0 1mm}.bio ul,.bio ol{margin:0 0 2.5mm;padding-left:6mm}.bio a{color:#111}
 img{width:100%;max-height:80mm;object-fit:cover;border-radius:2mm}dl{margin:0;font:9.5pt/1.4 sans-serif}dt{color:#555;margin-top:1.5mm}dd{margin:0;overflow-wrap:anywhere}
-.qr{width:30mm;height:30mm;display:block}.qrbox{margin-top:6mm;font:8.5pt/1.3 sans-serif;overflow-wrap:anywhere}`;
+.member{break-before:page}.member h1{font-size:20pt}.qr{width:30mm;height:30mm;display:block}.qrbox{margin-top:6mm;font:8.5pt/1.3 sans-serif;overflow-wrap:anywhere}`;
 
 export function kitHtml(k: KitPrint): string {
   const q = k.pageUrl ? qrPath(k.pageUrl) : null;
@@ -31,7 +33,12 @@ ${bio ? `<h2>Bio</h2><div class="bio">${bio}</div>` : ""}</main>
 <aside>${k.photoUrl ? `<img src="${e(k.photoUrl)}" alt="">` : ""}
 ${k.contact.length ? `<h2>Contact and links</h2><dl>${k.contact.map(c => `<dt>${e(c.label)}</dt><dd>${e(c.value)}</dd>`).join("")}</dl>` : ""}
 ${q && k.pageUrl ? `<div class="qrbox"><svg class="qr" viewBox="0 0 ${q.size} ${q.size}" shape-rendering="crispEdges"><rect width="${q.size}" height="${q.size}" fill="#fff"/><path d="${q.d}" fill="#000"/></svg>${e(k.pageUrl)}</div>` : ""}
-</aside></div></body></html>`;
+</aside></div>${(k.members || []).map(m => {
+    const mb = bioToHtml(m.bio);
+    return `<section class="member"><h1>${e(m.name)}</h1>${m.plays.length ? `<p class="tags">${e(m.plays.join(" · "))}</p>` : ""}
+${mb ? `<h2>Bio</h2><div class="bio">${mb}</div>` : ""}
+${m.contact.length ? `<h2>Contact and links</h2><dl>${m.contact.map(c => `<dt>${e(c.label)}</dt><dd>${e(c.value)}</dd>`).join("")}</dl>` : ""}</section>`;
+  }).join("")}</body></html>`;
 }
 
 /** Open the print dialog for the kit (choose "Save as PDF"). Call it straight from a click so the window isn't blocked. */

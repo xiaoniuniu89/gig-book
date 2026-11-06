@@ -219,7 +219,12 @@ export interface Band {
   epkSlug: string | null;
   /** The band's group chat (a WhatsApp invite link, say). Members only. */
   chatUrl: string | null;
+  /** Press kit: add the members' public press kits to the PDF and the public page. */
+  kitMembers: boolean;
 }
+
+/** A band member's press kit, only what they share as Public (for the band's PDF and public page). */
+export interface BandMemberKit { userId: string; name: string; plays: string[]; bio: string; instruments: string[]; contact: Record<string, string> }
 
 export interface BandFields { name: string; defaultPerms: BandPerms; bio: string; contact: Record<string, string>; epkSlug: string | null; chatUrl?: string | null }
 
@@ -599,6 +604,10 @@ export interface DataStore {
   /** Admins only. Setlists stay with their owners; band notes and files go. */
   deleteBand(id: string): Promise<void>;
   listBandMembers(bandId: string): Promise<BandMember[]>;
+  /** Members' Public press kits (R10.8); members with nothing public are left out. */
+  listBandKitMembers(bandId: string): Promise<BandMemberKit[]>;
+  /** Admins: whether the press kit includes the musicians. */
+  setBandKitMembers(bandId: string, on: boolean): Promise<void>;
   /** Needs the invite permission. Email exactly, or part of a display name. */
   searchBandUsers(bandId: string, q: string): Promise<BandCandidate[]>;
   addBandMember(bandId: string, userId: string, plays: string[]): Promise<void>;

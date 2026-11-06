@@ -464,6 +464,11 @@ function KitTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<vo
           await store.updateBand(band.id, { name: band.name, defaultPerms: band.defaultPerms, bio: n.bio, contact: n.contact, epkSlug: n.epkSlug });
           await reloadBand();
         }}
+        members={{
+          on: band.kitMembers,
+          set: async on => { try { await store.setBandKitMembers(band.id, on); await reloadBand(); } catch (e) { toast(errText(e, "Couldn't save that.")); } },
+          load: () => store.listBandKitMembers(band.id),
+        }}
         onRemoveFile={async a => {
           try { await store.deleteAttachment(a); setFiles(l => (l || []).filter(x => x.id !== a.id)); } catch (e) { toast(errText(e, "Couldn't delete that file.")); }
         }}

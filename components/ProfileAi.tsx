@@ -57,7 +57,12 @@ function Review({ p, s, busy, onApply, onBack }: { p: Profile; s: ProfileSuggest
   </>;
 }
 
-export function ProfileAi({ p, busy, guard, onApply }: { p: Profile; busy: boolean; guard: (go: () => void) => void; onApply: (next: Profile) => Promise<boolean> }) {
+export function ProfileAi({ p, busy, guard, onApply, label = "Import from a press kit", onKeep }: {
+  p: Profile; busy: boolean; guard: (go: () => void) => void; onApply: (next: Profile) => Promise<boolean>;
+  label?: string;
+  /** Called with an uploaded PDF once its details are applied, to keep it as the press kit PDF. */
+  onKeep?: (f: File) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -77,13 +82,17 @@ export function ProfileAi({ p, busy, guard, onApply }: { p: Profile; busy: boole
   };
   return <>
     <div className="row-btns">
-      <button className="btn small" type="button" onClick={() => guard(() => setOpen(true))}><Icon name="sparkle" size={16} /> Import from a press kit</button>
-      <Info label="About importing a press kit">The AI only suggests. You choose what to keep, and your sharing settings don&apos;t change. What you send isn&apos;t stored. It counts toward your daily Niu AI requests.</Info>
+      <button className="btn small" type="button" onClick={() => guard(() => setOpen(true))}><Icon name="upload" size={16} /> {label}</button>
+      <Info label="About uploading a press kit">Already have a press kit or CV? Upload it (or paste the text) and AI fills in your bio, instruments and links for you to check. A PDF is also kept as your press kit PDF. Your sharing settings don&apos;t change, and it counts toward your daily Niu AI requests.</Info>
     </div>
-    <Modal open={open} title="Import from a press kit" onClose={close} dirty={(!!text.trim() || !!file) && !sug && !working}>
+    <Modal open={open} title="Upload your press kit" onClose={close} dirty={(!!text.trim() || !!file) && !sug && !working}>
       <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your text is sent to an AI service to read it. Remove anything you don&apos;t want shared before you continue.</span></div>
       {sug ? <Review p={p} s={sug} busy={busy} onBack={() => setSug(null)}
-        onApply={async next => { if (await onApply(next)) close(); }} /> : <div className="pf-ai">
+        onApply={async next => {
+          if (!(await onApply(next))) return;
+          if (file && onKeep && (file.type === "application/pdf" || /\.pdf$/i.test(file.name))) onKeep(file);
+          close();
+        }} /> : <div className="pf-ai">
         <textarea aria-label="Your press kit text" rows={8} placeholder="Paste your bio, one-sheet or CV text here" value={text} disabled={!!file || working} maxLength={60000} onChange={e => setText(e.target.value)} />
         <div className="row-btns">
           <input ref={pick} type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden onChange={e => {

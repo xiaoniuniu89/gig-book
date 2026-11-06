@@ -3,7 +3,7 @@
 // People get a "Who can see it" setting per item; bands don't (admins edit, members read, the public page shows what the band has).
 // Every field reads as plain text; its edit button opens it, and Save stores just that change.
 import dynamic from "next/dynamic";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
@@ -19,7 +19,7 @@ import { MAX_PHOTOS, resizeImage } from "@/lib/photos";
 import { hrefFor } from "@/lib/contact";
 import { openPrintWindow, printKit } from "@/lib/kitPdf";
 import { BIO_TEXT_MAX, bioLength, bioToText, bioWords, sanitizeBio } from "@/lib/richtext";
-import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, type Attachment, type Profile, type Share } from "@/lib/data/types";
+import { CONTACT_FIELDS, SHARES, SLUG_RE, fileShareKey, type Attachment, type BandMemberKit, type Profile, type Share } from "@/lib/data/types";
 
 // the editor (Tiptap) loads when a bio is first opened for editing
 const RichBio = dynamic(() => import("./RichBio"), { ssr: false, loading: () => <p className="hint" role="status">Loading the editor…</p> });
@@ -80,7 +80,7 @@ const ABOUT: Record<"person" | "band", Record<Sub, string>> = {
 };
 let lastSub: Sub = "bio"; // remembered while the app is open
 
-export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, onSave, onRemoveFile, defaultSlug }: {
+export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, onSave, onRemoveFile, defaultSlug, members }: {
   kind: "person" | "band";
   kit: Profile;
   canEdit: boolean;
@@ -90,6 +90,8 @@ export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, on
   onSave: (next: Profile) => Promise<void>;
   onRemoveFile: (a: Attachment) => Promise<void>;
   defaultSlug: string;
+  /** Bands: include the musicians' Public press kits in the PDF and on the public page. */
+  members?: { on: boolean; set: (on: boolean) => Promise<void>; load: () => Promise<BandMemberKit[]> };
 }) {
   const { store, toast } = useApp();
   const person = kind === "person";
@@ -101,6 +103,7 @@ export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, on
   const [ask, setAsk] = useState<{ then: () => void } | null>(null); // unsaved changes: save before moving on?
   const [busy, setBusy] = useState(false);
   const [priv, setPriv] = useState(false); // PDF: include private contact details
+  const kitFile = useRef<HTMLInputElement>(null);
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
 
   const x = open && d ? d : p;
@@ -164,6 +167,10 @@ export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, on
           instruments: show("instruments") ? p.instruments : [],
           contact: CONTACT_FIELDS.filter(f => p.contact[f.key]?.trim() && show(f.key)).map(f => ({ label: f.label.replace(/ \(.*\)$/, ""), value: p.contact[f.key].trim() })),
           photoUrl, pageUrl: liveUrl || undefined,
+          members: members?.on ? (await members.load().catch(() => [])).map(m => ({
+            name: m.name, plays: m.plays.length ? m.plays : m.instruments, bio: m.bio,
+            contact: CONTACT_FIELDS.filter(f => f.key !== "payment" && m.contact[f.key]?.trim()).map(f => ({ label: f.label.replace(/ \(.*\)$/, ""), value: m.contact[f.key].trim() })),
+          })) : undefined,
         });
       } catch (e) { w.close(); err(e, "Couldn't make the PDF."); }
     })();
@@ -214,10 +221,18 @@ export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, on
       </Modal>
 
       <div className="kit-export">
+        <span className="stamp wip">Work in progress</span>
+        {canEdit && (person
+          ? <ProfileAi p={p} busy={busy} guard={leave} onApply={persist} label="Upload your press kit" onKeep={f => { void addFiles([f]); }} />
+          : <>
+            <input ref={kitFile} type="file" accept="application/pdf,.pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { void addFiles([f]); leave(() => { setSub("files"); lastSub = "files"; }); } }} />
+            <button className="btn small" type="button" onClick={() => kitFile.current?.click()}><Icon name="upload" size={16} /> Upload your press kit</button>
+          </>)}
         <button className="btn small" type="button" disabled={!!open && changed} onClick={downloadPdf}><Icon name="import" size={16} /> Download PDF</button>
         <button className="btn small" type="button" disabled={!p.bio.trim()} onClick={() => void copyBio()}>Copy bio</button>
         {person && <label className="toggle"><input type="checkbox" checked={priv} onChange={e => setPriv(e.target.checked)} /> Include private contact details</label>}
-        <Info label="About the PDF">Opens a one-page press kit in a new window. Choose Save as PDF in the print box, then send it to an agent or venue.{person ? " It only has what you share as Public, unless you tick the box." : ""} Copy bio gives the bio as plain text for booking forms.</Info>
+        {members && <label className="toggle"><input type="checkbox" checked={members.on} disabled={!canEdit} onChange={e => void members.set(e.target.checked)} /> Include the musicians</label>}
+        <Info label="About the PDF">Opens a one-page press kit in a new window. Choose Save as PDF in the print box, then send it to an agent or venue.{person ? " It only has what you share as Public, unless you tick the box." : ""} Copy bio gives the bio as plain text for booking forms.{members ? " Include the musicians adds a page for each member, with only what they've made public in their own press kit; members with nothing public are left out. It applies to the public page too." : ""}</Info>
       </div>
 
       <div className="pl-tabs" role="tablist" aria-label="Press kit sections">
@@ -228,7 +243,6 @@ export function PressKit({ kind, kit: p, canEdit, files, uploads, uploadHome, on
       <p className="hint">{ABOUT[kind][sub]}</p>
 
       {sub === "bio" && <section className="acct-sec" role="tabpanel" aria-label="Bio">
-        {person && canEdit && <ProfileAi p={p} busy={busy} guard={leave} onApply={persist} />}
         {person && <>
           <Field label="Name" {...field("name")} view={p.displayName || empty}>
             <input type="text" aria-label="Name" value={x.displayName} maxLength={80} onChange={e => edit(y => ({ ...y, displayName: e.target.value }))} />

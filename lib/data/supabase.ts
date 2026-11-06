@@ -176,18 +176,18 @@ export function itemUuid(setlistId: string, id: string): string {
   return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-8" + hex.slice(17, 20) + "-" + hex.slice(20, 32);
 }
 
-interface BandRow { id: string; name: string; default_perms: BandPerms; bio: string | null; contact: Record<string, string> | null; epk_slug: string | null; chat_url: string | null }
+interface BandRow { id: string; name: string; default_perms: BandPerms; bio: string | null; contact: Record<string, string> | null; epk_slug: string | null; chat_url: string | null; kit_members?: boolean }
 interface MemberRow { band_id: string; role: BandRole; plays: string[] | null; perms: Partial<BandPerms> | null }
 interface MemberListRow {
   user_id: string; display_name: string | null; role: BandRole; plays: string[] | null; perms: Partial<BandPerms> | null;
   bio: string | null; instruments: string[] | null; contact: Record<string, string> | null;
 }
-const BAND_COLS = "id, name, default_perms, bio, contact, epk_slug, chat_url";
+const BAND_COLS = "id, name, default_perms, bio, contact, epk_slug, chat_url, kit_members";
 function toBand(b: BandRow, m: MemberRow): Band {
   const defaultPerms = { ...DEFAULT_BAND_PERMS, ...(b.default_perms || {}) };
   return {
     id: b.id, name: b.name, role: m.role, defaultPerms, perms: effectivePerms(m.role, m.perms, defaultPerms), plays: m.plays || [],
-    bio: b.bio || "", contact: b.contact || {}, epkSlug: b.epk_slug, chatUrl: b.chat_url,
+    bio: b.bio || "", contact: b.contact || {}, epkSlug: b.epk_slug, chatUrl: b.chat_url, kitMembers: !!b.kit_members,
   };
 }
 
@@ -1030,6 +1030,18 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (paths.length) await sb.storage.from(BUCKET).remove(paths);
       const { error } = await sb.rpc("band_delete", { p_band: id });
       if (error) fail("delete the band", error);
+    },
+
+    async listBandKitMembers(bandId) {
+      const { data, error } = await sb.rpc("band_kit_members", { p_band: bandId });
+      if (error) fail("load the musicians' press kits", error);
+      return ((data || []) as { user_id: string; name: string | null; plays: string[] | null; bio: string | null; instruments: string[] | null; contact: Record<string, string> | null }[])
+        .map(r => ({ userId: r.user_id, name: r.name || "", plays: r.plays || [], bio: r.bio || "", instruments: r.instruments || [], contact: r.contact || {} }));
+    },
+
+    async setBandKitMembers(bandId, on) {
+      const { error } = await sb.from("bands").update({ kit_members: on }).eq("id", bandId);
+      if (error) fail("save that", error);
     },
 
     async listBandMembers(bandId) {
