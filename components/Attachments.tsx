@@ -191,7 +191,8 @@ function Viewer({ a, url, onClose }: { a: Attachment; url: string; onClose: () =
 }
 
 /** The file contents for the chart view: image, PDF or transposable MusicXML score, full size. */
-export function FileChart({ store, a, transpose }: { store: DataStore; a: Attachment; transpose?: number }) {
+/** `fit`: a PDF's pages fit the window height minus this (see PdfPages). */
+export function FileChart({ store, a, transpose, fit }: { store: DataStore; a: Attachment; transpose?: number; fit?: number }) {
   const url = useSignedUrl(store, a);
   if (url === undefined) return <p className="hint">Loading…</p>;
   if (url === null) return <p className="hint">Couldn&apos;t open that file.</p>;
@@ -199,7 +200,7 @@ export function FileChart({ store, a, transpose }: { store: DataStore; a: Attach
   return a.kind === "image"
     // eslint-disable-next-line @next/next/no-img-element -- a signed URL, not a static asset
     ? <div className="file-chart"><img src={url} alt={a.name} /></div>
-    : <div className="file-chart"><PdfPages url={url} name={a.name} /></div>;
+    : <div className="file-chart"><PdfPages url={url} name={a.name} fit={fit} /></div>;
 }
 
 function One({ store, a, canDelete, onDelete }: { store: DataStore; a: Attachment; canDelete: boolean; onDelete: (a: Attachment) => void }) {

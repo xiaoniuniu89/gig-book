@@ -9,7 +9,7 @@ import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey, meta } from "@/lib/songs";
 import { TuneTranscriptions } from "../Transcriptions";
-import { EditSongButton, LeadSheetPane, useOriginal } from "../Originals";
+import { EditSongButton, LeadSheetDownload, LeadSheetPane, useOriginal } from "../Originals";
 import { Notes } from "../Notes";
 import { Licks } from "../Licks";
 import { MyResources } from "../Resources";
@@ -194,10 +194,11 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
       </div>
       <section className="panel" aria-label="Chord chart" data-tour="chart">
         <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} vs={vs} leadSheet={!!orig?.leadSheet}>
+          {ch.tab === "leadsheet" && orig?.leadSheet && <LeadSheetDownload o={orig} />}
           {orig?.mine && cur.kind === "lib" && <EditSongButton o={orig} />}
           <ReharmButtons sg={cur0.song} vs={vs} original={!!orig} />
         </ChartTabs>
-        {ch.tab === "leadsheet" && orig?.leadSheet ? <LeadSheetPane o={orig} />
+        {ch.tab === "leadsheet" && orig?.leadSheet ? <LeadSheetPane o={orig} fit={140} />
         : ch.tab === "lyrics" ? <LyricsPane songKey={songKey(cur0.song.raw)} title={cur0.song.title} composer={composerName(cur0.song.composer)} form={form}
           chart={<ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />} />
         : ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
@@ -218,7 +219,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         <HitBar sg={sg} canEdit={canHits} editing={editing} setEditing={v => { setEditHits(v); if (!v) setSelBar(null); }} feels={marks?.feels}
           setFeel={(sec, f) => saveItem(it => ({ ...it, feels: { ...it.feels, [sec]: f } }))} />
         {editing && <TapAlong sg={sg} hits={validateHits(marks?.hits, sg.bars.length)} onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
-        <ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} onBar={editing ? setSelBar : undefined} />
+        <div className="chart-fit"><ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} fit={!editing} minFit={0.7} onBar={editing ? setSelBar : undefined} /></div>
         {editing && <HitEditor bars={sg.bars.length} sel={selBar} setSel={setSelBar} hits={validateHits(marks?.hits, sg.bars.length)}
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
@@ -253,7 +254,8 @@ const MIN_FIT = 0.45;
  * chartHTML escapes every piece of text it outputs.
  */
 // `fit` scales the chart down (never up) to fill the parent's height without scrolling, stopping at MIN_FIT.
-export function ChartHost({ html, live, fit, onBar }: { html: string; live: boolean; fit?: boolean; onBar?: (bar: number) => void }) {
+/** `fit`: shrink (down to `minFit`) so the chart fits its box's height. */
+export function ChartHost({ html, live, fit, minFit = MIN_FIT, onBar }: { html: string; live: boolean; fit?: boolean; minFit?: number; onBar?: (bar: number) => void }) {
   const app = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const markRef = useRef(app.markBar); markRef.current = app.markBar;
@@ -268,6 +270,7 @@ export function ChartHost({ html, live, fit, onBar }: { html: string; live: bool
     const el = ref.current, box = el?.parentElement;
     if (!fit || !el || !box) return;
     const run = () => {
+      el.style.zoom = "1"; // measure at full size: a box that grows with the chart must not keep the last shrink
       const cs = getComputedStyle(box);
       const room = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
       let z = 1;
@@ -275,8 +278,8 @@ export function ChartHost({ html, live, fit, onBar }: { html: string; live: bool
       for (let i = 0; i < 4; i++) {
         el.style.zoom = String(z);
         const h = el.getBoundingClientRect().height;
-        if (h <= room + 1 || z <= MIN_FIT) break;
-        z = Math.max(MIN_FIT, Math.floor(z * (room / h) * 100) / 100);
+        if (h <= room + 1 || z <= minFit) break;
+        z = Math.max(minFit, Math.floor(z * (room / h) * 100) / 100);
       }
     };
     run();
@@ -284,7 +287,7 @@ export function ChartHost({ html, live, fit, onBar }: { html: string; live: bool
     ro.observe(box);
     document.fonts?.ready.then(run).catch(() => {});
     return () => { ro.disconnect(); el.style.zoom = ""; };
-  }, [fit, html]);
+  }, [fit, html, minFit]);
   const pick = onBar && ((e: React.MouseEvent) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-bar]");
     if (b) onBar(Number(b.dataset.bar));

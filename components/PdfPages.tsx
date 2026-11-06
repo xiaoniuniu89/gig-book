@@ -15,10 +15,12 @@ async function openPdf(url: string): Promise<PdfDoc> {
   return (await pdfjs.getDocument({ url, isEvalSupported: false }).promise) as unknown as PdfDoc;
 }
 
-export function PdfPages({ url, name }: { url: string; name: string }) {
+/** `fit`: on screens 700px or wider, each page is sized so it fits the window height minus this many pixels. */
+export function PdfPages({ url, name, fit }: { url: string; name: string; fit?: number }) {
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDoc | null | undefined>(undefined);
   const [width, setWidth] = useState(0);
+  const [tall, setTall] = useState(0);
 
   useEffect(() => {
     let live = true, d: PdfDoc | null = null;
@@ -31,21 +33,24 @@ export function PdfPages({ url, name }: { url: string; name: string }) {
     const el = box.current;
     if (!el) return;
     let t: ReturnType<typeof setTimeout> | undefined;
-    const ro = new ResizeObserver(([e]) => { clearTimeout(t); t = setTimeout(() => setWidth(Math.round(e.contentRect.width)), 120); });
+    const size = () => setTall(fit !== undefined && window.innerWidth >= 700 ? Math.max(300, window.innerHeight - fit) : 0);
+    const ro = new ResizeObserver(([e]) => { clearTimeout(t); t = setTimeout(() => { setWidth(Math.round(e.contentRect.width)); size(); }, 120); });
     ro.observe(el);
-    return () => { ro.disconnect(); clearTimeout(t); };
-  }, []);
+    size();
+    window.addEventListener("resize", size);
+    return () => { ro.disconnect(); clearTimeout(t); window.removeEventListener("resize", size); };
+  }, [fit]);
 
   return (
     <div className="pdf-pages" ref={box} aria-label={name}>
       {doc === undefined && <p className="hint pad">Loading…</p>}
       {doc === null && <p className="hint pad">Couldn&apos;t show this PDF. Use Download to open it.</p>}
-      {doc && width > 0 && Array.from({ length: Math.min(doc.numPages, 30) }, (_, i) => <Page key={i} doc={doc} n={i + 1} width={width} />)}
+      {doc && width > 0 && Array.from({ length: Math.min(doc.numPages, 30) }, (_, i) => <Page key={i} doc={doc} n={i + 1} width={width} tall={tall} />)}
     </div>
   );
 }
 
-function Page({ doc, n, width }: { doc: PdfDoc; n: number; width: number }) {
+function Page({ doc, n, width, tall }: { doc: PdfDoc; n: number; width: number; tall: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let task: { promise: Promise<void>; cancel(): void } | null = null, live = true;
@@ -54,7 +59,9 @@ function Page({ doc, n, width }: { doc: PdfDoc; n: number; width: number }) {
       if (!live || !c) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
       const base = p.getViewport({ scale: 1 });
-      const vp = p.getViewport({ scale: (width / base.width) * dpr });
+      const w = tall ? Math.min(width, Math.round(tall * base.width / base.height)) : width; // the whole page in view
+      c.style.width = w + "px";
+      const vp = p.getViewport({ scale: (w / base.width) * dpr });
       c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
       c.style.aspectRatio = base.width + " / " + base.height;
       const ctx = c.getContext("2d");
@@ -63,6 +70,6 @@ function Page({ doc, n, width }: { doc: PdfDoc; n: number; width: number }) {
       task.promise.catch(() => { /* cancelled by a newer width */ });
     }, () => { /* a page that won't load just stays blank */ });
     return () => { live = false; task?.cancel(); };
-  }, [doc, n, width]);
+  }, [doc, n, width, tall]);
   return <canvas ref={canvas} className="pdf-page" aria-label={"Page " + n} />;
 }

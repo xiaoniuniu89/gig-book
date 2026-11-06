@@ -1137,7 +1137,12 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .lead-sheet { padding-top: 10px; justify-items: stretch; }
 /* a PDF or photo chart read like the iReal chart: white pages at full width, no viewer chrome */
 .pdf-pages { display: grid; gap: 14px; width: 100%; }
-.pdf-page { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 6px; }
+.pdf-page { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto; background: #fff; border: 1px solid var(--rule); border-radius: 6px; }
+@media (min-width: 700px) {
+  .lead-sheet .fit-img { width: auto; max-height: calc(100dvh - 140px); }
+  /* the iReal chart on a tune's page shrinks a little if needed so the whole tune fits the window */
+  .chart-fit { max-height: calc(100dvh - 140px); overflow-y: auto; }
+}
 .steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; line-height: 1.45; }
 .epk-member { padding: 12px 0; border-top: 1px solid var(--rule); }
 .epk-member h3 { margin: 0 0 6px; }

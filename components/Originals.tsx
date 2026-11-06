@@ -233,8 +233,8 @@ export function useOriginal(raw: string): OriginalSong | null {
   return mine ?? (found?.key === key ? found.o : null);
 }
 
-/** The Lead sheet tab: the pages themselves, clean like the iReal chart (a PDF is drawn page by page), and Download. */
-export function LeadSheetPane({ o }: { o: OriginalSong }) {
+/** The Lead sheet tab: the pages themselves, clean like the iReal chart (a PDF is drawn page by page). `fit`: see PdfPages. */
+export function LeadSheetPane({ o, fit }: { o: OriginalSong; fit?: number }) {
   const { store } = useApp();
   const [url, setUrl] = useState<string | null | undefined>(undefined);
   const path = o.leadSheet?.path;
@@ -249,13 +249,25 @@ export function LeadSheetPane({ o }: { o: OriginalSong }) {
   if (!url) return <p className="hint pad">{url === null ? "Couldn't load the lead sheet." : "Loading the lead sheet…"}</p>;
   return (
     <div className="lead-sheet">
-      <div className="row-btns"><a className="btn small" href={url} download={o.leadSheet.name}><Icon name="import" size={16} /> Download</a></div>
       {o.leadSheet.kind === "image"
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img className="pdf-page" src={url} alt={"Lead sheet: " + o.title} />
-        : <PdfPages url={url} name={"Lead sheet: " + o.title} />}
+        ? <img className="pdf-page fit-img" src={url} alt={"Lead sheet: " + o.title} />
+        : <PdfPages url={url} name={"Lead sheet: " + o.title} fit={fit} />}
     </div>
   );
+}
+
+/** Download, in the chart tab row while the Lead sheet tab is open. */
+export function LeadSheetDownload({ o }: { o: OriginalSong }) {
+  const { store, toast } = useApp();
+  const go = async () => {
+    try {
+      const a = document.createElement("a");
+      a.href = await store.originalLeadSheetUrl(o); a.download = o.leadSheet?.name || "lead sheet"; a.rel = "noreferrer";
+      a.click();
+    } catch (e) { toast(msg(e, "Couldn't download the lead sheet.")); }
+  };
+  return <button className="btn small" onClick={go}><Icon name="import" size={16} /> Download</button>;
 }
 
 /** Edit song, for your own original on its library page. */

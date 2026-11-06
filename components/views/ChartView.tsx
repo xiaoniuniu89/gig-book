@@ -15,6 +15,7 @@ import { FileChart } from "../Attachments";
 import { Icon } from "../Icon";
 import { ChartAudio, useCharts } from "../Charts";
 import { useVersions } from "../Versions";
+import { LeadSheetPane, useOriginal } from "../Originals";
 import type { Attachment } from "@/lib/data/types";
 
 /** What the view shows. R3.4 adds an attached PDF/image kind here. */
@@ -71,6 +72,7 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
   const vs = useVersions(cur0?.song ?? null); // R3.5: the version picked on the tune page
   const cur = useMemo<Current | null>(() => !cur0 || !vs.song || vs.song === cur0.song ? cur0 : { ...cur0, song: vs.song }, [cur0, vs.song]);
   const ch = useCharts(cur ? songKey(cur.song.raw) : "", tune?.setlistId); // R3.4: the chart tab you last picked for this tune
+  const orig = useOriginal(cur0?.song.raw ?? "");
   const router = useRouter();
   const { prefs, setCurrent } = app;
   const [fs, setFs] = useState<"no" | "off" | "on">("no");
@@ -111,6 +113,15 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
   const html = useMemo(() => sg ? chartHTML(sg, { shift, mode: prefs.mode, sc: prefs.sc, tn: prefs.tn, fn: prefs.fn, drummer: prefs.drummer, hits: item?.hits, feels: item?.feels }) : "",
     [sg, shift, prefs.mode, prefs.sc, prefs.tn, prefs.fn, prefs.drummer, item?.hits, item?.feels]);
   const file = ch.shown?.file ?? null;
+  // every version of the tune, as on its page: iReal, its reharms, the lead sheet of an original, uploaded charts
+  const leadSheet = ch.tab === "leadsheet" && orig?.leadSheet ? orig : null;
+  const picks: [string, string][] = [["ireal", "iReal"], ...vs.versions.map(x => ["v:" + x.id, x.name + " (reharm)"] as [string, string]),
+    ...(orig?.leadSheet ? [["leadsheet", "Lead sheet"] as [string, string]] : []), ...ch.charts.map(c => [c.id, c.name] as [string, string])];
+  const picked = ch.tab === "ireal" ? (vs.pick ? "v:" + vs.pick : "ireal") : ch.tab;
+  const pickChart = (v: string) => {
+    if (v.startsWith("v:")) { ch.setTab("ireal"); vs.setPick(v.slice(2)); }
+    else { ch.setTab(v); vs.setPick(""); }
+  };
   const source: ChartSource = file ? { kind: "file", att: file } : { kind: "ireal" };
 
   if (!cur || !sg) return (
@@ -147,10 +158,9 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
           <button aria-label="Transpose down a half step" onClick={() => tr(-1)}>−</button>
           <button aria-label="Transpose up a half step" onClick={() => tr(1)}>+</button>
         </span>
-        {ch.charts.length > 0 && (
-          <select className="focus-pick" aria-label="Which chart" value={ch.tab} onChange={e => ch.setTab(e.target.value)}>
-            <option value="ireal">iReal</option>
-            {ch.charts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        {picks.length > 1 && (
+          <select className="focus-pick" aria-label="Which chart" value={picked} onChange={e => pickChart(e.target.value)}>
+            {picks.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
         )}
         <button className="btn icon-btn" aria-label="Rhythm view" aria-pressed={!!prefs.drummer} title="Rhythm view" onClick={() => app.updatePrefs({ drummer: !prefs.drummer })}><Icon name="drum" size={18} /></button>
@@ -159,9 +169,10 @@ function Focus({ cur: cur0, back, prev, next, missing, tune }: {
         {fs !== "no" && <button className="btn icon-btn" aria-label={fs === "on" ? "Leave full screen" : "Full screen"}
           onClick={() => (fs === "on" ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}>⛶</button>}
       </div>
-      <div className="focus-body" onPointerDown={e => { start.current = file ? null : { x: e.clientX, y: e.clientY }; }}
+      <div className="focus-body" onPointerDown={e => { start.current = file || leadSheet ? null : { x: e.clientX, y: e.clientY }; }}
         onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
-        {source.kind === "ireal" ? <ChartHost html={html} live={playing} fit /> : <FileChart store={app.store} a={source.att} transpose={shift} />}
+        {leadSheet ? <LeadSheetPane o={leadSheet} fit={70} />
+          : source.kind === "ireal" ? <ChartHost html={html} live={playing} fit /> : <FileChart store={app.store} a={source.att} transpose={shift} fit={70} />}
       </div>
       {ch.shown?.audio && <div className="focus-audio"><ChartAudio c={ch.shown} /></div>}
     </div>

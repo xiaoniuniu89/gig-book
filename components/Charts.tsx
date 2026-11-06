@@ -251,7 +251,7 @@ export function ChartPane({ c, setlist, ch, transpose }: { c: Chart; setlist?: S
         <ChartAudio c={c} />
         {(c.mine || canDelete) && <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit chart</button>}
       </div>}
-      <div className="chart-pane-file"><FileChart store={store} a={c.file} transpose={c.file.kind === "musicxml" ? transpose : undefined} /></div>
+      <div className="chart-pane-file"><FileChart store={store} a={c.file} transpose={c.file.kind === "musicxml" ? transpose : undefined} fit={140} /></div>
       <Modal open={editing} title={"Edit " + c.name} onClose={() => setEditing(false)} dirty={editDirty}>
         <EditChart c={c} setlist={setlist} canDelete={canDelete} onDirty={setEditDirty}
           onSaved={n => { ch.setCharts(l => l.map(x => x.id === n.id ? n : x)); setEditing(false); }}
