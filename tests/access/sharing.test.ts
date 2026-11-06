@@ -1,6 +1,6 @@
 // One sharing model (0048): setlists and transcriptions are Private / Bands I'm in / Public. A reader through visibility
 // sees the setlist and its tunes, never its notes, files or people, and can't change anything. Signed out gets nothing.
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { IDS, USERS, type Who } from "../fixtures";
 import { admin, anon, cleanScratch, everyone, must, scratchBand, scratchSetlist, type Musician } from "./helpers";
 
@@ -8,6 +8,7 @@ let M: Record<Who, Musician>;
 const PDF = new Blob(["%PDF-1.4\n%%EOF"], { type: "application/pdf" });
 
 beforeAll(async () => { M = await everyone(); });
+afterEach(cleanScratch); // a test that puts Eli in a band with Ava mustn't leave them bandmates for the next one
 afterAll(async () => { await cleanScratch(); await clearTranscriptions(); });
 
 // only the owner may change who can see a setlist (guard_setlist_update), so Ava (who owns every scratch setlist here) does it
