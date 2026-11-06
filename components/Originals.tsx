@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
+import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
@@ -145,7 +146,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
       <form className="chart-form" onSubmit={save}>
         <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
         {aiFirst ? <>
-          <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your lead sheet is sent to an AI service to fill in the song. It can make mistakes: check everything before you save.</span></div>
+          <AiNote what="your lead sheet">It can make mistakes: check everything before you save.</AiNote>
           <div className="field"><span className="field-label">Lead sheet <Info label="About the lead sheet">A PDF (3 MB at most for AI) or a photo of your chart. AI reads the title, composer, style, key, tempo and chords from it, and the file is kept with the song. It counts toward your daily Niu AI requests.</Info></span>
             <div className="attach-opts">
               {file ? <span className="chip">{file.name}</span>

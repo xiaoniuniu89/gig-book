@@ -1,6 +1,7 @@
 "use client";
 // "Import from a press kit" (R11.8, #52): paste or upload (PDF, .docx, .txt), see what the AI read, tick what to keep, Apply.
 import { useRef, useState } from "react";
+import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
@@ -86,7 +87,7 @@ export function ProfileAi({ p, busy, guard, onApply, label = "Import from a pres
       <Info label="About uploading a press kit">Already have a press kit or CV? Upload it (or paste the text) and AI fills in your bio, instruments and links for you to check. A PDF is also kept as your press kit PDF. Your sharing settings don&apos;t change, and it counts toward your daily Niu AI requests.</Info>
     </div>
     <Modal open={open} title="Upload your press kit" onClose={close} dirty={(!!text.trim() || !!file) && !sug && !working}>
-      <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your text is sent to an AI service to read it. Remove anything you don&apos;t want shared before you continue.</span></div>
+      <AiNote what="your text or file">Remove anything you don&apos;t want shared before you continue.</AiNote>
       {sug ? <Review p={p} s={sug} busy={busy} onBack={() => setSug(null)}
         onApply={async next => {
           if (!(await onApply(next))) return;

@@ -3,6 +3,7 @@
 // like a chart. Tap a bar to type its chords in normal notation (Dm7 G7); marks (repeats, endings, segno, coda, words) are toggles.
 // What can't be read is marked on the bar and listed on save, never dropped.
 import { useState } from "react";
+import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { cellsFor, readChords, TIME_SIGS, type ChartBar } from "@/lib/irealExport";
@@ -70,7 +71,7 @@ export function ChartEditor({ value, onChange, ts, ai }: { value: EditSection[];
           <Icon name="sparkle" size={16} /> {ai.busy ? "Reading the lead sheet…" : "Fill in chords with AI"}
         </button>}
       </div>
-      {ai?.ready && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Fill in chords with AI sends the lead sheet to an AI service. It counts toward your daily Niu AI requests, and it can make mistakes: check the chart before you save.</span></div>}
+      {ai?.ready && <AiNote what="your lead sheet">Only when you press Fill in chords with AI. It counts toward your daily Niu AI requests and can make mistakes: check the chart before you save.</AiNote>}
       <datalist id="section-names">{NAMES.map(n => <option key={n} value={n} />)}</datalist>
       {value.map((s, i) => {
         const cells = cellsFor(s.ts), at = sel?.key === s.key && sel.bar < s.bars.length ? sel.bar : null, cur = at === null ? null : s.bars[at];

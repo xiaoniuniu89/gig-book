@@ -19,6 +19,8 @@ export interface Settings {
   emailBand: boolean;
   /** Email me when someone replies to my note (default off). */
   emailReplies: boolean;
+  /** Show the note before AI reads your own work (default on). */
+  aiNotes: boolean;
   [key: string]: unknown;
 }
 
@@ -27,7 +29,7 @@ export const TEXT_SIZES: { value: TextSize; label: string }[] = [{ value: "norma
 
 export const PLAYERS: { value: PlayerChoice; label: string }[] = [{ value: "youtube", label: "YouTube" }, { value: "spotify", label: "Spotify" }];
 
-export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube", calm: false, emailAdded: true, emailSetlist: true, emailGig: true, emailBand: true, emailReplies: false };
+export const DEFAULT_SETTINGS: Settings = { theme: "light", textSize: "normal", player: "youtube", calm: false, emailAdded: true, emailSetlist: true, emailGig: true, emailBand: true, emailReplies: false, aiNotes: true };
 export const CALM_KEY = "gigbook-calm"; // "1" when calm mode is on; the pre-paint script reads it
 export const THEME_KEY = "gigbook-theme-v2"; // v2: the Real Book look starts everyone on light. Holds light, dark or system; the layout's pre-paint script reads it.
 export const TEXT_KEY = "gigbook-text"; // same idea for the text size
@@ -41,7 +43,7 @@ export function normalizeSettings(raw: unknown): Settings {
   const player = PLAYERS.some(t => t.value === o.player) ? o.player as PlayerChoice : DEFAULT_SETTINGS.player;
   const added = o.emailAdded !== false;
   const each = (k: string) => typeof o[k] === "boolean" ? o[k] as boolean : added;
-  return { ...o, theme, textSize, player, calm: o.calm === true, emailAdded: added, emailSetlist: each("emailSetlist"), emailGig: each("emailGig"), emailBand: each("emailBand"), emailReplies: o.emailReplies === true };
+  return { ...o, theme, textSize, player, calm: o.calm === true, emailAdded: added, emailSetlist: each("emailSetlist"), emailGig: each("emailGig"), emailBand: each("emailBand"), emailReplies: o.emailReplies === true, aiNotes: o.aiNotes !== false };
 }
 
 export const prefersDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;

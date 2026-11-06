@@ -52,6 +52,16 @@ export function SettingsView() {
 
       {store.kind === "supabase" && (
         <section className="acct-sec">
+          <h2>AI</h2>
+          <div className="acct-field">
+            <span>Show a note before AI reads my work <Info label="About AI notes">Uploading with AI (your bio, press kit, lead sheets, transcriptions) shares that file or text with an outside AI company so it can fill things in for you. The note says so each time. Turn it off once you know.</Info></span>
+            <Choice label="Show a note before AI reads my work" options={ONOFF} value={settings.aiNotes ? "on" : "off"} onPick={v => updateSettings({ aiNotes: v === "on" })} />
+          </div>
+        </section>
+      )}
+
+      {store.kind === "supabase" && (
+        <section className="acct-sec">
           <h2>Email me when…</h2>
           {([["emailBand", "Someone adds me to a band"], ["emailGig", "Someone puts me on a gig"]] as const).map(([k, label]) => (
             <div className="acct-field" key={k}>
