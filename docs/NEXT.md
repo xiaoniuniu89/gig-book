@@ -25,7 +25,7 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 - **Marked Work in progress** (Dan won't test these for now): Transcribe tool, Lyrics tab, Poster, Press kit editor.
 - **Open issues:** #75 (ratings and comments, later), #76 (musician pages, later), #77 (e2e hydration error), #78 (Magic Link email template: Dan's dashboard task), #83 (Find address + Open in Google Maps: built on branch claude/issue-83-20261106-1830, needs a smoke test; search limits are in memory per server instance).
 - **Not tested:** the new `band_kit_members` and `public_band_members` functions (0045) have no access tests yet. Add them to `tests/access/bands.test.ts`.
-- **Tests:** everything passes on CI (release d3087fe). One phone test has shown an intermittent React hydration warning (#418) on band pages twice; watch for it (#77).
+- **Tests:** everything passes on CI (release 4778b33): unit, access (incl. sharing.test.ts for 0048) and all end-to-end flows. Watch for the intermittent React #418 on phone band pages (#77).
 
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
