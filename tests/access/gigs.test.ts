@@ -189,9 +189,9 @@ describe("poster photos", () => {
     const band = await scratchBand(["ava"]);
     const gig = await scratchGig({ creator: "ava", lineup: ["ben", "cleo"], band });
     const pic = (over: object) => ({ kind: "image", name: "p.jpg", mime: "image/jpeg", size: 1, created_by: USERS.ava.id, ...over });
-    const bandPic = must(await a.from("attachments").insert(pic({ band_id: band, storage_path: `band/${band}/kit/${crypto.randomUUID()}-p.jpg` })).select("id").single(), "band pic");
-    const benPic = must(await a.from("attachments").insert(pic({ profile_id: USERS.ben.id, created_by: USERS.ben.id, storage_path: `user/${USERS.ben.id}/profile/${crypto.randomUUID()}-b.jpg` })).select("id").single(), "ben pic");
-    const cleoPic = must(await a.from("attachments").insert(pic({ profile_id: USERS.cleo.id, created_by: USERS.cleo.id, storage_path: `user/${USERS.cleo.id}/profile/${crypto.randomUUID()}-c.jpg` })).select("id").single(), "cleo pic");
+    const bandPic = must(await a.from("attachments").insert(pic({ band_id: band, storage_path: `band/${band}/kit/${crypto.randomUUID()}-p.jpg` })).select("id").single(), "band pic")!;
+    const benPic = must(await a.from("attachments").insert(pic({ profile_id: USERS.ben.id, created_by: USERS.ben.id, storage_path: `user/${USERS.ben.id}/profile/${crypto.randomUUID()}-b.jpg` })).select("id").single(), "ben pic")!;
+    const cleoPic = must(await a.from("attachments").insert(pic({ profile_id: USERS.cleo.id, created_by: USERS.cleo.id, storage_path: `user/${USERS.cleo.id}/profile/${crypto.randomUUID()}-c.jpg` })).select("id").single(), "cleo pic")!;
     const share = async (w: Who, share: object) => must(await a.from("profiles").update({ share }).eq("id", USERS[w].id), "share");
     const before = { ben: USERS.ben.share, cleo: USERS.cleo.share };
     try {

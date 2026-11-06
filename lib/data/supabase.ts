@@ -1104,20 +1104,20 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async listGigs() {
       const { data, error } = await sb.from("gigs").select(GIG_COLS).order("gig_date").order("start_time", { nullsFirst: true });
       if (error) fail("load your gigs", error);
-      return toGigs((data || []) as GigRow[]);
+      return toGigs((data || []) as unknown as GigRow[]);
     },
 
     async getGig(id) {
       if (!UUID.test(id)) return null;
       const { data, error } = await sb.from("gigs").select(GIG_COLS).eq("id", id).maybeSingle();
       if (error) fail("open that gig", error);
-      return data ? (await toGigs([data as GigRow]))[0] : null;
+      return data ? (await toGigs([data as unknown as GigRow]))[0] : null;
     },
 
     async createGig(f) {
       const { data, error } = await sb.from("gigs").insert(gigCols(f)).select(GIG_COLS).single();
       if (error) fail("save that gig", error);
-      return (await toGigs([data as GigRow]))[0];
+      return (await toGigs([data as unknown as GigRow]))[0];
     },
 
     async updateGig(id, f) {
@@ -1177,7 +1177,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async listBandGigs(bandId) {
       const { data, error } = await sb.from("gigs").select(GIG_COLS).eq("band_id", bandId).order("gig_date").order("start_time", { nullsFirst: true });
       if (error) fail("load the band's gigs", error);
-      return toGigs((data || []) as GigRow[]);
+      return toGigs((data || []) as unknown as GigRow[]);
     },
 
     async listGigLineup(gigId) {
@@ -1188,7 +1188,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async addGigPerson(gigId, f) {
-      const row = f.userId
+      const row: Record<string, string> = f.userId
         ? { gig_id: gigId, user_id: f.userId, plays: f.plays.trim() }
         : { gig_id: gigId, guest_name: (f.name || "").trim(), plays: f.plays.trim(), guest_phone: (f.phone || "").trim(), guest_email: (f.email || "").trim() };
       const { error } = await sb.from("gig_lineup").insert(row);
