@@ -8,6 +8,7 @@ import { useApp } from "../AppProvider";
 import { AttachmentList, FileChart } from "../Attachments";
 import { Icon } from "../Icon";
 import { Modal } from "../Modal";
+import { ConfirmTyped } from "../ConfirmTyped";
 import { linkify } from "../Notes";
 import { ResourceForm } from "../Resources";
 import { AttachToTune } from "./LickView";
@@ -23,7 +24,7 @@ export function ResourceView() {
   const [files, setFiles] = useState<Attachment[]>([]);
   const [editing, setEditing] = useState(false);
   const [attaching, setAttaching] = useState(false);
-  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const err = (e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback);
 
   useEffect(() => { setCurrent(null); }, [setCurrent]);
@@ -53,9 +54,8 @@ export function ResourceView() {
     catch (e) { err(e, "Couldn't save that resource."); throw e; }
   };
   const remove = async () => {
-    if (!armed) { setArmed(true); return; }
     try { await store.deleteResource(res.id); router.push("/resources"); }
-    catch (e) { setArmed(false); err(e, "Couldn't delete that resource."); }
+    catch (e) { setDeleting(false); err(e, "Couldn't delete that resource."); }
   };
   const removeFile = async (a: Attachment) => {
     try { await store.deleteAttachment(a); setFiles(p => p.filter(x => x.id !== a.id)); }
@@ -94,7 +94,9 @@ export function ResourceView() {
         {res.note && <section className="panel"><p className="note-body">{linkify(res.note)}</p></section>}
         <div className="note-actions lick-actions">
           <button className="btn" onClick={() => setAttaching(true)}><Icon name="plus" size={18} /> Attach to a tune</button>
-          <button className="btn" onClick={() => void remove()}><Icon name="trash" size={18} /> {armed ? "Delete?" : "Delete"}</button>
+          <button className="btn" onClick={() => setDeleting(true)}><Icon name="trash" size={18} /> Delete</button>
+          <ConfirmTyped open={deleting} title={"Delete " + res.title + "?"} action="Delete resource" onClose={() => setDeleting(false)} onConfirm={remove}>
+            It comes off every tune it&apos;s pinned to.</ConfirmTyped>
         </div>
       </>}
 

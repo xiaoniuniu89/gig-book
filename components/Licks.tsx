@@ -7,6 +7,7 @@ import { AttachMenu, FileChart, dropProps, useUploads } from "./Attachments";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
+import { MenuButton } from "./MenuButton";
 import { STARTER_LICKS } from "@/lib/starterLicks";
 import { Notation } from "./Notation";
 import { MusicXml } from "./MusicXml";
@@ -219,7 +220,6 @@ function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?:
   const [mode, setMode] = useState<"pick" | "new" | null>(null);
   const [lickDirty, setLickDirty] = useState(false);
   const [mine, setMine] = useState<Lick[] | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
   const files = useLickFiles(store, (links || []).map(l => l.lick.id));
   const homeKey = JSON.stringify(home);
   const isOwner = setlist?.role === "owner";
@@ -253,9 +253,7 @@ function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?:
     if (fs.length) files.uploads.add(lick.id, fs);
   };
   const unlink = async (k: LickLink) => {
-    if (armed !== k.id) { setArmed(k.id); return; }
-    setArmed(null);
-    try { await store.unlinkLick(k.id); setLinks(p => (p || []).filter(x => x.id !== k.id)); }
+    try { await store.unlinkLick(k.id); setLinks(p => (p || []).filter(x => x.id !== k.id)); toast("Removed from here. It's still in your licks."); }
     catch (e) { err(e, "Couldn't remove that lick."); }
   };
   const copy = async (l: Lick) => {
@@ -263,6 +261,13 @@ function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?:
     catch (e) { err(e, "Couldn't copy that lick."); }
   };
 
+  const lickMenu = (k: LickLink) => {
+    const items = [
+      ...(!k.lick.mine ? [{ label: <><Icon name="copy" size={16} /> Save to my licks</>, onClick: () => void copy(k.lick) }] : []),
+      ...(k.createdBy === app.account?.id || isOwner ? [{ label: <><Icon name="close" size={16} /> Remove from here</>, onClick: () => void unlink(k) }] : []),
+    ];
+    return items.length ? <MenuButton className="btn small" label="⋯" ariaLabel={"More for " + k.lick.title} caret={false} items={items} /> : undefined;
+  };
   const free = (mine || []).filter(l => !(links || []).some(k => k.lick.id === l.id));
   // a starter lick becomes yours first (only your own licks can be attached), unless you already copied it
   const addStarter = async (l: Lick) => {
@@ -299,10 +304,7 @@ function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?:
           {links.map(k => (
             <LickCard key={k.id} lick={k.lick}
               sheet={files.atts.find(a => a.lickId === k.lick.id && (a.kind === "musicxml" || a.kind === "image"))}
-              actions={<>
-              {(k.createdBy === app.account?.id || isOwner) && <button className="btn small" onClick={() => void unlink(k)}>{armed === k.id ? "Remove?" : "Remove from here"}</button>}
-              {!k.lick.mine && <button className="btn small" onClick={() => void copy(k.lick)}>Save to my licks</button>}
-            </>} />
+              actions={lickMenu(k)} />
           ))}
         </div>
       )}

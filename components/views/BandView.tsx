@@ -21,6 +21,7 @@ import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
 import { NewSong } from "../Originals";
 import { MenuButton } from "../MenuButton";
+import { BusyButton } from "../BusyButton";
 import { UploadMenu, type UploadMode } from "../MenuButton";
 import { ORIGINALS_ID } from "@/lib/seeds";
 import { hrefFor } from "@/lib/contact";
@@ -166,7 +167,9 @@ function SetlistsTab({ band }: { band: Band }) {
     setBusy(false);
   };
   // a full copy you own (tunes, order, keys, playlist; not the notes)
+  const [copyingId, setCopyingId] = useState<string | null>(null);
   const save = async (b: BandSetlist) => {
+    setCopyingId(b.id);
     try {
       const src = await store.getSetlist(b.id);
       if (!src) { toast("Couldn't open that setlist."); return; }
@@ -174,6 +177,7 @@ function SetlistsTab({ band }: { band: Band }) {
       await app.addSetlist({ id, name: src.name, spotify: src.spotify, items: src.items.map(it => ({ ...it, id: newItemId() })), visibility: "private", role: "owner" });
       toast("Saved to your setlists.");
     } catch (e) { toast(errText(e, "Couldn't save a copy.")); }
+    setCopyingId(null);
   };
 
   return (
@@ -191,8 +195,10 @@ function SetlistsTab({ band }: { band: Band }) {
             <div className="member" key={b.id}>
               <span className="name"><Link href={"/set/" + encodeURIComponent(b.id)}>{b.name}</Link><span className="sub">{b.tunes} {b.tunes === 1 ? "tune" : "tunes"} · {b.ownerName}</span></span>
               <span className="tune-btns">
-                {!b.mine && <button className="btn small" onClick={() => save(b)}>Save to my setlists</button>}
-                {b.mine && <button className="btn small" onClick={() => setTaking(b)}>Take out of band</button>}
+                {copyingId === b.id ? <span className="hint"><span className="spinner" aria-hidden="true" /> Saving…</span>
+                  : <MenuButton className="btn small" label="⋯" ariaLabel={"More for " + b.name} caret={false} items={b.mine
+                    ? [{ label: <><Icon name="close" size={16} /> Take out of band</>, onClick: () => setTaking(b) }]
+                    : [{ label: <><Icon name="copy" size={16} /> Save to my setlists</>, onClick: () => void save(b) }]} />}
               </span>
             </div>
           ))}
@@ -493,7 +499,7 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
       <p className="hint">Admins can do everything. You can override these for one person under People.</p>
       <div className="row-btns"><button className="btn primary" disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save"}</button></div>
       <h3 className="modal-sub">Hand over the band <Info label="About handing over">Made the band for someone else? Hand it over: they become an admin, and you can step down to an ordinary member. You stay in the band either way.</Info></h3>
-      <div className="row-btns"><button className="btn" onClick={() => void openHandOver()}><Icon name="user" size={18} /> Hand over</button></div>
+      <div className="row-btns"><BusyButton busy="Loading…" onClick={openHandOver}><Icon name="user" size={18} /> Hand over</BusyButton></div>
       <div className="danger-zone"><button className="btn small" onClick={() => setDeleting(true)}><Icon name="trash" size={16} /> Delete this band</button></div>
       {others && <HandOver band={band} others={others} onClose={() => setOthers(null)} onDone={() => { setOthers(null); void reloadBand(); }} />}
       <ConfirmTyped open={deleting} title={"Delete " + band.name} action="Delete band" onClose={() => setDeleting(false)} onConfirm={del}>

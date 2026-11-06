@@ -9,6 +9,7 @@ import { UploadMenu, type UploadMode } from "../MenuButton";
 import { Icon } from "../Icon";
 import { ImportPanel } from "../ImportPanel";
 import { Modal } from "../Modal";
+import { ConfirmTyped } from "../ConfirmTyped";
 
 let lastQuery = ""; // remembered while the app is open, like the static app
 const PAGE = 100; // rows rendered per scroll step
@@ -75,12 +76,11 @@ export function Library() {
         <input ref={input} id="lib-q" className="search" type="search" placeholder={pl ? "Search " + pl.name : "Search"} autoComplete="off"
           value={q} onChange={e => { setQ(e.target.value); lastQuery = e.target.value; }} />
         {pl && pl.id !== BUILTIN_LIBRARY.id && pl.id !== ORIGINALS_ID && (
-          <button className={"btn" + (delArmed ? "" : " icon-btn")} aria-label={"Remove " + pl.name} title={"Remove " + pl.name}
-            onBlur={() => setDelArmed(false)}
-            onClick={() => { if (!delArmed) { setDelArmed(true); return; } setDelArmed(false); pick(BUILTIN_LIBRARY.id); removeLibraryPlaylist(pl.id); }}>
-            {delArmed ? "Tap again to remove" : <Icon name="trash" />}
-          </button>
+          <button className="btn icon-btn" aria-label={"Remove " + pl.name} title={"Remove " + pl.name} onClick={() => setDelArmed(true)}><Icon name="trash" /></button>
         )}
+        {pl && <ConfirmTyped open={delArmed} title={"Remove " + pl.name + "?"} action="Remove playlist" onClose={() => setDelArmed(false)}
+          onConfirm={() => { setDelArmed(false); pick(BUILTIN_LIBRARY.id); removeLibraryPlaylist(pl.id); }}>
+          Its tunes leave your library. Setlists that use them keep them.</ConfirmTyped>}
       </div>
       <div className="panel list" id="lib-list" role="tabpanel">
         {!ready ? <p className="hint pad">Loading…</p> : hits.length ? (

@@ -6,6 +6,8 @@ import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
+import { BusyButton } from "./BusyButton";
+import { ConfirmTyped } from "./ConfirmTyped";
 import { isBuiltin } from "@/lib/seeds";
 import { meta } from "@/lib/songs";
 import { newItemId, type Arrangement, type Version } from "@/lib/data/types";
@@ -27,7 +29,7 @@ export function useMakeArrangement() {
 /** "Make an arrangement" on a library chart: starts one from this tune, in the key you have it. */
 export function MakeArrangement({ raw, shift, versions }: { raw: string; shift: number | null; versions: Version[] }) {
   const make = useMakeArrangement();
-  return <button className="btn" onClick={() => void make(raw, "", shift, versions)}><Icon name="plus" size={18} /> Make an arrangement</button>;
+  return <BusyButton busy="Making…" onClick={() => make(raw, "", shift, versions)}><Icon name="plus" size={18} /> Make an arrangement</BusyButton>;
 }
 
 /** Add to setlist (a copy), rename and delete, on an arrangement's page. */
@@ -37,7 +39,7 @@ export function ArrangementActions({ arr }: { arr: Arrangement }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(arr.name);
-  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const own = app.setlists.filter(s => s.role !== "viewer" && !isBuiltin(s.id));
 
   // a copy: its own item id, and its own list of recordings
@@ -52,7 +54,6 @@ export function ArrangementActions({ arr }: { arr: Arrangement }) {
     setEditing(false);
   };
   const remove = async () => {
-    if (!armed) { setArmed(true); return; }
     // its private notes go with it (files too)
     try {
       const home = { kind: "song", songKey: "arr:" + arr.id } as const;
@@ -65,7 +66,9 @@ export function ArrangementActions({ arr }: { arr: Arrangement }) {
   return <>
     <button className="btn" onClick={() => setAdding(true)}><Icon name="plus" size={18} /> Add to setlist</button>
     <button className="btn icon-btn" aria-label="Rename" title="Rename" onClick={() => { setName(arr.name); setEditing(true); }}><Icon name="edit" size={18} /></button>
-    <button className="btn icon-btn" aria-label={armed ? "Delete? Tap again" : "Delete"} title={armed ? "Delete? Tap again" : "Delete"} onClick={() => void remove()} onBlur={() => setArmed(false)}><Icon name="trash" size={18} /></button>
+    <button className="btn icon-btn" aria-label="Delete" title="Delete" onClick={() => setDeleting(true)}><Icon name="trash" size={18} /></button>
+    <ConfirmTyped open={deleting} title={"Delete " + arr.name + "?"} action="Delete arrangement" onClose={() => setDeleting(false)} onConfirm={remove}>
+      Its notes go with it. Setlists you added it to keep their copy.</ConfirmTyped>
     <Modal open={adding} title={"Add " + arr.name + " to a setlist"} onClose={() => setAdding(false)}>
       <p className="hint">It goes in as a copy, in this key. Changing it there won&apos;t change this arrangement, and the other way round.
         <Info label="About copies">Your notes and files stay with the arrangement.</Info></p>

@@ -99,28 +99,24 @@ function GigSetlists({ gig }: { gig: Gig }) {
   const app = useApp();
   const { store, toast } = app;
   const [list, setList] = useState<GigSetlist[] | null>(null);
-  const [pick, setPick] = useState("");
-  const [armed, setArmed] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null); // what's running, e.g. "Adding…"
 
   const load = useCallback(() => store.listGigSetlists(gig.id).then(setList, e => { setList([]); toast(errText(e, "Couldn't load the setlists.")); }), [store, gig.id, toast]);
   useEffect(() => { void load(); }, [load]);
 
   // setlists you may put on a gig: yours, or ones you can edit
   const options = app.setlists.filter(s => (!s.role || s.role === "owner" || s.role === "editor") && !(list ?? []).some(l => l.id === s.id));
-  const act = async (fn: () => Promise<void>, fail: string) => {
-    setBusy(true);
+  const act = async (label: string, fn: () => Promise<void>, fail: string) => {
+    if (busy) return;
+    setBusy(label);
     try { await fn(); await load(); } catch (e) { toast(errText(e, fail)); }
-    setBusy(false);
+    setBusy(null);
   };
-  const add = () => act(async () => { await store.addGigSetlist(gig.id, pick); setPick(""); }, "Couldn't add that setlist.");
-  const remove = (s: GigSetlist) => {
-    if (armed !== s.id) { setArmed(s.id); return; }
-    setArmed(null);
-    void act(() => store.removeGigSetlist(gig.id, s.id), "Couldn't take it off the gig.");
-  };
+  const add = (id: string) => act("Adding…", async () => { await store.addGigSetlist(gig.id, id); setAdding(false); }, "Couldn't add that setlist.");
+  const remove = (s: GigSetlist) => act("Taking it off…", () => store.removeGigSetlist(gig.id, s.id), "Couldn't take it off the gig.");
   // your own copy for this gig only; the gig points at the copy and the original stays as it was everywhere else
-  const copy = (s: GigSetlist) => act(async () => {
+  const copy = (s: GigSetlist) => act("Copying…", async () => {
     const src = await store.getSetlist(s.id);
     if (!src) throw new Error("Couldn't open that setlist.");
     const name = `${src.name} (${gig.title})`.slice(0, 200);
@@ -133,8 +129,10 @@ function GigSetlists({ gig }: { gig: Gig }) {
   return (
     <section className="panel" aria-label="Setlists">
       <div className="panel-head">
-        <h2>Setlists <Info label="About gig setlists">A setlist is linked to the gig, not copied. If you change it, it changes on every gig it is on. Use Copy for this gig when tonight is different: you get your own copy and the gig switches to it.</Info></h2>
+        <h2>Setlists <Info label="About gig setlists">A setlist is linked to the gig, not copied. If you change it, it changes on every gig it is on. Use Copy for this gig (under ⋯) when tonight is different: you get your own copy and the gig switches to it.</Info></h2>
+        {gig.canEdit && <button className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Add setlist</button>}
       </div>
+      {busy && !adding && <p className="hint"><span className="spinner" aria-hidden="true" /> {busy}</p>}
       {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No setlists on this gig yet.</p> : (
         <div className="list">
           {list.map(s => (
@@ -142,23 +140,24 @@ function GigSetlists({ gig }: { gig: Gig }) {
               <span className="name"><Link href={"/set/" + encodeURIComponent(s.id)}>{s.name}</Link><span className="sub">{s.tunes} tunes · {s.ownerName}</span></span>
               {gig.canEdit && (
                 <span className="tune-btns">
-                  <button className="btn small" disabled={busy} onClick={() => copy(s)}><Icon name="plus" size={16} /> Copy for this gig</button>
-                  <button className="btn small" disabled={busy} onClick={() => remove(s)}><Icon name="trash" size={16} /> {armed === s.id ? "Remove?" : "Remove"}</button>
+                  <MenuButton className="btn small" label="⋯" ariaLabel={"More for " + s.name} caret={false} items={[
+                    { label: <><Icon name="copy" size={16} /> Copy for this gig</>, onClick: () => void copy(s) },
+                    { label: <><Icon name="close" size={16} /> Take off this gig</>, onClick: () => void remove(s) },
+                  ]} />
                 </span>
               )}
             </div>
           ))}
         </div>
       )}
-      {gig.canEdit && (
-        <div className="inline-form">
-          <select aria-label="Your setlist" value={pick} onChange={e => setPick(e.target.value)}>
-            <option value="">Add a setlist…</option>
-            {options.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <button className="btn" disabled={!pick || busy} onClick={add}><Icon name="plus" size={16} /> Add setlist</button>
-        </div>
-      )}
+      <Modal open={adding} title="Add a setlist to this gig" onClose={() => { if (!busy) setAdding(false); }}>
+        {options.length ? <div className="pick-list">{options.map(s => (
+          <button key={s.id} className="pick-row" disabled={!!busy} onClick={() => void add(s.id)}>
+            <b>{s.name}</b><span className="hint">{s.items.length} tunes</span>
+          </button>
+        ))}</div> : <p className="hint">All your setlists are on this gig already. Make a new one on the Setlists page.</p>}
+        {busy && <p className="hint"><span className="spinner" aria-hidden="true" /> {busy}</p>}
+      </Modal>
     </section>
   );
 }

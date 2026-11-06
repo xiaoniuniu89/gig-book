@@ -8,6 +8,8 @@ import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
+import { MenuButton } from "./MenuButton";
+import { ConfirmTyped } from "./ConfirmTyped";
 import { songKey } from "@/lib/songs";
 import { getSupabase } from "@/lib/supabase/client";
 import { MAX_NAME, applyChanges, changesText, cleanName, parseChanges } from "@/lib/versions";
@@ -119,18 +121,17 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
   const page = usePathname();
   const [editor, setEditor] = useState<"edit" | null>(null);
   const [busy, setBusy] = useState(false);
-  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editDirty, setEditDirty] = useState(false);
-  useEffect(() => { setArmed(false); }, [vs.pick]);
+  useEffect(() => { setDeleting(false); }, [vs.pick]);
   if (!vs.on) return null;
   const v = vs.shown;
   const replace = (n: TuneVersion) => vs.setData(d => ({ ...d, versions: d.versions.map(x => x.id === n.id ? n : x) }));
 
   const act = async (fn: () => Promise<void>, fail: string) => { setBusy(true); try { await fn(); } catch (e) { toast(msg(e, fail)); } setBusy(false); };
-  const del = () => {
+  const del = async () => {
     if (!v) return;
-    if (!armed) { setArmed(true); return; }
-    void act(async () => { await store.deleteTuneVersion(v); vs.setData(d => ({ ...d, versions: d.versions.filter(x => x.id !== v.id) })); vs.setPick(""); }, "Couldn't delete that version.");
+    await act(async () => { await store.deleteTuneVersion(v); vs.setData(d => ({ ...d, versions: d.versions.filter(x => x.id !== v.id) })); vs.setPick(""); setDeleting(false); }, "Couldn't delete that version.");
   };
 
   return (
@@ -146,18 +147,16 @@ export function VersionBar({ sg, vs }: { sg: Song; vs: Versions }) {
           {v.source === "ai" && <Info label="About AI versions">If you know the record, fix it and mark it checked. Saving a fix also marks it checked.</Info>}
           {!vs.fits && <span className="flag">This chart has a different number of bars, so this version can&apos;t be shown on it.</span>}
           <span className="version-acts">
-            {v.source === "ai" && !v.checked && <button className="btn small" disabled={busy} onClick={() => act(async () => replace(await store.checkTuneVersion(v)), "Couldn't mark that checked.")}>Mark checked</button>}
+            {v.source === "ai" && !v.checked && <button className="btn small" disabled={busy} onClick={() => act(async () => replace(await store.checkTuneVersion(v)), "Couldn't mark that checked.")}>{busy ? <><span className="spinner" aria-hidden="true" /> Saving…</> : "Mark checked"}</button>}
             {(v.source === "ai" || v.mine) && <button className="btn small" disabled={busy} onClick={() => setEditor("edit")}><Icon name="edit" size={16} /> Edit</button>}
-            <details className="version-menu">
-              <summary className="btn small" aria-label="More">⋯</summary>
-              <div className="version-menu-list">
-                <button className="btn small" onClick={() => act(async () => { await report(v, page); toast("Thanks, we'll take a look."); }, "Couldn't send the report.")}>Report</button>
-                {v.mine && <button className="btn small" onClick={del}><Icon name="trash" size={16} /> {armed ? "Tap again to delete" : "Delete"}</button>}
-              </div>
-            </details>
+            <MenuButton className="btn small" label="⋯" ariaLabel="More" caret={false} items={[
+              { label: <><Icon name="flag" size={16} /> Report</>, onClick: () => void act(async () => { await report(v, page); toast("Thanks, we'll take a look."); }, "Couldn't send the report.") },
+              ...(v.mine ? [{ label: <><Icon name="trash" size={16} /> Delete</>, onClick: () => setDeleting(true) }] : []),
+            ]} />
           </span>
         </div>
       )}
+      {v && <ConfirmTyped open={deleting} title={"Delete " + v.name + "?"} action="Delete version" onClose={() => setDeleting(false)} onConfirm={del} />}
       <Modal open={editor !== null && !!v} title={v ? "Edit " + v.name : ""} onClose={() => setEditor(null)} dirty={editDirty}>
         {editor && v && <Editor sg={sg} vs={vs} edit={v} onClose={() => setEditor(null)} onDirty={setEditDirty} />}
       </Modal>

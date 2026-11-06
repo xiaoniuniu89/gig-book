@@ -6,6 +6,8 @@ import { useApp } from "../AppProvider";
 import { useToolPage } from "./ToolsView";
 import { Icon } from "../Icon";
 import { Info } from "../Info";
+import { MenuButton } from "../MenuButton";
+import { ConfirmTyped } from "../ConfirmTyped";
 import { YtLooper } from "@/lib/youtube/embed";
 import { parseYoutube } from "@/lib/youtube/ids";
 import { MAX_PRACTICE_TRACKS, type PracticeTrack } from "@/lib/data/types";
@@ -26,7 +28,7 @@ export function TranscribeView() {
   const [tracks, setTracks] = useState<PracticeTrack[]>([]);
   const [src, setSrc] = useState<Source | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<PracticeTrack | null>(null);
   const [playing, setPlaying] = useState(false);
   const [now, setNow] = useState(0);
   const [dur, setDur] = useState(0);
@@ -107,10 +109,9 @@ export function TranscribeView() {
     if (fileIn.current) fileIn.current.value = "";
   };
   const remove = async (t: PracticeTrack) => {
-    if (armed !== t.id) { setArmed(t.id); return; }
-    setArmed(null);
     try {
       await store.deletePracticeTrack(t);
+      setDeleting(null);
       setTracks(l => l.filter(x => x.id !== t.id));
       if (src?.kind === "file" && src.track.id === t.id) { audio.current?.pause(); setSrc(null); }
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete that."); }
@@ -183,7 +184,8 @@ export function TranscribeView() {
               <div className="ver" key={t.id}>
                 <button className="btn icon-btn small" aria-label={"Open " + t.name} aria-pressed={src?.kind === "file" && src.track.id === t.id} onClick={() => void openTrack(t)}>▶</button>
                 <span className="name">{t.name}<span className="sub">{mb(t.size)}</span></span>
-                <button className="btn small" aria-label={"Delete " + t.name} onClick={() => void remove(t)}>{armed === t.id ? "Delete?" : <Icon name="trash" size={16} />}</button>
+                <MenuButton className="btn small" label="⋯" ariaLabel={"More for " + t.name} caret={false}
+                  items={[{ label: <><Icon name="trash" size={16} /> Delete</>, onClick: () => setDeleting(t) }]} />
               </div>
             ))}
             <input ref={fileIn} type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden onChange={e => void upload(e.target.files?.[0])} />
@@ -231,6 +233,7 @@ export function TranscribeView() {
           </div>
         </section>
       )}
+      <ConfirmTyped open={!!deleting} title={"Delete " + (deleting?.name ?? "") + "?"} action="Delete recording" onClose={() => setDeleting(null)} onConfirm={() => deleting ? remove(deleting) : undefined} />
     </>
   );
 }

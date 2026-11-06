@@ -34,7 +34,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
 }) {
   const { store, account, toast, putOriginal, dropOriginal } = useApp();
   const router = useRouter();
-  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const start = o ? song(o.raw) : null;
   const [title, setTitle] = useState(start?.title ?? preTitle?.trim() ?? "");
   const [composer, setComposer] = useState(o ? meta(o.raw).composer : account?.name ?? "");
@@ -211,11 +211,12 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
         {pct !== null && file && <progress max={1} value={pct} aria-label="Uploading" />}
         <div className="row-btns">
           <button className="btn primary" type="submit" disabled={pct !== null || aiBusy}>{pct !== null ? "Saving…" : o ? "Save" : "Save song"}</button>
-          {o && <button className="btn" type="button" onBlur={() => setArmed(false)} onClick={() => { if (!armed) { setArmed(true); return; } void del(); }}>
-            <Icon name="trash" size={16} /> {armed ? "Tap again to delete the song" : "Delete song"}</button>}
+          {o && <button className="btn" type="button" onClick={() => setDeleting(true)}><Icon name="trash" size={16} /> Delete song</button>}
         </div>
         </>}
       </form>
+      {o && <ConfirmTyped open={deleting} title={"Delete " + o.title + "?"} action="Delete song" onClose={() => setDeleting(false)} onConfirm={del}>
+        Its lead sheet and recording go too.</ConfirmTyped>}
     </Modal>
   );
 }

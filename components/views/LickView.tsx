@@ -8,6 +8,8 @@ import { useApp, type Current } from "../AppProvider";
 import { ChartHost } from "./SongView";
 import { Icon } from "../Icon";
 import { Modal } from "../Modal";
+import { BusyButton } from "../BusyButton";
+import { ConfirmTyped } from "../ConfirmTyped";
 import { Notation } from "../Notation";
 import { LickForm, useLickFiles } from "../Licks";
 import { linkify } from "../Notes";
@@ -33,7 +35,7 @@ export function LickView() {
   const [key, setKey] = useState("");
   const [editing, setEditing] = useState(false);
   const [attaching, setAttaching] = useState(false);
-  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const signedIn = store.kind === "supabase";
   const files = useLickFiles(store, lick && signedIn && !starter ? [lick.id] : []);
   const err = (e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback);
@@ -79,9 +81,8 @@ export function LickView() {
     catch (e) { err(e, "Couldn't save that lick."); throw e; }
   };
   const remove = async () => {
-    if (!armed) { setArmed(true); return; }
     try { await store.deleteLick(lick.id); router.push("/licks"); }
-    catch (e) { setArmed(false); err(e, "Couldn't delete that lick."); }
+    catch (e) { setDeleting(false); err(e, "Couldn't delete that lick."); }
   };
   // a starter lick is copied into your licks before it can be attached anywhere (once: an existing copy is reused)
   const own = async (): Promise<Lick> => {
@@ -140,8 +141,10 @@ export function LickView() {
 
         <div className="note-actions lick-actions">
           {signedIn && <button className="btn" onClick={() => setAttaching(true)}><Icon name="plus" size={18} /> Attach to a tune</button>}
-          {signedIn && !lick.mine && <button className="btn" onClick={() => void saveCopy()}>Save to my licks</button>}
-          {lick.mine && <button className="btn" onClick={() => void remove()}><Icon name="trash" size={18} /> {armed ? "Delete?" : "Delete"}</button>}
+          {signedIn && !lick.mine && <BusyButton onClick={saveCopy}><Icon name="copy" size={18} /> Save to my licks</BusyButton>}
+          {lick.mine && <button className="btn" onClick={() => setDeleting(true)}><Icon name="trash" size={18} /> Delete</button>}
+          <ConfirmTyped open={deleting} title={"Delete " + lick.title + "?"} action="Delete lick" onClose={() => setDeleting(false)} onConfirm={remove}>
+            It comes off every tune it&apos;s attached to.</ConfirmTyped>
         </div>
       </>}
 

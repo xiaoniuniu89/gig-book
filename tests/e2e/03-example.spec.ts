@@ -6,7 +6,8 @@ test("3. an example setlist can't be edited; Make a copy gives an editable one",
   await page.locator("a.book[href='/set/builtin-billie-holiday']").click();
   await expect(page.getByRole("heading", { name: "Billie Holiday Short Setlist", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: "Make a copy" })).toBeVisible();
-  for (const name of ["Add tunes", "Rename setlist", "Move down", "Remove"]) await expect(page.getByRole("button", { name })).toHaveCount(0);
+  for (const name of ["Add tunes", "Rename setlist"]) await expect(page.getByRole("button", { name })).toHaveCount(0);
+  await expect(page.locator(".tune").getByRole("button", { name: /^More for/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Delete this setlist" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Make a copy" }).click();
@@ -15,6 +16,6 @@ test("3. an example setlist can't be edited; Make a copy gives an editable one",
   await expect(page.getByRole("button", { name: "Add tunes" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Rename setlist" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Make a copy" })).toHaveCount(0);
-  await expect(page.locator("section[aria-label='Set 1'] .tune").first().getByRole("button", { name: "Move down" })).toBeVisible();
+  await expect(page.locator("section[aria-label='Set 1'] .tune").first().getByRole("button", { name: /^More for/ })).toBeVisible();
   expectClean(page);
 });

@@ -636,10 +636,15 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
     app.toast(`Added to ${s.name}.`); setOpen(false);
   };
   const intoCopy = async (s: Setlist) => {
+    if (busy) return;
+    setBusy(true);
     const n = s.name + " (copy)";
-    await app.addSetlist({ ...s, id: app.store.newId(n, id => !!app.setlistById(id)), name: n, role: "owner", visibility: "private",
-      items: [...s.items.map(it => ({ ...it, id: newItemId() })), item()] });
-    app.toast(`Added to ${n}.`); setOpen(false);
+    try {
+      await app.addSetlist({ ...s, id: app.store.newId(n, id => !!app.setlistById(id)), name: n, role: "owner", visibility: "private",
+        items: [...s.items.map(it => ({ ...it, id: newItemId() })), item()] });
+      app.toast(`Added to ${n}.`); setOpen(false);
+    } catch (e) { app.toast(e instanceof Error ? e.message : "Couldn't make that setlist."); }
+    setBusy(false);
   };
   const fresh = async () => {
     const n = name.trim().slice(0, 200);
@@ -662,7 +667,7 @@ function AddToSetlist({ cur }: { cur: Extract<Current, { kind: "lib" }> }) {
       {examples.length > 0 && <>
         <h3 className="modal-sub">Examples</h3>
         <div className="pick-list">{examples.map(s => (
-          <button key={s.id} className="pick-row" onClick={() => void intoCopy(s)}>
+          <button key={s.id} className="pick-row" disabled={busy} onClick={() => void intoCopy(s)}>
             <b>{s.name}</b><span className="hint">Adds it to your own copy</span>
           </button>
         ))}</div>

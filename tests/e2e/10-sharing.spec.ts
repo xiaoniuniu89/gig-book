@@ -28,7 +28,8 @@ test("10. Ava shares a setlist with Bands I'm in; Ben (her bandmate) finds it un
   await ben.page.locator("a.book", { hasText: name }).click();
   await expect(ben.page.getByRole("heading", { name, level: 1 })).toBeVisible();
   await expect(ben.page.locator("section[aria-label='Set 1'] .tune")).toHaveCount(1);
-  for (const n of ["Add tunes", "Rename setlist", "Move down", "Move up", "Remove", "Delete this setlist", "Who can see it"]) await expect(ben.page.getByRole("button", { name: n })).toHaveCount(0);
+  for (const n of ["Add tunes", "Rename setlist", "Delete this setlist", "Who can see it"]) await expect(ben.page.getByRole("button", { name: n })).toHaveCount(0);
+  await expect(ben.page.locator(".tune").getByRole("button", { name: /^More for/ })).toHaveCount(0); // no move or take-out menu
   await expect(ben.page.getByRole("heading", { name: "Setlist notes" })).toHaveCount(0);
   await expect(ben.page.getByRole("button", { name: "Save to my setlists" })).toBeVisible();
   await noHScroll(ben.page);

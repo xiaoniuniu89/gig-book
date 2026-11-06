@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
+import { BusyButton } from "./BusyButton";
 import { song } from "@/lib/songs";
 import { searchTracks } from "@/lib/spotify/client";
 import { disconnectSpotify, makePlaylist, serviceMode, spotifyConnected, startConnect } from "@/lib/spotify/account";
@@ -126,7 +127,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
               : r.saved ? (
                 <div className="sp-pick">
                   <span className="sp-ver">{r.pick?.name} <span className="hint">{r.pick?.artists} · saved</span></span>
-                  <button className="btn small" onClick={() => void change(r.id)}>Change</button>
+                  <BusyButton className="btn small" busy="Finding…" onClick={() => change(r.id)}>Change</BusyButton>
                 </div>
               ) : r.options.length ? (
                 <select aria-label={"Recording of " + r.title} value={r.skip ? "" : r.pick?.uri ?? ""} onChange={e => pick(r.id, e.target.value)}>
@@ -153,7 +154,7 @@ export function SpotifyPlaylist({ s, onClose }: { s: Setlist; onClose: () => voi
               <Icon name="music" size={18} /> {busy ? "Making it…" : pending ? "Finding recordings…" : `Create playlist (${uris.length} tracks)`}
             </button>}
       </div>
-      {!service && <div><button className="btn small" onClick={() => void disconnectSpotify().then(() => setConnected(false))}>Disconnect Spotify</button></div>}
+      {!service && <div><BusyButton className="btn small" busy="Disconnecting…" onClick={() => disconnectSpotify().then(() => setConnected(false))}>Disconnect Spotify</BusyButton></div>}
     </div>
   );
 }

@@ -2,6 +2,9 @@
 const PATHS = {
   plus: "M12 5v14M5 12h14",
   play: "M7 4l13 8-13 8V4z",
+  flag: "M5 21V4h12l-2 4 2 4H5",
+  up: "M12 19V5M6 11l6-6 6 6",
+  down: "M12 5v14M6 13l6 6 6-6",
   lock: "M6 11h12v9H6v-9zM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
   share: "M12 15V4M8 8l4-4 4 4M5 13v7h14v-7",
   user: "M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 20c0-4 4-6 8-6s8 2 8 6",

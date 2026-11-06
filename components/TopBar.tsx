@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
 import { Bell } from "./Bell";
+import { BusyButton } from "./BusyButton";
 import { Icon } from "./Icon";
 import { Feedback } from "./Feedback";
 import { CalmStatus } from "./Toast";
@@ -69,13 +70,13 @@ function Account() {
           <button role="menuitem" className="user-menu-item" onClick={() => { setOpen(false); window.dispatchEvent(new Event(WHATS_NEW_EVENT)); }}>
             <Icon name="chat" size={18} /> What&apos;s new
           </button>
-          {signedIn && <button role="menuitem" className="user-menu-item" onClick={async () => {
-            setOpen(false);
+          {signedIn && <BusyButton role="menuitem" className="user-menu-item" busy="Signing out…" onClick={async () => {
             stopBand();
             await getSupabase()?.auth.signOut();
+            setOpen(false);
             router.replace("/"); // the landing page lives at /, not at whatever page you were on
             toast("Signed out.");
-          }}><Icon name="logout" size={18} /> Sign out</button>}
+          }}><Icon name="logout" size={18} /> Sign out</BusyButton>}
         </div>
       )}
     </span>

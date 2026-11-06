@@ -22,7 +22,8 @@ test("2. build a setlist from the library, reorder it, open the chart view and s
   // reorder: move the first tune down
   await page.waitForTimeout(1000); // let the saves for the two additions finish first
   const saved = page.waitForResponse(r => r.url().includes("replace_setlist_items") && r.ok());
-  await page.locator("section[aria-label='Set 1'] .tune").first().getByRole("button", { name: "Move down" }).click();
+  await page.locator("section[aria-label='Set 1'] .tune").first().getByRole("button", { name: /^More for/ }).click();
+  await page.getByRole("menuitem", { name: "Move down" }).click();
   await expect.poll(names).toEqual(["Blue Bossa", "Autumn Leaves"]);
   await saved; // edits are saved a moment after the last change
   await noHScroll(page);

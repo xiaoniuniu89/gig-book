@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useApp } from "./AppProvider";
+import { Icon } from "./Icon";
+import { MenuButton } from "./MenuButton";
 import { cleanUrl, hostOf } from "@/lib/resources";
 import { checkFile } from "@/lib/validate";
 import { MAX_FILE_MB, attachmentKind, parseTags, type Resource, type ResourceFields } from "@/lib/data/types";
@@ -99,7 +101,6 @@ export function MyResources({ songKey }: { songKey: string }) {
 function ResourcesHere({ songKey }: { songKey: string }) {
   const { store, toast } = useApp();
   const [links, setLinks] = useState<{ id: string; resource: Resource }[] | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
   const err = useCallback((e: unknown, fallback: string) => toast(e instanceof Error ? e.message : fallback), [toast]);
   useEffect(() => {
     let gone = false;
@@ -107,9 +108,7 @@ function ResourcesHere({ songKey }: { songKey: string }) {
     return () => { gone = true; };
   }, [store, songKey, err]);
   const unlink = async (id: string) => {
-    if (armed !== id) { setArmed(id); return; }
-    setArmed(null);
-    try { await store.unlinkResource(id); setLinks(p => (p || []).filter(x => x.id !== id)); }
+    try { await store.unlinkResource(id); setLinks(p => (p || []).filter(x => x.id !== id)); toast("Removed from this song. It's still in Resources."); }
     catch (e) { err(e, "Couldn't remove that resource."); }
   };
   return (
@@ -123,7 +122,8 @@ function ResourcesHere({ songKey }: { songKey: string }) {
         <div className="thread-list">
           {links.map(k => (
             <ResourceRow key={k.id} r={k.resource}
-              actions={<button className="btn small" onClick={() => void unlink(k.id)}>{armed === k.id ? "Remove?" : "Remove"}</button>} />
+              actions={<MenuButton className="btn small" label="⋯" ariaLabel={"More for " + k.resource.title} caret={false}
+                items={[{ label: <><Icon name="close" size={16} /> Remove from this song</>, onClick: () => void unlink(k.id) }]} />} />
           ))}
         </div>
       )}

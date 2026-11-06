@@ -20,10 +20,9 @@ test("5. band members see and do exactly what their permissions allow; outsiders
   await ben.page.getByRole("button", { name: /^Add 1( to set 1)?$/ }).click();
   await expect(tunes).toHaveCount(before + 1);
   // ...and put it back
-  const remove = tunes.last().getByRole("button", { name: "Remove" });
-  await remove.click(); // arms ("Remove?"), the second click removes
   const saved = ben.page.waitForResponse(r => r.url().includes("replace_setlist_items") && r.ok());
-  await remove.click();
+  await tunes.last().getByRole("button", { name: /^More for/ }).click();
+  await ben.page.getByRole("menuitem", { name: "Take out of setlist" }).click(); // no notes on it, so no confirm
   await saved;
   await expect(tunes).toHaveCount(before);
   await expect(ben.page.getByRole("button", { name: "Delete this setlist" })).toHaveCount(0); // not the owner
@@ -32,7 +31,8 @@ test("5. band members see and do exactly what their permissions allow; outsiders
   // Cleo (default permissions): reads, posts a band note, sees no edit controls
   await go(cleo.page, SET);
   await expect(cleo.page.getByRole("heading", { name: "Ava Trio Book", level: 1 })).toBeVisible();
-  for (const n of ["Add tunes", "Rename setlist", "Move down", "Move up", "Remove", "Delete this setlist"]) await expect(cleo.page.getByRole("button", { name: n })).toHaveCount(0);
+  for (const n of ["Add tunes", "Rename setlist", "Delete this setlist"]) await expect(cleo.page.getByRole("button", { name: n })).toHaveCount(0);
+  await expect(cleo.page.locator(".tune").getByRole("button", { name: /^More for/ })).toHaveCount(0);
   await go(cleo.page, BAND);
   await cleo.page.getByRole("tab", { name: "Notes" }).click();
   const text = unique("Load-in at 5", info.project.name);

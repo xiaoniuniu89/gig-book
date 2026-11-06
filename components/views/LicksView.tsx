@@ -2,6 +2,9 @@
 // /licks: your lick library (R8.1). Search by title or tag; create, edit, delete.
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../Icon";
+import { Modal } from "../Modal";
+import { MenuButton } from "../MenuButton";
+import { ConfirmTyped } from "../ConfirmTyped";
 import { useApp } from "../AppProvider";
 import { LickCard, LickForm, useLickFiles } from "../Licks";
 import { norm } from "@/lib/songs";
@@ -13,7 +16,8 @@ export function LicksView() {
   const [licks, setLicks] = useState<Lick[] | null>(null);
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
-  const [armed, setArmed] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Lick | null>(null);
+  const [newDirty, setNewDirty] = useState(false);
   const [picked, setPicked] = useState<"mine" | "starter" | null>(null);
   const signedIn = store.kind === "supabase";
   // your own licks first once you have some; until then, the ones that ship with the app
@@ -48,9 +52,7 @@ export function LicksView() {
     } catch (e) { err(e, "Couldn't save that lick."); throw e; }
   };
   const remove = async (l: Lick) => {
-    if (armed !== l.id) { setArmed(l.id); return; }
-    setArmed(null);
-    try { await store.deleteLick(l.id); setLicks(p => (p || []).filter(x => x.id !== l.id)); }
+    try { await store.deleteLick(l.id); setLicks(p => (p || []).filter(x => x.id !== l.id)); setDeleting(null); }
     catch (e) { err(e, "Couldn't delete that lick."); }
   };
 
@@ -58,9 +60,13 @@ export function LicksView() {
     <>
       <div className="page-head" data-tour="licks">
         <h1>Licks</h1>
-        {signedIn && <button className="btn primary" aria-expanded={adding} onClick={() => { setAdding(a => !a); setPicked("mine"); }}><Icon name="plus" size={18} /> New lick</button>}
+        {signedIn && <button className="btn primary" onClick={() => { setAdding(true); setPicked("mine"); }}><Icon name="plus" size={18} /> New lick</button>}
       </div>
-      {adding && <section className="panel"><LickForm newFiles cta="Save lick" onSubmit={create} onCancel={() => setAdding(false)} /></section>}
+      <Modal open={adding} title="New lick" onClose={() => setAdding(false)} dirty={newDirty}>
+        <LickForm newFiles cta="Save lick" onSubmit={create} onCancel={() => setAdding(false)} onDirty={setNewDirty} />
+      </Modal>
+      <ConfirmTyped open={!!deleting} title={"Delete " + (deleting?.title ?? "") + "?"} action="Delete lick" onClose={() => setDeleting(null)} onConfirm={() => deleting ? remove(deleting) : undefined}>
+        It comes off every tune it&apos;s attached to.</ConfirmTyped>
       <div className="pl-tabs" role="tablist" aria-label="Lick collections">
         <button role="tab" className="pl-tab" aria-selected={tab === "mine"} onClick={() => setPicked("mine")}>My licks<span>{licks?.length ?? ""}</span></button>
         <button role="tab" className="pl-tab" aria-selected={tab === "starter"} onClick={() => setPicked("starter")}>Starter licks<span>{STARTER_LICKS.length}</span></button>
@@ -74,7 +80,8 @@ export function LicksView() {
             {shown.map(l => (
               <LickCard key={l.id} lick={l}
                 sheet={files.atts.find(a => a.lickId === l.id && (a.kind === "musicxml" || a.kind === "image"))}
-                actions={l.mine ? <button className="btn small" onClick={() => void remove(l)}>{armed === l.id ? "Delete?" : "Delete"}</button> : undefined} />
+                actions={l.mine ? <MenuButton className="btn small" label="⋯" ariaLabel={"More for " + l.title} caret={false}
+                  items={[{ label: <><Icon name="trash" size={16} /> Delete</>, onClick: () => setDeleting(l) }]} /> : undefined} />
             ))}
           </div>
         )}

@@ -5,6 +5,8 @@ import { useApp } from "./AppProvider";
 import { songKey } from "@/lib/songs";
 import { Modal } from "./Modal";
 import { Icon } from "./Icon";
+import { MenuButton } from "./MenuButton";
+import { ConfirmTyped } from "./ConfirmTyped";
 import { AttachMenu, AttachmentList, UploadRows, dropProps, useUploads } from "./Attachments";
 import { NOTE_TAGS, type Attachment, type Note, type NoteHome, type NoteTag, type Setlist } from "@/lib/data/types";
 
@@ -105,7 +107,9 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
   const [open, setOpen] = useState<Set<string>>(new Set()); // threads with all replies shown
   const [replying, setReplying] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Note | null>(null);
+  const [copying, setCopying] = useState<Note | null>(null);
+  const [copyBusy, setCopyBusy] = useState(false);
   const [composing, setComposing] = useState(false);
   const [composeDirty, setComposeDirty] = useState(false);
   const [atts, setAtts] = useState<Attachment[]>([]);
@@ -158,11 +162,10 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
     } catch (e) { err(e, "Couldn't delete that file."); }
   };
   const remove = async (n: Note) => {
-    if (armed !== n.id) { setArmed(n.id); return; }
-    setArmed(null);
     try {
       await store.deleteNote(n.id);
       setNotes(p => (p || []).filter(x => x.id !== n.id && x.parentId !== n.id));
+      setDeleting(null);
     } catch (e) { err(e, "Couldn't delete that note."); }
   };
 
@@ -180,8 +183,11 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
     return out;
   }, [app.setlists, home, itemRaw]);
   const copy = async (n: Note, i: number) => {
-    try { await store.copyNote(n.id, targets[i].to); toast("Copied to " + targets[i].label + "."); }
+    if (copyBusy) return;
+    setCopyBusy(true);
+    try { await store.copyNote(n.id, targets[i].to); toast("Copied to " + targets[i].label + "."); setCopying(null); }
     catch (e) { err(e, "Couldn't copy that note."); }
+    setCopyBusy(false);
   };
 
   const top = (notes || []).filter(n => !n.parentId);
@@ -198,18 +204,16 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
   const isMine = (n: Note) => n.authorId === (store.kind === "local" ? "me" : app.account?.id);
   const actions = (n: Note, reply: boolean) => {
     const mine = isMine(n);
+    const items = [
+      ...(mine && !readOnly ? [{ label: <><Icon name="edit" size={16} /> Edit</>, onClick: () => setEditing(n.id) }] : []),
+      ...(!reply && targets.length > 0 ? [{ label: <><Icon name="copy" size={16} /> Copy to…</>, onClick: () => setCopying(n) }] : []),
+      ...(mine || (isOwner && home.kind !== "song") ? [{ label: <><Icon name="trash" size={16} /> Delete</>, onClick: () => setDeleting(n) }] : []),
+    ];
     return (
       <div className="note-actions">
-        {!reply && !readOnly && <button className="btn small" onClick={() => setReplying(replying === n.id ? null : n.id)}>Reply</button>}
-        {mine && !readOnly && <button className="btn small" onClick={() => setEditing(n.id)}>Edit</button>}
+        {!reply && !readOnly && <button className="btn small" onClick={() => setReplying(replying === n.id ? null : n.id)}><Icon name="chat" size={16} /> Reply</button>}
         {mine && !readOnly && canAttach && <AttachMenu onFiles={f => uploads.add(n.id, f)} />}
-        {(mine || (isOwner && home.kind !== "song")) && <button className="btn small" onClick={() => remove(n)}>{armed === n.id ? "Delete?" : "Delete"}</button>}
-        {!reply && targets.length > 0 && (
-          <select className="copy-to" aria-label="Copy to…" value="" onChange={e => { if (e.target.value !== "") void copy(n, Number(e.target.value)); }}>
-            <option value="">Copy to…</option>
-            {targets.map((t, i) => <option key={i} value={i}>{t.label}</option>)}
-          </select>
-        )}
+        {items.length > 0 && <MenuButton className="btn small" label="⋯" ariaLabel="More for this note" caret={false} items={items} />}
       </div>
     );
   };
@@ -263,6 +267,14 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
         <Compose label="New note" placeholder="Write your note…" tags attach={canAttach} cta="Add note" autoFocus rows={5} onDirty={setComposeDirty}
           onSubmit={async (b, t, f) => { await add(b, t, f); setComposing(false); }} onCancel={() => setComposing(false)} />
       </Modal>
+      <Modal open={!!copying} title="Copy this note to…" onClose={() => { if (!copyBusy) setCopying(null); }}>
+        {copying && <div className="pick-list">{targets.map((t, i) => (
+          <button key={i} className="pick-row" disabled={copyBusy} onClick={() => void copy(copying, i)}><b>{t.label}</b></button>
+        ))}</div>}
+        {copyBusy && <p className="hint"><span className="spinner" aria-hidden="true" /> Copying…</p>}
+      </Modal>
+      <ConfirmTyped open={!!deleting} title="Delete this note?" action="Delete note" onClose={() => setDeleting(null)} onConfirm={() => deleting ? remove(deleting) : undefined}>
+        Its replies and files go with it.</ConfirmTyped>
     </section>
   );
 }
