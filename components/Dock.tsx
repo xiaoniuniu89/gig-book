@@ -160,9 +160,18 @@ export function Dock() {
                 <label className="toggle" htmlFor="rec-follow"><input id="rec-follow" type="checkbox" checked={app.follow} onChange={e => app.setFollow(e.target.checked)} /> Charts follow the music</label>}
               <span className="hint" id="rec-status" role="status">
                 {app.recStatus.startsWith("Finding") && <span className="spinner" aria-hidden="true" />}
-                {app.recIdle && !app.recStatus ? "Nothing playing. Find a recording of a tune to hear it here." : app.recStatus}
+                {app.recIdle && !app.recStatus ? "" : app.recStatus}
               </span>
             </div>
+            {app.recIdle && !app.recStatus && (
+              <div className="rec-empty">
+                <b>Nothing playing yet</b>
+                {current && current.kind !== "lick"
+                  ? <span>{yTube ? <>Press <b>Play this tune</b> above to hear a recording of this tune.</> : <>Find a recording under <b>Recordings</b> below and press ▶ to play it.</>}</span>
+                  : <span>To hear a recording, open a tune and press <b>Play this tune</b> here. To hear a whole setlist, open it and press <b>Play</b> under Listen.</span>}
+                <span>Want to play with a band instead? Switch to <b>Play along</b>.</span>
+              </div>
+            )}
             {/* Spotify's iFrame API owns this element's contents; React never renders children into it. */}
             <div id="sp-embed" ref={app.embedRef} hidden={app.recKind === "youtube"} suppressHydrationWarning />
             {/* YouTube's player owns this one the same way */}

@@ -5,6 +5,7 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
     items: [
       "A band's setlist now shows the band in the trail at the top (Bands / your band / the setlist), so you can step back to the band.",
       "On a band's Setlists tab, Share one of yours picks from your setlists, and Take out of band asks you to confirm.",
+      "When nothing is playing, Listen now tells you how to start: open a tune and press Play this tune, or play a whole setlist.",
     ],
   },
   {
