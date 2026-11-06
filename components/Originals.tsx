@@ -23,7 +23,7 @@ const msg = (e: unknown, fallback: string) => e instanceof Error ? e.message : f
 const storeComposer = (name: string) => name.trim().split(/\s+/).reverse().join(" ");
 
 const where = (o: OriginalSong, bands: Band[]) =>
-  o.visibility === "public" ? "Public" : o.visibility === "band" ? "Shared with " + (bands.find(b => b.id === o.bandId)?.name || "a band") : "Private";
+  o.visibility === "public" ? "Public" : o.visibility === "bands" ? "Bands you're in" : o.visibility === "band" ? "Shared with " + (bands.find(b => b.id === o.bandId)?.name || "a band") : "Private";
 
 /** New song (no `o`) or edit one. `title` pre-fills the title, `bandId` shares a new one with that band. `mode` "ai": the lead
  *  sheet first; AI reads it and fills in the form (title, composer, style, key, tempo, chart) for you to check. `onSaved` gets the saved song. */
@@ -38,7 +38,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
   const [key, setKey] = useState(start?.key || "C");
   const [tempo, setTempo] = useState(start?.tempo ? String(start.tempo) : "");
   const [ts, setTs] = useState(start?.bars[0] ? start.bars[0].ts.num + "/" + start.bars[0].ts.den : "4/4");
-  const [vis, setVis] = useState<string>(o ? (o.visibility === "band" ? "band:" + o.bandId : o.visibility) : bandId ? "band:" + bandId : "private");
+  const [vis, setVis] = useState<string>(o ? (o.visibility === "band" ? "band:" + o.bandId : o.visibility) : bandId ? "bands" : "private");
   const [bands, setBands] = useState<Band[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [dropSheet, setDropSheet] = useState(false);
@@ -115,7 +115,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
     const r = fromEdit(edit);
     if (r.errors.length) { setProblems(r.errors); return; }
     setProblems([]);
-    const visibility: OriginalVisibility = vis === "public" ? "public" : vis.startsWith("band:") ? "band" : "private";
+    const visibility: OriginalVisibility = vis === "public" || vis === "bands" ? vis : vis.startsWith("band:") ? "band" : "private";
     const bandId = visibility === "band" ? vis.slice(5) : null;
     const t = Math.round(Number(tempo));
     if (tempo.trim() && !(t >= 30 && t <= 400)) { toast("Tempo has to be between 30 and 400."); return; }
@@ -188,15 +188,13 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
           </label>
         </div>
         <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
-          Private: only you. A band: everyone in that band can find it and add it to setlists. Public: anyone signed in can search for it. Whoever adds it to a setlist gets their own copy of the chart.
+          Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later, can find it and add it to setlists. Public: anyone signed in can search for it. Whoever adds it to a setlist gets their own copy of the chart.
         </Info></span>
           <select value={vis} onChange={e => setVis(e.target.value)}>
-            <option value="private">Private: only you</option>
-            {(bands.length > 0 || vis.startsWith("band:")) && <optgroup label="A band you're in">
-              {bands.map(b => <option key={b.id} value={"band:" + b.id}>{b.name}</option>)}
-              {vis.startsWith("band:") && !bands.some(b => "band:" + b.id === vis) && <option value={vis}>A band of yours</option>}
-            </optgroup>}
-            <option value="public">Public: anyone signed in</option>
+            <option value="private">Private</option>
+            <option value="bands">Bands I&apos;m in</option>
+            <option value="public">Public</option>
+            {vis.startsWith("band:") && <option value={vis}>Only {bands.find(b => "band:" + b.id === vis)?.name || "one band"}</option>}
           </select>
         </label>
         <ChartEditor value={edit} onChange={setEdit} ts={ts} />

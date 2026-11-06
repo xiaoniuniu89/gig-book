@@ -11,7 +11,7 @@ const WHO: Who[] = ["ava", "ben", "cleo", "dev"];
 const rawOf = (title: string) => encodeChart({ title, composer: "Callaghan Dan", style: "Medium Swing", key: "C", sections: [{ name: "A", ts: "4/4", bars: [{ chords: ["C^7"] }, { chords: ["D-7", "G7"] }] }] });
 
 /** A song made by `who` through their own client; `sheet` also gives it a lead sheet file. */
-async function make(who: Who, o: { visibility?: "private" | "band" | "public"; band?: string; sheet?: boolean; title?: string } = {}) {
+async function make(who: Who, o: { visibility?: "private" | "band" | "bands" | "public"; band?: string; sheet?: boolean; title?: string } = {}) {
   const id = crypto.randomUUID(), path = `${USERS[who].id}/${id}/sheet.pdf`;
   const ins = await M[who].sb.from("original_songs").insert({
     id, raw: rawOf(o.title ?? "Scratch Tune"), visibility: o.visibility ?? "private", band_id: o.band ?? null,
@@ -72,6 +72,23 @@ describe("originals: who can see one", () => {
     expect(await canDownload("cleo", s.path)).toBe(false);
     expect((await M.ben.store.searchOriginals("scratch tune")).map(o => o.id)).toContain(s.id);
     expect((await M.cleo.store.searchOriginals("scratch tune")).map(o => o.id)).not.toContain(s.id);
+  });
+
+  it("bands: everyone in any band with the writer, and nobody else", async () => {
+    await scratchBand(["ava"], ["ben"]);
+    const s = await make("ava", { visibility: "bands", sheet: true });
+    expect(s.error).toBeNull();
+    expect(await visible("ben", s.id)).toBe(true);
+    expect(await canDownload("ben", s.path)).toBe(true);
+    expect(await visible("eli", s.id)).toBe(false);
+    expect(await canDownload("eli", s.path)).toBe(false);
+    // a band joined later counts too
+    await scratchBand(["eli"], ["ava"]);
+    expect(await visible("eli", s.id)).toBe(true);
+    expect((await M.ben.store.searchOriginals("scratch tune")).map(o => o.id)).toContain(s.id);
+    // it can't carry a band
+    const mine = await scratchBand(["ava"]);
+    expect((await make("ava", { visibility: "bands", band: mine })).error).toBeTruthy();
   });
 
   it("band: only a band you are in, and the pairing of visibility and band is enforced", async () => {

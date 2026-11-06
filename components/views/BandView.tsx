@@ -233,7 +233,7 @@ function SongsTab({ band }: { band: Band }) {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Members&apos; originals <Info label="About members' originals">Original songs written by people in the band. Each song stays with whoever wrote it, and only they can change it. A song shows here when it&apos;s shared with this band or public. Anyone in the band can add these to a setlist with Add tunes. To share one you already have, edit it in your Library and choose this band or Public under Who can see it.</Info></h2>
+        <h2>Members&apos; originals <Info label="About members' originals">Original songs written by people in the band. Each song stays with whoever wrote it, and only they can change it. A song shows here when its writer chose Bands I&apos;m in or Public. Anyone in the band can add these to a setlist with Add tunes. To share one you already have, edit it in your Library and choose Bands I&apos;m in or Public under Who can see it.</Info></h2>
         <UploadMenu label="New song" className="btn small" onPick={setMaking} />
       </div>
       {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No originals by band members shared here yet.</p> : (

@@ -391,7 +391,8 @@ export const NEEDS_ACCOUNT_GIGS = "Sign in to plan gigs.";
 export interface TranscriptionShare { userId: string; name: string; email: string | null }
 
 /** An original song (R16): your own tune, stored as an iReal song string. Private, shared with one of your bands, or public. */
-export type OriginalVisibility = "private" | "band" | "public";
+/** "bands": everyone in any band with you; "band" (older songs): one band, `bandId`. */
+export type OriginalVisibility = "private" | "band" | "bands" | "public";
 export interface LeadSheetFile { path: string; kind: "pdf" | "image"; name: string; mime: string; size: number }
 export interface OriginalSong {
   id: string;
@@ -526,7 +527,7 @@ export interface DataStore {
   listOriginals(): Promise<OriginalSong[]>;
   /** Other people's originals you can see (public, or your bands'), matching the words; at most 20. Local mode has none. */
   searchOriginals(q: string): Promise<OriginalSong[]>;
-  /** Originals by the band's members that the band can see (shared with it, or public), by title. Local mode has none. */
+  /** Originals by the band's members that the band can see (Bands I'm in, shared with it, or public), by title. Local mode has none. */
   listBandOriginals(bandId: string): Promise<OriginalSong[]>;
   /** The row first, then the lead sheet (PDF or photo, 10 MB) if there is one. Local mode rejects. */
   createOriginal(f: OriginalFields, leadSheet?: File | null, onProgress?: (p: number) => void): Promise<OriginalSong>;

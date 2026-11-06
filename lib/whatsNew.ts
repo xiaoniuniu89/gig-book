@@ -4,6 +4,7 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
     date: "2026-11-13",
     items: [
       "Bands have an Originals tab: the original songs by people in the band, in one place. Each song stays with whoever wrote it.",
+      "Who can see a song is now simply Private, Bands I'm in, or Public.",
       "Add tunes on a band setlist lists your bandmates' originals too, and a song you add there is shared with the band.",
       "New song now asks With AI or Manually. With AI, choose your lead sheet and AI fills in the title, composer, style, key, tempo and chords for you to check.",
     ],
