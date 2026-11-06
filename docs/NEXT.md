@@ -18,7 +18,7 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 - **Marked Work in progress** (Dan won't test these for now): Transcribe tool, Lyrics tab, Poster, Press kit editor.
 - **Open issues:** #75 (ratings and comments, later), #76 (musician pages, later), #77 (e2e hydration error), #78 (Magic Link email template: Dan's dashboard task), #83 (map venue picker: needs a choice of map service).
 - **Not tested:** the new `band_kit_members` and `public_band_members` functions (0045) have no access tests yet. Add them to `tests/access/bands.test.ts`.
-- **Tests:** unit tests pass. Access tests need Docker (CI only). See the latest `test.yml` run on `main`.
+- **Tests:** unit and access tests pass on CI (300/300). Three end-to-end tests on band pages fail, probably because the band page layout changed; details in #77.
 
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
