@@ -1,6 +1,18 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-08",
+    items: [
+      "New: Gigs. Give a gig a date and venue, put one or more setlists on it, add the lineup (guests too) and make a poster. A setlist can be on many gigs, and changing it changes it everywhere. Venues you've played before pop up as you type.",
+      "Make a gig straight from a setlist (Add to gig) or from your band's Gigs tab.",
+      "Send a setlist to iReal Pro: open it, copy the link, or download a file to email to the band. Tunes come in set order and in your keys.",
+      "Upload a transcription with AI: choose the file and it fills in the tune, player, instrument and recording for you to check.",
+      "The screen stays on while a tune's page is open, not only in full-screen chart view.",
+      "The home page is grouped into Play, Practice, Tools and Niu AI, one colour each, and every tool has its own card.",
+      "Bands have a Settings tab with Privacy (what the band sees of your profile) and Leave band. Leaving or deleting a band, setlist or gig now asks you to type approve.",
+    ],
+  },
+  {
     date: "2026-11-07",
     items: [
       "Signing in: type the code from the email, so you're signed in on the browser you're using even if the link opens somewhere else. You stay signed in on that device until you tap Sign out (in your menu).",
