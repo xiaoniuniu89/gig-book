@@ -1,5 +1,6 @@
 "use client";
 // Attachments on notes (R6): attach menu (photo / record / file), upload queue, list with viewers.
+import { PdfPages } from "./PdfPages";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
 import { MAX_FILE_MB, attachmentKind, type Attachment, type DataStore, type NoteHome } from "@/lib/data/types";
@@ -198,7 +199,7 @@ export function FileChart({ store, a, transpose }: { store: DataStore; a: Attach
   return a.kind === "image"
     // eslint-disable-next-line @next/next/no-img-element -- a signed URL, not a static asset
     ? <div className="file-chart"><img src={url} alt={a.name} /></div>
-    : <object className="file-chart" data={url} type="application/pdf" aria-label={a.name}><a className="btn" href={url} target="_blank" rel="noopener noreferrer">Open PDF</a></object>;
+    : <div className="file-chart"><PdfPages url={url} name={a.name} /></div>;
 }
 
 function One({ store, a, canDelete, onDelete }: { store: DataStore; a: Attachment; canDelete: boolean; onDelete: (a: Attachment) => void }) {

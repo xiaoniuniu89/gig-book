@@ -7,6 +7,7 @@ import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
+import { PdfPages } from "./PdfPages";
 import { ChartEditor, blankSection, fromEdit, toEdit, type EditSection } from "./ChartEditor";
 import { chartFromLeadSheet } from "@/lib/ai/leadsheetClient";
 import { defaultTempo } from "@/lib/band/gen";
@@ -232,7 +233,7 @@ export function useOriginal(raw: string): OriginalSong | null {
   return mine ?? (found?.key === key ? found.o : null);
 }
 
-/** The Lead sheet tab: a photo shows; a PDF is a tidy file card (no browser PDF viewer), with Open and Download. */
+/** The Lead sheet tab: the pages themselves, clean like the iReal chart (a PDF is drawn page by page), and Download. */
 export function LeadSheetPane({ o }: { o: OriginalSong }) {
   const { store } = useApp();
   const [url, setUrl] = useState<string | null | undefined>(undefined);
@@ -245,18 +246,14 @@ export function LeadSheetPane({ o }: { o: OriginalSong }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, path]);
   if (!o.leadSheet) return null;
+  if (!url) return <p className="hint pad">{url === null ? "Couldn't load the lead sheet." : "Loading the lead sheet…"}</p>;
   return (
     <div className="lead-sheet">
-      <div className="lead-sheet-card">
-        <Icon name="music" size={22} />
-        <span className="name">{o.leadSheet.name}<span className="sub">{o.leadSheet.kind === "pdf" ? "PDF" : "Photo"} · {Math.max(1, Math.round(o.leadSheet.size / 1024))} KB</span></span>
-        {url ? <span className="row-btns">
-          <a className="btn small" href={url} target="_blank" rel="noreferrer"><Icon name="share" size={16} /> Open</a>
-          <a className="btn small" href={url} download={o.leadSheet.name}><Icon name="import" size={16} /> Download</a>
-        </span> : <span className="hint">{url === null ? "Couldn't load it." : "Loading…"}</span>}
-      </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url && o.leadSheet.kind === "image" && <img src={url} alt={"Lead sheet: " + o.title} />}
+      <div className="row-btns"><a className="btn small" href={url} download={o.leadSheet.name}><Icon name="import" size={16} /> Download</a></div>
+      {o.leadSheet.kind === "image"
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img className="pdf-page" src={url} alt={"Lead sheet: " + o.title} />
+        : <PdfPages url={url} name={"Lead sheet: " + o.title} />}
     </div>
   );
 }

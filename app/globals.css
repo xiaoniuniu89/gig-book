@@ -695,7 +695,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .lick-row .lick-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
 .lick-row .lick-open:hover b { color: var(--brass); }
 .lick-row .lick-open .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lick-file .file-chart { height: auto; max-height: 70vh; }
+.lick-file .file-chart { height: auto; max-height: 70vh; overflow: auto; }
 .lick-file .file-chart img { max-height: 70vh; width: auto; max-width: 100%; }
 .lick-chords .panel-head { margin-bottom: 8px; }
 .band-more { margin-top: 10px; font-size: 0.8125rem; }
@@ -772,7 +772,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .res-card { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--rule); border-radius: 10px; color: inherit; text-decoration: none; }
 .res-card:hover { border-color: var(--brass); }
 .res-card .hint { overflow-wrap: anywhere; }
-.res-file .file-chart { height: auto; max-height: 80vh; }
+.res-file .file-chart { height: auto; max-height: 80vh; overflow: auto; }
 .res-file .file-chart img { max-height: 80vh; width: auto; max-width: 100%; }
 .res-file object.file-chart { height: 80vh; min-height: 400px; }
 
@@ -1135,9 +1135,9 @@ html[data-calm] .callout.warn { background: var(--surface); }
 .lead-sheet { display: grid; gap: 8px; justify-items: start; padding: 0 0 10px; }
 .lead-sheet img { max-width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; }
 .lead-sheet { padding-top: 10px; justify-items: stretch; }
-.lead-sheet-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
-.lead-sheet-card .name { flex: 1; min-width: 0; display: grid; overflow-wrap: anywhere; font-weight: 700; }
-.lead-sheet-card .sub { font-weight: 400; font-family: var(--type); font-size: 0.8125rem; color: var(--muted); }
+/* a PDF or photo chart read like the iReal chart: white pages at full width, no viewer chrome */
+.pdf-pages { display: grid; gap: 14px; width: 100%; }
+.pdf-page { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 6px; }
 .steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; line-height: 1.45; }
 .epk-member { padding: 12px 0; border-top: 1px solid var(--rule); }
 .epk-member h3 { margin: 0 0 6px; }
