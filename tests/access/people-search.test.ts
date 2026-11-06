@@ -71,6 +71,7 @@ describe("search_people()", () => {
   });
 
   it("one-tap add accepts someone from the circle but not a stranger", async () => {
+    await cleanScratch(); // the band from the test above would still put ava in eli's circle
     await strangers();
     const set = await scratchSetlist({ owner: "eli" });
     expect((await M.eli.sb.rpc("add_setlist_collaborator", { p_setlist: set, p_user: USERS.ava.id, p_role: "viewer" })).error).toBeTruthy();

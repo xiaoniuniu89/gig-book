@@ -37,6 +37,7 @@ export function validateChart(raw: unknown): ChartGuess {
     const sec = isObj(s) ? s : {};
     const name = clip(sec.name, 40).trim();
     const where = "Section " + (si + 1) + (name ? " “" + name + "”" : "");
+    if (typeof sec.name === "string" && /[<>{}\[\]\\`]/.test(sec.name)) errors.push(where + ": the section name isn't plain text.");
     if (sec.time !== undefined && sec.time !== null && !(TIME_SIGS as readonly string[]).includes(String(sec.time).replace(/\s+/g, ""))) errors.push(where + ": time signature “" + String(sec.time).slice(0, 10) + "” isn't supported.");
     const bars: ChartBar[] = [];
     (Array.isArray(sec.bars) ? sec.bars : []).forEach((b, bi) => {

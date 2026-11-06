@@ -38,6 +38,8 @@ export function checkFile(f: File, opt: { maxMB: number; types?: RegExp; typeNam
 export function plainError(error: { message?: string; code?: string } | null | undefined): string {
   const m = error?.message || "";
   const code = error?.code || "";
+  // our own `raise exception 'Plain sentence.'` (any of the codes our functions use): keep it, unless it looks technical
+  if (/^(P0\d{3}|22023|28000|42501|23505)$/.test(code) && /^[A-Z][^_]*$/.test(m) && !/violates|constraint|relation|function|syntax|column|row-level|permission denied for/i.test(m)) return m;
   if (code === "23514") return "One of the fields is too long or isn't allowed.";
   if (code === "23505") return "That already exists.";
   if (code === "23503") return "That is linked to something that has gone.";
@@ -46,7 +48,5 @@ export function plainError(error: { message?: string; code?: string } | null | u
   if (/failed to fetch|networkerror|network request|load failed/i.test(m)) return "No connection. Check your internet and try again.";
   if (/jwt|not authenticated|invalid token/i.test(m)) return "Sign in again and retry.";
   if (/rate limit|too many/i.test(m)) return "Too many tries. Wait a moment and try again.";
-  // our own `raise exception 'Plain sentence.'` (P0001 / 22023): keep, unless it looks technical
-  if ((code === "P0001" || code === "22023") && m && !/violates|constraint|relation|function|syntax|column|_/.test(m)) return m;
   return "Something went wrong. Try again.";
 }
