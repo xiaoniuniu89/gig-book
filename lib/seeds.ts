@@ -22,4 +22,6 @@ export const withBuiltins = (own: Setlist[]): Setlist[] =>
   own.concat(BUILTIN_SETLISTS.filter(b => !own.some(s => s.name === b.name)));
 
 /** Built into every library and never stored: core jazz standards, charts from the iReal Pro forum's Jazz 1460 playlist. */
+/** The library playlist made from your original songs (R16); it is never stored as a playlist. */
+export const ORIGINALS_ID = "originals";
 export const BUILTIN_LIBRARY: LibraryPlaylist = { id: "jazz-essentials", name: "Jazz Essentials", songs: standards as string[] };

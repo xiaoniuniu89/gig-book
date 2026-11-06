@@ -1,7 +1,7 @@
 // Local adapter: a tiny IndexedDB key-value store. Everything lives in this browser only.
 // Same database name, store and keys as the old static app ("setlist:<id>", "library:<id>").
 import { SETTINGS_KEY, loadLocalSettings, saveLocalSettings } from "../settings";
-import { NEEDS_ACCOUNT_GIGS, NEEDS_ACCOUNT_TRANSCRIPTIONS,MAX_PRACTICE_BYTES, MAX_PRACTICE_TRACKS, slug, type PracticeTrack, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
+import { NEEDS_ACCOUNT_GIGS, NEEDS_ACCOUNT_ORIGINALS, NEEDS_ACCOUNT_TRANSCRIPTIONS,MAX_PRACTICE_BYTES, MAX_PRACTICE_TRACKS, slug, type PracticeTrack, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
 
 const DB_NAME = "gig-book", STORE = "kv";
 let dbp: Promise<IDBDatabase> | null = null;
@@ -119,6 +119,12 @@ export const localStore: DataStore = {
   attachmentUrl: () => Promise.reject(new Error("Attachments need an account.")),
   listCharts: async () => [],
   createChart: () => Promise.reject(new Error("Charts need an account.")),
+  listOriginals: async () => [],
+  searchOriginals: async () => [],
+  createOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
+  updateOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
+  deleteOriginal: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
+  originalLeadSheetUrl: () => Promise.reject(new Error(NEEDS_ACCOUNT_ORIGINALS)),
   listTranscriptions: () => Promise.reject(new Error(NEEDS_ACCOUNT_TRANSCRIPTIONS)),
   getTranscription: () => Promise.reject(new Error(NEEDS_ACCOUNT_TRANSCRIPTIONS)),
   createTranscription: () => Promise.reject(new Error(NEEDS_ACCOUNT_TRANSCRIPTIONS)),

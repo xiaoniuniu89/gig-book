@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../AppProvider";
 import { meta, norm, prettyKey } from "@/lib/songs";
-import { BUILTIN_LIBRARY } from "@/lib/seeds";
+import { BUILTIN_LIBRARY, ORIGINALS_ID } from "@/lib/seeds";
+import { NewSong } from "../Originals";
 import { Icon } from "../Icon";
 import { ImportPanel } from "../ImportPanel";
 import { Modal } from "../Modal";
@@ -14,7 +15,8 @@ const PAGE = 100; // rows rendered per scroll step
 let lastPick = ""; // which playlist was open, remembered like the query
 
 export function Library() {
-  const { library, setCrumb, setCurrent, ready, removeLibraryPlaylist } = useApp();
+  const { library, setCrumb, setCurrent, ready, removeLibraryPlaylist, store } = useApp();
+  const [creating, setCreating] = useState(false);
   const [q, setQ] = useState(lastQuery);
   const [pickId, setPickId] = useState(lastPick || BUILTIN_LIBRARY.id);
   const [delArmed, setDelArmed] = useState(false);
@@ -54,8 +56,12 @@ export function Library() {
     <>
       <div className="page-head" data-tour="library">
         <h1>Library</h1>
-        <button className="btn" onClick={() => setImporting(true)}><Icon name="plus" size={18} /> Import playlist</button>
+        <span className="row-btns">
+          {store.kind === "supabase" && <button className="btn" onClick={() => setCreating(true)}><Icon name="plus" size={18} /> New song</button>}
+          <button className="btn" onClick={() => setImporting(true)}><Icon name="plus" size={18} /> Import playlist</button>
+        </span>
       </div>
+      {creating && <NewSong onClose={() => setCreating(false)} onSaved={() => { setCreating(false); pick(ORIGINALS_ID); }} />}
       <Modal open={importing} title="Import from iReal Pro" onClose={() => setImporting(false)}><ImportPanel onDone={() => setImporting(false)} /></Modal>
       <div className="pl-tabs" role="tablist" aria-label="Playlists">
         {library.map(p => (
@@ -67,7 +73,7 @@ export function Library() {
       <div className="lib-tools">
         <input ref={input} id="lib-q" className="search" type="search" placeholder={pl ? "Search " + pl.name : "Search"} autoComplete="off"
           value={q} onChange={e => { setQ(e.target.value); lastQuery = e.target.value; }} />
-        {pl && pl.id !== BUILTIN_LIBRARY.id && (
+        {pl && pl.id !== BUILTIN_LIBRARY.id && pl.id !== ORIGINALS_ID && (
           <button className={"btn" + (delArmed ? "" : " icon-btn")} aria-label={"Remove " + pl.name} title={"Remove " + pl.name}
             onBlur={() => setDelArmed(false)}
             onClick={() => { if (!delArmed) { setDelArmed(true); return; } setDelArmed(false); pick(BUILTIN_LIBRARY.id); removeLibraryPlaylist(pl.id); }}>

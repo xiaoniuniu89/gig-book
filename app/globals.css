@@ -1088,3 +1088,14 @@ html[data-calm] .callout.warn { background: var(--surface); }
 /* gigs (R15) */
 .gig-on { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .contact-rows { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 0 10px; font-size: 0.875rem; color: var(--muted); overflow-wrap: anywhere; }
+/* original songs (R16) */
+.sec-block { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+.sec-block.dragging { opacity: .5; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sec-head input[type="text"] { flex: 1 1 110px; min-width: 0; }
+.sec-grip { cursor: grab; color: var(--muted); padding: 0 4px; user-select: none; }
+.sec-btns { display: flex; gap: 4px; margin-left: auto; }
+.sec-block textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875rem; width: 100%; box-sizing: border-box; }
+.lead-sheet { display: grid; gap: 8px; justify-items: start; padding: 0 0 10px; }
+.lead-sheet img { max-width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; }
+.lead-sheet iframe { width: 100%; height: min(70vh, 720px); border: 1px solid var(--rule); border-radius: 6px; background: #fff; }

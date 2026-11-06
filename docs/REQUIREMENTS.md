@@ -151,6 +151,17 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R15.7 **Pages:** a **Gigs** card on the home page opens `/gigs` (Upcoming, soonest first, and Past tabs; **New gig** opens a modal). `/gigs/<id>` shows details, Setlists (Add setlist, Copy for this gig, Remove), Lineup with contacts, and the Poster. A setlist page shows "On gigs: …" with links and **Add to gig**. A band page has a Gigs tab listing its upcoming gigs.
 - R15.8 Tables `gigs`, `gig_setlists`, `gig_lineup` with RLS; functions `gig_lineup_list`, `gig_guest_details`, `gig_photos`; migration `0040_gigs.sql`; tests in `tests/access/gigs.test.ts`.
 
+### R16 Original songs
+- R16.1 **New song** (modal) on the library page: title, composer (defaults to your name), style, key, tempo, time signature, and **Who can see it**: Private (default), one of your bands, or Public. Accounts only. It is stored as an iReal song string, so the chart, transpose, the band, setlists, arrangements and the iReal export work unchanged. Originals are the library's **My originals** playlist; public ones (and your bands') are found by searching the tune picker ("Original songs by other players").
+- R16.2 Optional **lead sheet** (PDF or photo, 10 MB), kept with the song and shown on its page (`OriginalPanel` in `components/Originals.tsx`), with Edit song and Delete for the owner.
+- R16.3 **Make the chart with AI** reads the lead sheet (`/api/ai/leadsheet`, PDFs and photos up to 3 MB after shrinking) and returns sections, bars with chords, time signature, repeats, first and second endings, segno, coda and D.S./D.C. text. A visible note says it goes to an AI service; it uses one daily Niu AI request (`ai_claim`).
+- R16.4 **Never trust the answer** (`validateChart` in `lib/ai/leadsheet.ts`, `chartProblems` in `lib/irealExport.ts`): every chord must parse (`parseChordText`), bars must fit the time signature (at most one chord per beat), section names and words above bars are plain text. What fails is listed and the chart is not used or saved. The result lands in the editor for review; nothing is saved until Save.
+- R16.5 **Layout:** always 4 bars to a line (the chart renderer does this; sections and endings start new lines). Use repeats and endings to keep long songs short; anything longer scrolls and the chart follows the player. No 8-bar lines.
+- R16.6 **Section editor** (`components/ChartEditor.tsx`): rename, drag (or ↑ ↓) to reorder, duplicate, delete, and each section's bars as text (`{ C^7 | A-7 | 1. D-7 G7 } | 2. D-7`) with repeat (`{` `}`), ending (`1.` `2.`), Segno, Coda and `<words>` marks.
+- R16.7 `lib/irealExport.ts` writes sections, repeats, endings, segno/coda, D.S. text and time signatures (`encodeChart`, `chartMusic`) and reads them back for editing (`sectionsFromBars`). Round-trip tests: `tests/unit/originals.test.ts`.
+- R16.8 **One reusable component, offered everywhere:** every tune picker (setlists, arrangements, transcriptions) has **Can't find it? Add your own song**, which opens New song with what you typed as the title; when saved the picker picks it. Tips and caveats are in Info icons.
+- R16.9 Table `original_songs` (owner, raw, visibility, band, lead sheet columns; RLS), private bucket `leadsheets` (`<owner>/<id>/<uuid>-<name>`), at most 20 new songs or lead sheets a day (trigger and log); migration `0041_originals.sql`; tests in `tests/access/originals.test.ts`.
+
 ### Later (captured, not v1)
 - Offline chart view (service worker caching of setlists and attachments).
 - Storage quotas, open sign-up, public setlists.

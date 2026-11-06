@@ -1,0 +1,221 @@
+"use client";
+// Original songs (R16): the New song dialog (also Edit), used by the library page, the tune pickers ("Can't find it? Add your
+// own song") and a song's own page. Saved as an iReal song string, so everything else in the app works on it unchanged.
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useApp } from "./AppProvider";
+import { Icon } from "./Icon";
+import { Info } from "./Info";
+import { Modal } from "./Modal";
+import { ChartEditor, blankSection, fromEdit, toEdit, type EditSection } from "./ChartEditor";
+import { chartFromLeadSheet } from "@/lib/ai/leadsheetClient";
+import { defaultTempo } from "@/lib/band/gen";
+import { encodeChart, sectionsFromBars, TIME_SIGS } from "@/lib/irealExport";
+import { meta, prettyKey, song } from "@/lib/songs";
+import { MAX_LEAD_SHEET_MB, attachmentKind, type Band, type OriginalSong, type OriginalVisibility } from "@/lib/data/types";
+
+const ACCEPT = "application/pdf,image/*";
+const STYLES = ["Medium Swing", "Up Tempo Swing", "Medium Up Swing", "Medium Slow Swing", "Ballad", "Bossa Nova", "Latin", "Samba", "Waltz", "Even 8ths", "Funk", "Rock Pop"];
+const MAJOR = ["C", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B"];
+const KEYS = [...MAJOR, ...["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"].map(k => k + "-")];
+const msg = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
+/** iReal keeps the composer as "Last First"; the app reads it back reversed. */
+const storeComposer = (name: string) => name.trim().split(/\s+/).reverse().join(" ");
+
+const where = (o: OriginalSong, bands: Band[]) =>
+  o.visibility === "public" ? "Public" : o.visibility === "band" ? "Shared with " + (bands.find(b => b.id === o.bandId)?.name || "a band") : "Private";
+
+/** New song (no `o`) or edit one. `title` pre-fills the title. `onSaved` gets the saved song. */
+export function NewSong({ o, title: preTitle, onClose, onSaved }: { o?: OriginalSong; title?: string; onClose: () => void; onSaved: (o: OriginalSong) => void }) {
+  const { store, account, toast, putOriginal } = useApp();
+  const start = o ? song(o.raw) : null;
+  const [title, setTitle] = useState(start?.title ?? preTitle?.trim() ?? "");
+  const [composer, setComposer] = useState(o ? meta(o.raw).composer : account?.name ?? "");
+  const [style, setStyle] = useState(start?.style || "Medium Swing");
+  const [key, setKey] = useState(start?.key || "C");
+  const [tempo, setTempo] = useState(start?.tempo ? String(start.tempo) : "");
+  const [ts, setTs] = useState(start?.bars[0] ? start.bars[0].ts.num + "/" + start.bars[0].ts.den : "4/4");
+  const [vis, setVis] = useState<string>(o ? (o.visibility === "band" ? "band:" + o.bandId : o.visibility) : "private");
+  const [bands, setBands] = useState<Band[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [dropSheet, setDropSheet] = useState(false);
+  const [edit, setEdit] = useState<EditSection[]>(() => start?.bars.length ? toEdit(sectionsFromBars(start.bars)) : [blankSection("A", "4/4")]);
+  const [problems, setProblems] = useState<string[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [pct, setPct] = useState<number | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const touched = useRef({ key: !!o, tempo: !!o });
+
+  useEffect(() => { store.listBands().then(setBands).catch(() => setBands([])); }, [store]);
+
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f) return;
+    const k = attachmentKind(f.type, f.name);
+    if (k !== "pdf" && k !== "image") toast("Choose a PDF or a photo.");
+    else if (f.size > MAX_LEAD_SHEET_MB * 1024 * 1024) toast(`Too big: a lead sheet can be up to ${MAX_LEAD_SHEET_MB} MB.`);
+    else { setFile(f); setDropSheet(false); }
+  };
+  const changeTs = (next: string) => { setEdit(v => v.map(s => s.ts === ts ? { ...s, ts: next } : s)); setTs(next); };
+
+  const sheetFile = async (): Promise<File | null> => {
+    if (file) return file;
+    if (!o?.leadSheet || dropSheet) return null;
+    const res = await fetch(await store.originalLeadSheetUrl(o));
+    if (!res.ok) throw new Error("Couldn't open the lead sheet.");
+    return new File([await res.blob()], o.leadSheet.name, { type: o.leadSheet.mime });
+  };
+  const makeChart = async () => {
+    if (aiBusy) return;
+    if (edit.some(s => s.text.trim()) && !confirm("Replace the chart you have so far with the AI's?")) return;
+    setAiBusy(true); setProblems([]);
+    try {
+      const f = await sheetFile();
+      if (!f) throw new Error("Choose the lead sheet first.");
+      const g = await chartFromLeadSheet(f);
+      if (g.errors.length) { setProblems(["The AI's chart wasn't used, because:", ...g.errors]); return; }
+      setEdit(toEdit(g.sections));
+      const first = g.sections[0]?.ts;
+      if (first) setTs(first);
+      if (g.key && !touched.current.key) setKey(g.key);
+      if (g.tempo && !touched.current.tempo) setTempo(String(g.tempo));
+      toast("Chart made. Check it, then save.");
+    } catch (e) { toast(msg(e, "Couldn't make the chart.")); }
+    finally { setAiBusy(false); }
+  };
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pct !== null || aiBusy) return;
+    const name = title.trim();
+    if (!name) { toast("Give the song a title."); return; }
+    const r = fromEdit(edit);
+    if (r.errors.length) { setProblems(r.errors); return; }
+    setProblems([]);
+    const visibility: OriginalVisibility = vis === "public" ? "public" : vis.startsWith("band:") ? "band" : "private";
+    const bandId = visibility === "band" ? vis.slice(5) : null;
+    const t = Math.round(Number(tempo));
+    const raw = encodeChart({ title: name, composer: storeComposer(composer), style, key, tempo: t >= 30 && t <= 400 ? t : undefined, sections: r.sections });
+    setPct(0);
+    try {
+      const saved = o
+        ? await store.updateOriginal(o, { raw, visibility, bandId }, file ?? (dropSheet ? "remove" : undefined))
+        : await store.createOriginal({ raw, visibility, bandId }, file, setPct);
+      putOriginal(saved);
+      onSaved(saved);
+    } catch (er) { toast(msg(er, "Couldn't save that song.")); setPct(null); }
+  };
+
+  const sheetName = file?.name ?? (!dropSheet ? o?.leadSheet?.name : undefined);
+  return (
+    <Modal open title={o ? "Edit song" : "New song"} onClose={() => { if (pct === null) onClose(); }}>
+      <form className="chart-form" onSubmit={save}>
+        <label className="field"><span className="field-label">Title</span>
+          <input type="text" maxLength={200} autoFocus={!title} value={title} onChange={e => setTitle(e.target.value)} />
+        </label>
+        <label className="field"><span className="field-label">Composer <Info label="About the composer">Starts as your name. Change it if someone else wrote it.</Info></span>
+          <input type="text" maxLength={120} value={composer} onChange={e => setComposer(e.target.value)} />
+        </label>
+        <div className="field-grid">
+          <label className="field"><span className="field-label">Style</span>
+            <select value={style} onChange={e => setStyle(e.target.value)}>
+              {STYLES.includes(style) ? null : <option value={style}>{style}</option>}
+              {STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="field"><span className="field-label">Key</span>
+            <select value={key} onChange={e => { touched.current.key = true; setKey(e.target.value); }}>
+              {KEYS.includes(key) ? null : <option value={key}>{prettyKey(key)}</option>}
+              {KEYS.map(k => <option key={k} value={k}>{prettyKey(k)}</option>)}
+            </select>
+          </label>
+          <label className="field"><span className="field-label">Tempo <span className="field-opt">(optional)</span></span>
+            <input type="number" inputMode="numeric" min={30} max={400} placeholder={String(defaultTempo(style))} value={tempo} onChange={e => { touched.current.tempo = true; setTempo(e.target.value); }} />
+          </label>
+          <label className="field"><span className="field-label">Time signature</span>
+            <select value={ts} onChange={e => changeTs(e.target.value)}>
+              {(TIME_SIGS as readonly string[]).includes(ts) ? null : <option value={ts}>{ts}</option>}
+              {TIME_SIGS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+        </div>
+        <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
+          Private: only you. A band: everyone in that band can find it and add it to setlists. Public: anyone signed in can search for it. Whoever adds it to a setlist gets their own copy of the chart.
+        </Info></span>
+          <select value={vis} onChange={e => setVis(e.target.value)}>
+            <option value="private">Private: only you</option>
+            {bands.map(b => <option key={b.id} value={"band:" + b.id}>Band: {b.name}</option>)}
+            {vis.startsWith("band:") && !bands.some(b => "band:" + b.id === vis) && <option value={vis}>A band of yours</option>}
+            <option value="public">Public: anyone signed in</option>
+          </select>
+        </label>
+        <div className="field"><span className="field-label">Lead sheet <span className="field-opt">(optional)</span> <Info label="About the lead sheet">
+          A PDF or a photo, up to {MAX_LEAD_SHEET_MB} MB. It is kept with the song and shown on its page. Niu AI can read it and write out the chart for you; for that a PDF has to be 3 MB or less. Only you and whoever can see the song can open it.
+        </Info></span>
+          <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
+          <div className="attach-opts">
+            {sheetName ? <><span className="chip">{sheetName}</span>
+              <button className="btn small" type="button" onClick={() => input.current?.click()}>Change</button>
+              <button className="btn small" type="button" onClick={() => { setFile(null); setDropSheet(true); }}>Remove</button></>
+              : <button className="btn small" type="button" onClick={() => input.current?.click()}><Icon name="import" size={16} /> Choose file</button>}
+            {sheetName && <button className="btn small" type="button" disabled={aiBusy} onClick={makeChart}><Icon name="sparkle" size={16} /> {aiBusy ? "Reading the lead sheet…" : "Make the chart with AI"}</button>}
+          </div>
+          {sheetName && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Make the chart with AI sends the lead sheet to an AI service. It counts toward your daily Niu AI requests, and it can make mistakes: check the chart before you save.</span></div>}
+        </div>
+        <ChartEditor value={edit} onChange={setEdit} ts={ts} />
+        {problems.length > 0 && <ul className="field-err" role="alert">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
+        {pct !== null && file && <progress max={1} value={pct} aria-label="Uploading" />}
+        <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null || aiBusy}>{pct !== null ? "Saving…" : o ? "Save" : "Save song"}</button></div>
+      </form>
+    </Modal>
+  );
+}
+
+/** On a song's own page, when the song is one of your originals: who can see it, the lead sheet, Edit and Delete. */
+export function OriginalPanel({ raw, editable }: { raw: string; editable: boolean }) {
+  const { originals, store, dropOriginal, toast } = useApp();
+  const router = useRouter();
+  const o = originals.find(x => x.raw === raw);
+  const [bands, setBands] = useState<Band[]>([]);
+  const [url, setUrl] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const sheet = o?.leadSheet?.path;
+  useEffect(() => { if (o?.visibility === "band") store.listBands().then(setBands).catch(() => setBands([])); }, [store, o?.visibility]);
+  useEffect(() => {
+    let live = true;
+    setUrl(null);
+    if (o?.leadSheet) store.originalLeadSheetUrl(o).then(u => { if (live) setUrl(u); }).catch(() => { if (live) setUrl(null); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, sheet]);
+  if (!o) return null;
+  const del = async () => {
+    try { await store.deleteOriginal(o); } catch (e) { toast(msg(e, "Couldn't delete that song.")); return; }
+    dropOriginal(o.id);
+    router.push("/library");
+  };
+  return (
+    <section className="panel" aria-label="Original song">
+      <div className="panel-head">
+        <h2>Original song</h2>
+        <span className="pill">{where(o, bands)}</span>
+        {editable && <span className="row-btns">
+          <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit song</button>
+          <button className="btn small" onBlur={() => setArmed(false)} onClick={() => { if (!armed) { setArmed(true); return; } void del(); }}>{armed ? "Tap again to delete" : <Icon name="trash" size={16} />}</button>
+        </span>}
+      </div>
+      {o.leadSheet ? (
+        <div className="lead-sheet">
+          {url ? (o.leadSheet.kind === "image"
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={url} alt={"Lead sheet: " + o.title} />
+            : <iframe src={url} title={"Lead sheet: " + o.title} />)
+            : <p className="hint pad">Loading the lead sheet…</p>}
+          {url && <a className="btn small" href={url} target="_blank" rel="noreferrer">Open the lead sheet</a>}
+        </div>
+      ) : <p className="hint pad">No lead sheet uploaded.</p>}
+      {editing && <NewSong o={o} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); toast("Saved."); }} />}
+    </section>
+  );
+}

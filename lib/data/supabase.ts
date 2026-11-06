@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import type { Hit, Feels } from "../hits";
-import { MAX_FILE_MB, MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MAX_FILE_MB, MAX_LEAD_SHEET_MB, type OriginalSong,MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -85,6 +85,13 @@ const trFields = (f: TranscriptionFields) => ({
   title: f.title, song_key: f.songKey, tune_title: f.tuneTitle, tune_composer: f.tuneComposer, instrument: f.instrument, player: f.player,
   recording: f.recording, youtube: f.youtube, visibility: f.visibility,
 });
+const LEADSHEET_BUCKET = "leadsheets";
+interface OriginalRow {
+  id: string; owner: string; raw: string; title: string; composer: string; visibility: "private" | "band" | "public"; band_id: string | null;
+  lead_sheet_path: string | null; lead_sheet_kind: "pdf" | "image" | null; lead_sheet_name: string | null; lead_sheet_mime: string | null; lead_sheet_size: number | null;
+  created_at: string; updated_at: string;
+}
+const OR_COLS = "id, owner, raw, title, composer, visibility, band_id, lead_sheet_path, lead_sheet_kind, lead_sheet_name, lead_sheet_mime, lead_sheet_size, created_at, updated_at";
 interface LickRow {
   id: string;
   owner: string;
@@ -242,6 +249,20 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     youtube: r.youtube, visibility: r.visibility, createdAt: r.created_at, updatedAt: r.updated_at,
     file: { id: r.id, noteId: null, lickId: null, resourceId: null, bucket: TRANSCRIPTION_BUCKET, path: r.file_path, kind: r.file_kind, name: r.file_name, mime: r.file_mime, size: Number(r.file_size), createdBy: r.owner, createdAt: r.created_at },
   });
+
+  const toOriginal = (r: OriginalRow, nm: Map<string, string>): OriginalSong => ({
+    id: r.id, ownerId: r.owner, ownerName: r.owner === userId ? "You" : nm.get(r.owner) || "Member", mine: r.owner === userId, raw: r.raw,
+    title: r.title, composer: r.composer, visibility: r.visibility, bandId: r.band_id, createdAt: r.created_at, updatedAt: r.updated_at,
+    leadSheet: r.lead_sheet_path && r.lead_sheet_kind
+      ? { path: r.lead_sheet_path, kind: r.lead_sheet_kind, name: r.lead_sheet_name || "lead sheet", mime: r.lead_sheet_mime || "", size: Number(r.lead_sheet_size) || 0 } : null,
+  });
+  const leadSheetCols = (path: string, file: File, mime: string) => {
+    const kind = attachmentKind(file.type, file.name);
+    if (kind !== "pdf" && kind !== "image") throw new Error("A lead sheet has to be a PDF or a photo.");
+    if (file.size > MAX_LEAD_SHEET_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_LEAD_SHEET_MB} MB.`);
+    return { lead_sheet_path: path, lead_sheet_kind: kind, lead_sheet_name: file.name.slice(0, 300), lead_sheet_mime: mime, lead_sheet_size: file.size };
+  };
+  const noSheet = { lead_sheet_path: null, lead_sheet_kind: null, lead_sheet_name: null, lead_sheet_mime: null, lead_sheet_size: null };
 
   /** Gig rows with who can edit: the creator, or an admin of its band. */
   const toGigs = async (rows: GigRow[]): Promise<Gig[]> => {
@@ -807,6 +828,74 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (rm.error) fail("delete that chart", rm.error);
       const { error } = await sb.from("charts").delete().eq("id", c.id);
       if (error) fail("delete that chart", error);
+    },
+
+    async listOriginals() {
+      const { data, error } = await sb.from("original_songs").select(OR_COLS).eq("owner", userId).order("created_at", { ascending: false });
+      if (error) fail("load your original songs", error);
+      return ((data || []) as unknown as OriginalRow[]).map(r => toOriginal(r, new Map()));
+    },
+
+    async searchOriginals(q) {
+      const t = q.replace(/[%_\\,()*]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+      if (t.length < 2) return [];
+      // RLS limits this to public songs and your bands'; yours are in your library already
+      const { data, error } = await sb.from("original_songs").select(OR_COLS).neq("owner", userId)
+        .or(["title", "composer"].map(c => `${c}.ilike.%${t}%`).join(",")).order("title").limit(20);
+      if (error) fail("search original songs", error);
+      const rows = (data || []) as unknown as OriginalRow[];
+      const nm = await namesOf(rows.map(r => r.owner));
+      return rows.map(r => toOriginal(r, nm));
+    },
+
+    async createOriginal(f, leadSheet, onProgress) {
+      // the row first: the upload is only allowed to a path one of your rows names, so the daily cap holds
+      const id = newUuid();
+      let sheet: ReturnType<typeof leadSheetCols> | typeof noSheet = noSheet, mime = "";
+      if (leadSheet) { mime = mimeOf(leadSheet); sheet = leadSheetCols(`${userId}/${id}/${newUuid()}-${safeName(leadSheet.name)}`, leadSheet, mime); }
+      const { data, error } = await sb.from("original_songs").insert({ id, raw: f.raw, visibility: f.visibility, band_id: f.visibility === "band" ? f.bandId : null, ...sheet }).select(OR_COLS).single();
+      if (error) {
+        if (/new songs or lead sheets today/.test(error.message)) throw new Error(error.message);
+        fail("save that song", error);
+      }
+      if (leadSheet && sheet.lead_sheet_path) {
+        try { await putFile(LEADSHEET_BUCKET, sheet.lead_sheet_path, leadSheet, mime, onProgress); }
+        catch (e) { await sb.from("original_songs").delete().eq("id", id); throw e; }
+      }
+      return toOriginal(data as unknown as OriginalRow, new Map());
+    },
+
+    async updateOriginal(o, f, leadSheet) {
+      const patch: Record<string, unknown> = { raw: f.raw, visibility: f.visibility, band_id: f.visibility === "band" ? f.bandId : null, updated_at: new Date().toISOString() };
+      let mime = "", path = "";
+      if (leadSheet === "remove") Object.assign(patch, noSheet);
+      else if (leadSheet) { mime = mimeOf(leadSheet); path = `${userId}/${o.id}/${newUuid()}-${safeName(leadSheet.name)}`; Object.assign(patch, leadSheetCols(path, leadSheet, mime)); }
+      const { data, error } = await sb.from("original_songs").update(patch).eq("id", o.id).select(OR_COLS);
+      if (error) {
+        if (/new songs or lead sheets today/.test(error.message)) throw new Error(error.message);
+        fail("save that song", error);
+      }
+      if (!data?.length) throw new Error("Couldn't save that song: you can't change it.");
+      if (leadSheet instanceof File) {
+        try { await putFile(LEADSHEET_BUCKET, path, leadSheet, mime); }
+        catch (e) { await sb.from("original_songs").update(o.leadSheet ? { lead_sheet_path: o.leadSheet.path, lead_sheet_kind: o.leadSheet.kind, lead_sheet_name: o.leadSheet.name, lead_sheet_mime: o.leadSheet.mime, lead_sheet_size: o.leadSheet.size } : noSheet).eq("id", o.id); throw e; }
+      }
+      if (leadSheet && o.leadSheet) await sb.storage.from(LEADSHEET_BUCKET).remove([o.leadSheet.path]);
+      return toOriginal(data[0] as unknown as OriginalRow, new Map());
+    },
+
+    async deleteOriginal(o) {
+      const { data, error } = await sb.from("original_songs").delete().eq("id", o.id).select("id");
+      if (error) fail("delete that song", error);
+      if (!data?.length) throw new Error("Couldn't delete that song: you can't change it.");
+      if (o.leadSheet) await sb.storage.from(LEADSHEET_BUCKET).remove([o.leadSheet.path]);
+    },
+
+    async originalLeadSheetUrl(o) {
+      if (!o.leadSheet) throw new Error("This song has no lead sheet.");
+      const { data, error } = await sb.storage.from(LEADSHEET_BUCKET).createSignedUrl(o.leadSheet.path, 3600);
+      if (error || !data) fail("open the lead sheet", error);
+      return data.signedUrl;
     },
 
     async listTranscriptions(q) {
