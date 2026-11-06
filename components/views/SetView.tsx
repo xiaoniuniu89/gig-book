@@ -65,6 +65,7 @@ function SetBody({ s }: { s: Setlist }) {
   const [sharing, setSharing] = useState(false);
   const [making, setMaking] = useState(false);
   const [pasting, setPasting] = useState(false);
+  const [view, setView] = useState<"tunes" | "listen">("tunes");
   const [ireal, setIreal] = useState(false);
   const yTube = app.settings.player === "youtube";
   const playSet = () => {
@@ -214,7 +215,11 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
       </div>
       {!builtin && !s.viewOnly && <SetlistGigs setlistId={s.id} canAdd={canEdit} />}
-      <div className="sets" data-tour="tunes">
+      <div className="pl-tabs" role="tablist" aria-label="Setlist sections">
+        <button role="tab" className="pl-tab" aria-selected={view === "tunes"} onClick={() => setView("tunes")}>Tunes<span>{s.items.length}</span></button>
+        <button role="tab" className="pl-tab" aria-selected={view === "listen"} data-tour="playlist" onClick={() => setView("listen")}><Icon name={yTube ? "youtube" : "spotify"} size={16} /> Listen</button>
+      </div>
+      <div className="sets" data-tour="tunes" role="tabpanel" hidden={view !== "tunes"}>
         {nums.map(n => (
           <section className={"set" + (drag?.set === n ? " drop" : "")} aria-label={`Set ${n}`} key={n} data-set={canEdit ? n : undefined}>
             <div className="set-title">
@@ -248,7 +253,7 @@ function SetBody({ s }: { s: Setlist }) {
           </section>
         ))}
       </div>
-      <section className="panel sp-panel" aria-label="Listen" data-tour="playlist">
+      <section className="panel sp-panel" aria-label="Listen" role="tabpanel" hidden={view !== "listen"}>
         <div className="panel-head">
           <h2>Listen</h2>
           <Info label="About playing the setlist">Play runs through the setlist&apos;s recordings in the Listen tab, and the chart follows whichever one is playing. Save to Spotify makes a playlist in your Spotify; it doesn&apos;t change how the app plays.</Info>
