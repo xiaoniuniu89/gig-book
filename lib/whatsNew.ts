@@ -1,6 +1,15 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-20",
+    items: [
+      "One way to share: setlists and transcriptions now have Who can see it, with Private, Bands I'm in, or Public, like your original songs.",
+      "Setlists your bandmates share appear on the Setlists page under From your bands. Open one to read it, or save your own copy.",
+      "Setlists and transcriptions are no longer shared one person at a time. Anything you already shared that way still works.",
+      "The note before AI reads your work now says plainly that it goes to an outside AI company. You can turn these notes off in Settings → AI.",
+    ],
+  },
+  {
     date: "2026-11-19",
     items: [
       "You get an email when someone adds you to a band, like you already do for gigs and setlists.",

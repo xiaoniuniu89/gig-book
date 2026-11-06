@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
+import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { Info } from "./Info";
@@ -125,7 +126,7 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
       {/* the tune picker is a full-screen sheet, so the dialog steps aside while it is open */}
       <Modal open={!picking} title={t ? "Edit transcription" : "Upload transcription"} onClose={() => { if (!picking) onClose(); }} dirty={dirty}>
         <form className="chart-form" onSubmit={save}>
-          {!t && mode === "ai" && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your file is sent to an AI service to fill in the details.</span></div>}
+          {!t && mode === "ai" && <AiNote what="your file" />}
           {!t && <div className="field"><span className="field-label">File <Info label="About the file">A PDF, a photo, or a MusicXML score, up to {MAX_FILE_MB} MB.{mode === "ai" ? " AI reads the title, player, instrument and recording from it (PDFs up to 3 MB); it counts toward your daily Niu AI requests." : ""}</Info></span>
             <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
             <div className="attach-opts">
