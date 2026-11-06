@@ -211,7 +211,9 @@ export function chartMusic(sections: ChartSection[]): string {
       if (b.coda) out += "Q";
       const t = plainText(b.text || "");
       if (t) out += "<" + t + ">";
-      out += cellsText(b.chords, n) + (last ? "Z" : b.repeatEnd ? "}" : "|");
+      // an empty bar repeats the one before: iReal's % sign ("x"), except at the very start
+      const body = !b.chords.length && (si > 0 || bi > 0) ? "x" + " ".repeat(n - 1) : cellsText(b.chords, n);
+      out += body + (last ? "Z" : b.repeatEnd ? "}" : "|");
     });
   });
   return out;
@@ -223,7 +225,8 @@ export function sectionsFromBars(bars: Bar[]): ChartSection[] {
   const nameOf = (m: string | null) => m === "i" ? "Intro" : m === "v" ? "Verse" : m || "A";
   for (const b of bars) {
     if (!out.length || b.section) out.push({ name: nameOf(b.section), ts: b.ts.num + "/" + b.ts.den, bars: [] });
-    const chords = b.chords.filter(c => !c.cont).map(c => c.nc ? "N.C." : (c.root || "") + c.q + (c.bass ? "/" + c.bass : ""));
+    // a % bar stays empty (it repeats the bar before) rather than spelling the chords out
+    const chords = b.sim ? [] : b.chords.filter(c => !c.cont).map(c => c.nc ? "N.C." : (c.root || "") + c.q + (c.bass ? "/" + c.bass : ""));
     const bar: ChartBar = { chords };
     if (b.ending) bar.ending = b.ending;
     if (b.repeatStart) bar.repeatStart = true;

@@ -732,6 +732,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #B3261
 .bio-html a { color: var(--ink); text-decoration: underline; overflow-wrap: anywhere; }
 .bio-box { display: grid; gap: 8px; }
 .bio-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn[aria-pressed="true"] { background: var(--cover-yellow); border-color: var(--cover-ink); color: var(--cover-ink); font-weight: 700; }
 .bio-bar .btn[aria-pressed="true"] { background: var(--cover-yellow); border-color: var(--cover-ink); color: var(--cover-ink); }
 .bio-edit { min-height: 9em; padding: 8px 10px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; overflow-wrap: anywhere; }
 .bio-edit:focus { outline: 2px solid var(--brass); outline-offset: 1px; }

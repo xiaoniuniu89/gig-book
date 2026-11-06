@@ -1,6 +1,13 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-16",
+    items: [
+      "An empty bar in your own song now shows the % repeat sign, like a real chart. Open Edit song and save to update songs you've already made.",
+      "Buttons you can switch on and off, like Rhythm view, now turn yellow when they're on.",
+    ],
+  },
+  {
     date: "2026-11-15",
     items: [
       "Your original songs have a Lead sheet tab next to iReal, with a Download button.",

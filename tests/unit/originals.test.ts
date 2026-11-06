@@ -28,6 +28,14 @@ describe("encodeChart", () => {
     expect(again).toBe(raw);
   });
 
+  it("writes an empty bar as the % sign, which plays the bar before and reads back empty", () => {
+    const secs: ChartSection[] = [{ name: "B", ts: "4/4", bars: [{ chords: ["D7"] }, { chords: [] }, { chords: ["C7#5"] }, { chords: [] }] }];
+    const sg = decodeSong(encodeChart({ title: "Sim", composer: "Callaghan Dan", style: "Medium Swing", key: "C", sections: secs }));
+    expect(sg.bars.map(b => b.sim)).toEqual([false, true, false, true]);
+    expect(sg.bars[1].chords.some(c => c.root === "D")).toBe(true);
+    expect(sectionsFromBars(sg.bars)).toEqual(secs);
+  });
+
   it("keeps repeats and endings playable", () => {
     const sg = decodeSong(raw);
     const seq = unroll(sg.bars);
