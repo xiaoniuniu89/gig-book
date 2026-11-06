@@ -344,7 +344,7 @@ function VisibilityPick({ s }: { s: Setlist }) {
       <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
         Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later. Public: anyone signed in to Niu Real Book who has the link. They see the setlist and its tunes, and can save their own copy. Your notes and files stay with you and your band.
       </Info></span>
-        <select value={s.visibility === "bands" || s.visibility === "public" ? s.visibility : "private"} onChange={e => void change(e.target.value as Visibility)}>
+        <select aria-label="Who can see it" value={s.visibility === "bands" || s.visibility === "public" ? s.visibility : "private"} onChange={e => void change(e.target.value as Visibility)}>
           <option value="private">Private</option>
           <option value="bands">Bands I&apos;m in</option>
           <option value="public">Public</option>

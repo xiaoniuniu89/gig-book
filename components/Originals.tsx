@@ -197,7 +197,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
         <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
           Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later, can find it and add it to setlists. Public: anyone signed in can search for it. Whoever adds it to a setlist gets their own copy of the chart.
         </Info></span>
-          <select value={vis} onChange={e => setVis(e.target.value)}>
+          <select aria-label="Who can see it" value={vis} onChange={e => setVis(e.target.value)}>
             <option value="private">Private</option>
             <option value="bands">Bands I&apos;m in</option>
             <option value="public">Public</option>

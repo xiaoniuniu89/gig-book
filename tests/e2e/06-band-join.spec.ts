@@ -16,10 +16,9 @@ test("6. joining by invite link asks what the band may see, and the People tab r
   const link = (await ava.page.locator("code.epk-url").first().textContent())!.trim();
   expect(link).toMatch(/\/bands\/join\/[0-9a-f]{64}$/);
 
-  // Fay opens it: one instrument, so it is preselected
+  // Fay opens it (what she plays comes from her account; joining doesn't ask)
   await fay.page.goto(link);
   await expect(fay.page.getByRole("heading", { name: `Join ${name}?` })).toBeVisible();
-  await expect(fay.page.getByRole("button", { name: "Trumpet" })).toHaveAttribute("aria-pressed", "true");
   await fay.page.getByRole("button", { name: `Join ${name}`, exact: true }).click();
 
   // the contact-sharing prompt: her phone follows "My bands" (on), her bio doesn't (off). She flips both.
@@ -31,11 +30,12 @@ test("6. joining by invite link asks what the band may see, and the People tab r
   await expect(bio).not.toBeChecked();
   await bio.check();
   await phone.uncheck();
+  await form.getByRole("checkbox", { name: /Instruments/ }).check(); // what she plays shows under People only if she shares it
   await form.getByRole("button", { name: "Save" }).click();
   await expect(form).toBeHidden();
   await expect(fay.page.getByRole("heading", { name, level: 1 })).toBeVisible();
 
-  // Ava's People tab: Fay is in, with her bio but without her phone
+  // Ava's People tab: Fay is in, with her instruments and bio but without her phone
   await ava.page.reload();
   await ava.page.getByRole("tab", { name: "People" }).click();
   const block = ava.page.locator(".member-block", { hasText: "Fay" });

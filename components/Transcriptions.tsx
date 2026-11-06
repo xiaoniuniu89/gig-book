@@ -165,7 +165,7 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
           <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
             Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later. Public: anyone signed in to Niu Real Book who has the link.
           </Info></span>
-            <select value={vis} onChange={e => setVis(e.target.value as TranscriptionVisibility)}>
+            <select aria-label="Who can see it" value={vis} onChange={e => setVis(e.target.value as TranscriptionVisibility)}>
               <option value="private">Private</option>
               <option value="bands">Bands I&apos;m in</option>
               <option value="public">Public</option>
@@ -211,7 +211,7 @@ function ShareBody({ t, onChanged }: { t: Transcription; onChanged: (t: Transcri
       <label className="field"><span className="field-label">Who can see it <Info label="About who can see it">
         Private: only you. Bands I&apos;m in: everyone in your bands, including bands you join later. Public: anyone signed in to Niu Real Book who has the link.
       </Info></span>
-        <select value={t.visibility} disabled={busy} onChange={e => void change(e.target.value as TranscriptionVisibility)}>
+        <select aria-label="Who can see it" value={t.visibility} disabled={busy} onChange={e => void change(e.target.value as TranscriptionVisibility)}>
           <option value="private">Private</option>
           <option value="bands">Bands I&apos;m in</option>
           <option value="public">Public</option>
