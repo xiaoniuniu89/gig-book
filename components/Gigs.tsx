@@ -18,6 +18,20 @@ export const todayIso = (): string => { const d = new Date(); return `${d.getFul
 export const gigWhen = (g: { date: string; time: string }): string => [prettyDate(g.date), g.time].filter(Boolean).join(" · ");
 export const byDate = (a: Gig, b: Gig): number => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
 
+export interface Venue { name: string; address: string; uses: number; last: string }
+/** Venues from your gigs, most used first, then most recent; each with the address it had last. */
+export function venuesOf(gigs: Gig[]): Venue[] {
+  const by = new Map<string, Venue>();
+  for (const g of gigs) {
+    const name = g.venue.trim();
+    if (!name) continue;
+    const k = name.toLowerCase(), v = by.get(k);
+    if (!v) by.set(k, { name, address: g.address, uses: 1, last: g.date });
+    else { v.uses++; if (g.date >= v.last) { v.last = g.date; v.address = g.address || v.address; v.name = name; } }
+  }
+  return [...by.values()].sort((a, b) => b.uses - a.uses || b.last.localeCompare(a.last));
+}
+
 /** New or Edit gig. `bandId` and `setlistId` start a new gig with that band and that setlist on it. */
 export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: Gig; bandId?: string; setlistId?: string; onClose: () => void; onSaved: (g: Gig) => void }) {
   const { store, toast } = useApp();
@@ -28,7 +42,14 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
   const [bands, setBands] = useState<Band[]>([]);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(x => ({ ...x, [k]: e.target.value }));
+  const [venues, setVenues] = useState<Venue[]>([]);
   useEffect(() => { store.listBands().then(setBands, () => { /* no bands is fine */ }); }, [store]);
+  useEffect(() => { store.listGigs().then(l => setVenues(venuesOf(l)), () => { /* suggestions only */ }); }, [store]);
+  // picking a venue you've used fills in its address when the address is still empty
+  const pickVenue = (name: string) => setF(x => {
+    const v = venues.find(v => v.name.toLowerCase() === name.trim().toLowerCase());
+    return { ...x, venue: name, address: x.address.trim() || !v ? x.address : v.address };
+  });
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,7 +80,10 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
             <label className="field"><span className="field-label">Start time</span><input type="text" maxLength={30} value={f.time} onChange={set("time")} /></label>
           </div>
         ) : <label className="field"><span className="field-label">Date</span><input type="date" required value={f.date} onChange={set("date")} /></label>}
-        <label className="field"><span className="field-label">Venue</span><input type="text" maxLength={200} value={f.venue} onChange={set("venue")} /></label>
+        <label className="field"><span className="field-label">Venue{venues.length > 0 && <> <Info label="About venues">Start typing to pick a venue you&apos;ve played before, most used first. Its address fills in too.</Info></>}</span>
+          <input type="text" maxLength={200} list="gig-venues" autoComplete="off" value={f.venue} onChange={e => pickVenue(e.target.value)} />
+          <datalist id="gig-venues">{venues.map(v => <option key={v.name} value={v.name}>{v.address ? v.address.split("\n")[0] : ""}</option>)}</datalist>
+        </label>
         <label className="field"><span className="field-label">Address</span><textarea rows={2} maxLength={400} value={f.address} onChange={set("address")} /></label>
         {gig && <>
         <label className="field"><span className="field-label">Notes <Info label="About notes">Load-in and set times, parking, dress code, who to ask for at the door. Everyone on the lineup sees them.</Info></span><textarea rows={3} maxLength={5000} value={f.notes} onChange={set("notes")} /></label>
