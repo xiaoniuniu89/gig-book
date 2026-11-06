@@ -98,12 +98,14 @@ p { margin: 0; }
 }
 .book:hover { transform: translateY(-3px) rotate(-.4deg); box-shadow: 0 10px 18px -8px rgba(0,0,0,.35); }
 .book:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
-.book .t { font-family: var(--display); font-size: 2rem; line-height: 1; letter-spacing: .02em; }
+.book { container-type: inline-size; }
+.book .t { font-family: var(--display); font-size: min(2rem, 14cqi); line-height: 1; letter-spacing: .02em; overflow-wrap: normal; }
 .book .m { font-family: var(--type); color: var(--cover-ink); opacity: .82; font-size: 0.875rem; line-height: 1.35; }
 .shelves { display: grid; gap: 26px; }
 .shelves h2.eyebrow { margin: 0 0 10px; }
 .shelf.gigs .book { --cover: var(--cover-yellow); }
 .shelf.practice .book { --cover: var(--cover-orange); }
+.shelf.tools .book { --cover: var(--cover-blue); }
 .shelf.ai .book { --cover: var(--cover-pink); }
 @media (prefers-reduced-motion: reduce) { .book:hover { transform: none; } }
 .book .keys { font-family: var(--chord); font-size: 0.9375rem; color: var(--muted); }

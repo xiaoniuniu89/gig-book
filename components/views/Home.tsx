@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { TOOLS } from "./ToolsView";
 import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
 
@@ -18,7 +19,7 @@ export function Home() {
       {!ready ? <p className="hint">Loading…</p> : (
         <div className="shelves" data-tour="home">
           <section aria-labelledby="shelf-gigs">
-            <h2 className="eyebrow" id="shelf-gigs">Gigs</h2>
+            <h2 className="eyebrow" id="shelf-gigs">Play</h2>
             <div className="shelf gigs">
               <Link className="book" href="/setlists">
                 <span className="t">Setlists</span>
@@ -49,11 +50,11 @@ export function Home() {
                 <span className="t">Licks</span>
                 <span className="m">Phrases and ideas to keep with any tune</span>
               </Link>
-              <Link className="book blue" href="/arrangements">
+              <Link className="book" href="/arrangements">
                 <span className="t">Arrangements</span>
                 <span className="m">{app.arrangements.length ? `${app.arrangements.length} · ${names(app.arrangements)}` : "Your own copies of tunes: key, recordings, notes"}</span>
               </Link>
-              <Link className="book green" href="/transcriptions">
+              <Link className="book" href="/transcriptions">
                 <span className="t">Transcriptions</span>
                 <span className="m">Written-out solos and parts: upload, search and share</span>
               </Link>
@@ -61,10 +62,18 @@ export function Home() {
                 <span className="t">Resources</span>
                 <span className="m">Bookmarks, books and PDFs to pin to tunes</span>
               </Link>
-              <Link className="book" href="/tools">
-                <span className="t">Tools</span>
-                <span className="m">Transcribe, metronome, drone and print sheet music</span>
-              </Link>
+            </div>
+          </section>
+          <section aria-labelledby="shelf-tools">
+            <h2 className="eyebrow" id="shelf-tools">Tools</h2>
+            <div className="shelf tools">
+              {TOOLS.map(t => (
+                <Link key={t.href} className="book" href={t.href}>
+                  <span className="t">{t.name}</span>
+                  {"wip" in t && t.wip && <span className="tag">Work in progress</span>}
+                  <span className="m">{t.about}</span>
+                </Link>
+              ))}
             </div>
           </section>
           {online && (

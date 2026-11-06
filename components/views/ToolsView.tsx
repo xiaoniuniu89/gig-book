@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useApp } from "../AppProvider";
 
-const TOOLS = [
+/** The tools, shared with the home page (one card each there too). */
+export const TOOLS = [
   { href: "/tools/transcribe", name: "Transcribe", wip: true, about: "Slow down and loop a YouTube video or your own recording, to learn it by ear" },
   { href: "/tools/metronome", name: "Metronome", about: "Tempo 30–300, tap tempo, accents, swing and a count-in" },
   { href: "/tools/drone", name: "Drone", about: "A held root, and a fifth if you like, in any key" },
@@ -19,7 +20,7 @@ export function ToolsView() {
       <h1>Tools</h1>
       <div className="shelf" data-tour="tools">
         {TOOLS.map(t => (
-          <Link key={t.href} className="book tool orange" href={t.href}>
+          <Link key={t.href} className="book tool blue" href={t.href}>
             <span className="t">{t.name}</span>
             {"wip" in t && t.wip && <span className="tag">Work in progress</span>}
             <span className="m">{t.about}</span>
