@@ -269,6 +269,7 @@ function SongsTab({ band }: { band: Band }) {
 const contactRows = (m: BandMember) => CONTACT_FIELDS.filter(f => m.contact[f.key]);
 
 function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
+  const [inviting, setInviting] = useState(false);
   const app = useApp();
   const { store, toast, account } = app;
   const admin = band.role === "admin";
@@ -297,7 +298,10 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
   return (
     <>
       <section className="panel">
-        <h2>People</h2>
+        <div className="panel-head">
+          <h2>People</h2>
+          {(band.role === "admin" || band.perms.invite) && <button className="btn small" onClick={() => setInviting(true)}><Icon name="plus" size={16} /> Invite</button>}
+        </div>
         {members === null ? <p className="hint">Loading…</p> : (
           <div className="list">
             {members.map(m => {
@@ -343,7 +347,9 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
         )}
       </section>
 
-      {(admin || band.perms.invite) && <Invite band={band} memberIds={members?.map(m => m.userId) ?? []} onAdded={load} />}
+      <Modal open={inviting} title={"Invite to " + band.name} onClose={() => setInviting(false)}>
+        <Invite band={band} memberIds={members?.map(m => m.userId) ?? []} onAdded={async () => { await load(); setInviting(false); }} />
+      </Modal>
 
       <ConfirmTyped open={!!removing} title={"Remove " + (removing?.name ?? "") + " from the band"} action="Remove from band" onClose={() => setRemoving(null)}
         onConfirm={() => removing ? remove(removing) : undefined}>
@@ -360,6 +366,7 @@ function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[];
   const [picked, setPicked] = useState<Picked | null>(null);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState("");
+  const [how, setHow] = useState<"add" | "link">("add");
 
   const add = async (e: FormEvent) => {
     e.preventDefault();
@@ -390,25 +397,31 @@ function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[];
   };
 
   return (
-    <section className="panel">
-      <h2>Invite</h2>
-      <Collaborators exclude={memberIds} onPick={async c => {
-        try { await store.addBandMember(band.id, c.userId, []); toast(c.name + " is in the band."); await onAdded(); }
-        catch (e) { toast(errText(e, "Couldn't add them.")); }
-      }} />
-      <form className="inline-form" onSubmit={add}>
-        <PeoplePicker value={picked} exclude={memberIds} label="Find people" placeholder="Type a name or an email" disabled={busy}
-          onChange={setPicked} />
-        <button className="btn" type="submit" disabled={busy || !picked}>Add</button>
-      </form>
-      <p className="hint">Names come from people you already play with. For someone new, type their exact email or send an invite link.</p>
-      <div className="inline-form">
-        <button className="btn" onClick={makeLink}>Make an invite link</button>
-        {band.role === "admin" && <button className="btn" onClick={revoke}>Switch off all links</button>}
+    <>
+      <div className="pl-tabs" role="tablist" aria-label="How to invite">
+        <button role="tab" className="pl-tab" aria-selected={how === "add"} onClick={() => setHow("add")}><Icon name="user" size={16} /> Add someone</button>
+        <button role="tab" className="pl-tab" aria-selected={how === "link"} onClick={() => setHow("link")}><Icon name="share" size={16} /> Invite link</button>
       </div>
-      {link && <div className="acct-row"><code className="epk-url">{link}</code><button className="btn small" onClick={copy}>Copy</button></div>}
-      <p className="hint">Only people with a Niu Real Book account can join. A link works for 14 days.</p>
-    </section>
+      {how === "add" ? <div className="chart-form" role="tabpanel">
+        <Collaborators exclude={memberIds} onPick={async c => {
+          try { await store.addBandMember(band.id, c.userId, []); toast(c.name + " is in the band."); await onAdded(); }
+          catch (e) { toast(errText(e, "Couldn't add them.")); }
+        }} />
+        <form className="inline-form" onSubmit={add}>
+          <PeoplePicker value={picked} exclude={memberIds} label="Find people" placeholder="Type a name or an email" disabled={busy}
+            onChange={setPicked} />
+          <button className="btn primary" type="submit" disabled={busy || !picked}><Icon name="plus" size={16} /> Add</button>
+          <Info label="About finding people">Names come from people you already play with. For someone new, type their exact email or send an invite link.</Info>
+        </form>
+      </div> : <div className="chart-form" role="tabpanel">
+        <div className="inline-form">
+          <button className="btn primary" onClick={makeLink}><Icon name="share" size={16} /> Make an invite link</button>
+          {band.role === "admin" && <button className="btn" onClick={revoke}>Switch off all links</button>}
+          <Info label="About invite links">Only people with a Niu Real Book account can join. A link works for 14 days.</Info>
+        </div>
+        {link && <div className="acct-row"><code className="epk-url">{link}</code><button className="btn small" onClick={copy}><Icon name="copy" size={16} /> Copy</button></div>}
+      </div>}
+    </>
   );
 }
 

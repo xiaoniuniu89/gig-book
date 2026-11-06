@@ -43,7 +43,7 @@ test("5. band members see and do exactly what their permissions allow; outsiders
   await cleo.page.getByRole("tab", { name: "People" }).click();
   await expect(cleo.page.getByText("Ava (you)")).toHaveCount(0);
   await expect(cleo.page.getByRole("button", { name: /Make (admin|member)/ })).toHaveCount(0);
-  await expect(cleo.page.getByLabel("Find people")).toHaveCount(0); // no invite permission
+  await expect(cleo.page.getByRole("button", { name: "Invite", exact: true })).toHaveCount(0); // no invite permission
   await expect(cleo.page.getByRole("heading", { name: "Band settings" })).toHaveCount(0);
 
   // Ava (admin, second context) sees Cleo's note straight away

@@ -12,6 +12,8 @@ test("6. joining by invite link asks what the band may see, and the People tab r
   await ava.page.getByRole("button", { name: "Create band" }).click();
   await expect(ava.page.getByRole("heading", { name, level: 1 })).toBeVisible();
   await ava.page.getByRole("tab", { name: "People" }).click();
+  await ava.page.getByRole("button", { name: "Invite", exact: true }).click();
+  await ava.page.getByRole("tab", { name: "Invite link" }).click();
   await ava.page.getByRole("button", { name: "Make an invite link" }).click();
   const link = (await ava.page.locator("code.epk-url").first().textContent())!.trim();
   expect(link).toMatch(/\/bands\/join\/[0-9a-f]{64}$/);
@@ -45,6 +47,8 @@ test("6. joining by invite link asks what the band may see, and the People tab r
   await expect(block).not.toContainText("555 0106");
 
   // the link is reusable until switched off; once it is off, it is "not valid"
+  await ava.page.getByRole("button", { name: "Invite", exact: true }).click();
+  await ava.page.getByRole("tab", { name: "Invite link" }).click();
   await ava.page.getByRole("button", { name: "Switch off all links" }).click();
   const eli = await musician(browser, "eli", info.project);
   await eli.page.goto(link);

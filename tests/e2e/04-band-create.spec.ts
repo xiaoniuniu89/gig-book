@@ -15,6 +15,7 @@ test("4. Ava makes a band, adds Ben and a setlist; people show the instruments f
 
   // add Ben: what he plays comes from his account (he shares it with bands)
   await page.getByRole("tab", { name: "People" }).click();
+  await page.getByRole("button", { name: "Invite", exact: true }).click();
   await page.getByLabel("Find people").fill("Ben");
   await page.getByRole("option", { name: /^Ben/ }).click();
   await page.getByRole("button", { name: "Add", exact: true }).click();
@@ -35,6 +36,7 @@ test("4. Ava makes a band, adds Ben and a setlist; people show the instruments f
   await d.getByLabel("Band name").fill(unique("Dev Trio", info.project.name));
   await d.getByRole("button", { name: "Create band" }).click();
   await d.getByRole("tab", { name: "People" }).click();
+  await d.getByRole("button", { name: "Invite", exact: true }).click();
   await d.getByLabel("Find people").fill("Ava");
   await d.getByRole("option", { name: /^Ava/ }).click();
   await d.getByRole("button", { name: "Add", exact: true }).click();
