@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   // per-person choice: setlist invites on by default, replies off
   const { data: us } = await sb.from("user_settings").select("settings").eq("user_id", n.user_id).maybeSingle();
   const s = (us?.settings ?? {}) as Record<string, unknown>;
-  const wanted = n.kind === "added_to_setlist" ? s.emailAdded !== false : s.emailReplies === true;
+  const wanted = n.kind === "added_to_setlist" || n.kind === "added_to_gig" ? s.emailAdded !== false : s.emailReplies === true;
   if (!wanted) return NextResponse.json({ ok: true, skipped: "turned off" });
 
   // claim it; losing the race means another delivery already has it
@@ -40,10 +40,11 @@ export async function POST(req: NextRequest) {
   const release = () => sb.from("notifications").update({ emailed_at: null }).eq("id", id);
   const { data: user } = await sb.auth.admin.getUserById(n.user_id);
   const to = user?.user?.email;
-  const p = (n.payload ?? {}) as { setlist_id?: string; setlist_name?: string };
+  const p = (n.payload ?? {}) as { setlist_id?: string; setlist_name?: string; gig_id?: string; gig_title?: string };
   const { data: actor } = n.actor ? await sb.from("profiles").select("display_name").eq("id", n.actor).maybeSingle() : { data: null };
   const base = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, "");
-  const msg = to && p.setlist_id ? composeEmail(n.kind, actor?.display_name ?? "", p.setlist_name ?? "", `${base}/set/${p.setlist_id}`) : null;
+  const msg = !to ? null : n.kind === "added_to_gig" ? (p.gig_id ? composeEmail(n.kind, actor?.display_name ?? "", p.gig_title ?? "", `${base}/gigs/${p.gig_id}`) : null)
+    : p.setlist_id ? composeEmail(n.kind, actor?.display_name ?? "", p.setlist_name ?? "", `${base}/set/${p.setlist_id}`) : null;
   if (!to || !msg) return NextResponse.json({ ok: true, skipped: "no address" });
 
   const r = await sendEmail(to, msg);

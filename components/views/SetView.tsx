@@ -13,6 +13,7 @@ import { TunePicker, newItem } from "../TunePicker";
 import { Notes } from "../Notes";
 import { Modal } from "../Modal";
 import { Info } from "../Info";
+import { SetlistGigs } from "../Gigs";
 import { PlaybackHelpLink } from "../PlaybackHelp";
 import { Collaborators } from "../Collaborators";
 import { PeoplePicker, type Picked } from "../PeoplePicker";
@@ -210,6 +211,7 @@ function SetBody({ s }: { s: Setlist }) {
           {!builtin && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Share" : "Members"}</button></More>}
         </div>
       </div>
+      {!builtin && <SetlistGigs setlistId={s.id} canAdd={canEdit} />}
       <div className="sets" data-tour="tunes">
         {nums.map(n => (
           <section className={"set" + (drag?.set === n ? " drop" : "")} aria-label={`Set ${n}`} key={n} data-set={canEdit ? n : undefined}>

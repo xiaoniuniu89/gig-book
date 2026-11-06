@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import type { Hit, Feels } from "../hits";
-import { MAX_FILE_MB, MAX_PRACTICE_BYTES, type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MAX_FILE_MB, MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -40,7 +40,7 @@ interface NoteRow {
 interface NotificationRow {
   id: string;
   kind: AppNotification["kind"];
-  payload: { setlist_id?: string; setlist_name?: string; item_id?: string; band_id?: string; band_name?: string };
+  payload: { setlist_id?: string; setlist_name?: string; item_id?: string; band_id?: string; band_name?: string; gig_id?: string; gig_title?: string };
   actor: string | null;
   read_at: string | null;
   created_at: string;
@@ -140,6 +140,15 @@ const safeName = (n: string): string => n.normalize("NFKD").replace(/[^A-Za-z0-9
 
 const newUuid = () => crypto.randomUUID();
 const mimeOf = (f: File): string => (f.type || "application/octet-stream").split(";")[0].trim();
+interface GigRow {
+  id: string; created_by: string; band_id: string | null; title: string; gig_date: string; start_time: string | null;
+  venue: string; address: string; schedule: string; notes: string; bands?: { name: string } | null;
+}
+const GIG_COLS = "id, created_by, band_id, title, gig_date, start_time, venue, address, schedule, notes, bands(name)";
+const gigCols = (f: GigFields) => ({
+  title: f.title.trim(), gig_date: f.date, start_time: f.time.trim() || null, venue: f.venue.trim(), address: f.address.trim(),
+  schedule: f.schedule, notes: f.notes, band_id: f.bandId,
+});
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -233,6 +242,21 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     youtube: r.youtube, visibility: r.visibility, createdAt: r.created_at, updatedAt: r.updated_at,
     file: { id: r.id, noteId: null, lickId: null, resourceId: null, bucket: TRANSCRIPTION_BUCKET, path: r.file_path, kind: r.file_kind, name: r.file_name, mime: r.file_mime, size: Number(r.file_size), createdBy: r.owner, createdAt: r.created_at },
   });
+
+  /** Gig rows with who can edit: the creator, or an admin of its band. */
+  const toGigs = async (rows: GigRow[]): Promise<Gig[]> => {
+    const bandIds = [...new Set(rows.flatMap(r => r.band_id ? [r.band_id] : []))];
+    const admin = new Set<string>();
+    if (bandIds.length) {
+      const { data } = await sb.from("band_members").select("band_id").eq("user_id", userId).eq("role", "admin").in("band_id", bandIds);
+      (data || []).forEach((m: { band_id: string }) => admin.add(m.band_id));
+    }
+    return rows.map(r => ({
+      id: r.id, title: r.title, date: r.gig_date, time: r.start_time || "", venue: r.venue, address: r.address, schedule: r.schedule, notes: r.notes,
+      band: r.band_id ? { id: r.band_id, name: r.bands?.name || "Band" } : null, createdBy: r.created_by,
+      mine: r.created_by === userId, canEdit: r.created_by === userId || (!!r.band_id && admin.has(r.band_id)),
+    }));
+  };
 
   /** Uploads one file to Storage (XHR rather than supabase-js, to get upload progress). */
   const putFile = async (bucket: string, path: string, file: File, mime: string, onProgress?: (p: number) => void): Promise<void> => {
@@ -380,11 +404,12 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.from("notifications").select("id, kind, payload, actor, read_at, created_at")
         .order("created_at", { ascending: false }).limit(50);
       if (error) fail("load notifications", error);
-      const rows = ((data || []) as NotificationRow[]).filter(r => r.payload?.setlist_id || r.payload?.band_id);
+      const rows = ((data || []) as NotificationRow[]).filter(r => r.payload?.setlist_id || r.payload?.band_id || r.payload?.gig_id);
       const nm = await namesOf(rows.flatMap(r => r.actor ? [r.actor] : []));
       return rows.map(r => ({
         id: r.id, kind: r.kind, setlistId: r.payload.setlist_id || null, setlistName: r.payload.setlist_name || "a setlist",
         bandId: r.payload.band_id || null, bandName: r.payload.band_name || "a band",
+        gigId: r.payload.gig_id || null, gigTitle: r.payload.gig_title || "a gig",
         itemId: r.payload.item_id || null, actorName: (r.actor && nm.get(r.actor)) || "Someone", read: !!r.read_at, createdAt: r.created_at,
       }));
     },
@@ -1074,6 +1099,123 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       const { data, error } = await sb.storage.from(PRACTICE_BUCKET).createSignedUrl((row as { storage_path: string }).storage_path, 3600);
       if (error || !data) fail("open that recording", error);
       return data.signedUrl;
+    },
+
+    async listGigs() {
+      const { data, error } = await sb.from("gigs").select(GIG_COLS).order("gig_date").order("start_time", { nullsFirst: true });
+      if (error) fail("load your gigs", error);
+      return toGigs((data || []) as GigRow[]);
+    },
+
+    async getGig(id) {
+      if (!UUID.test(id)) return null;
+      const { data, error } = await sb.from("gigs").select(GIG_COLS).eq("id", id).maybeSingle();
+      if (error) fail("open that gig", error);
+      return data ? (await toGigs([data as GigRow]))[0] : null;
+    },
+
+    async createGig(f) {
+      const { data, error } = await sb.from("gigs").insert(gigCols(f)).select(GIG_COLS).single();
+      if (error) fail("save that gig", error);
+      return (await toGigs([data as GigRow]))[0];
+    },
+
+    async updateGig(id, f) {
+      const { data, error } = await sb.from("gigs").update(gigCols(f)).eq("id", id).select("id");
+      if (error) fail("save that gig", error);
+      if (!data?.length) throw new Error("Couldn't save that gig: you can't change it.");
+    },
+
+    async deleteGig(id) {
+      const { data, error } = await sb.from("gigs").delete().eq("id", id).select("id");
+      if (error) fail("delete that gig", error);
+      if (!data?.length) throw new Error("Couldn't delete that gig: you can't change it.");
+    },
+
+    async listGigSetlists(gigId) {
+      const { data, error } = await sb.from("gig_setlists").select("setlist_id, position").eq("gig_id", gigId).order("position");
+      if (error) fail("load the gig's setlists", error);
+      const rows = (data || []) as { setlist_id: string; position: number }[];
+      if (!rows.length) return [];
+      const sl = await sb.from("setlists").select("id, owner, name, setlist_items(id)").in("id", rows.map(r => r.setlist_id));
+      if (sl.error) fail("load the gig's setlists", sl.error);
+      const by = new Map(((sl.data || []) as { id: string; owner: string; name: string; setlist_items: { id: string }[] | null }[]).map(r => [r.id, r]));
+      const nm = await namesOf([...by.values()].map(r => r.owner));
+      return rows.flatMap(r => {
+        const s = by.get(r.setlist_id);
+        return s ? [{ id: s.id, name: s.name, tunes: (s.setlist_items || []).length, mine: s.owner === userId, ownerName: s.owner === userId ? "You" : nm.get(s.owner) || "Member" }] : [];
+      });
+    },
+
+    async addGigSetlist(gigId, setlistId) {
+      const { data: last } = await sb.from("gig_setlists").select("position").eq("gig_id", gigId).order("position", { ascending: false }).limit(1);
+      const position = ((last?.[0] as { position: number } | undefined)?.position ?? -1) + 1;
+      const { error } = await sb.from("gig_setlists").insert({ gig_id: gigId, setlist_id: setlistId, position });
+      if (error?.code === "23505") throw new Error("That setlist is already on this gig.");
+      if (error) fail("add that setlist", error);
+    },
+
+    async removeGigSetlist(gigId, setlistId) {
+      const { error } = await sb.from("gig_setlists").delete().eq("gig_id", gigId).eq("setlist_id", setlistId);
+      if (error) fail("take that setlist off the gig", error);
+    },
+
+    async swapGigSetlist(gigId, oldId, newId) {
+      const { data, error } = await sb.from("gig_setlists").update({ setlist_id: newId }).eq("gig_id", gigId).eq("setlist_id", oldId).select("gig_id");
+      if (error) fail("switch to your copy", error);
+      if (!data?.length) throw new Error("Couldn't switch to your copy: you can't change this gig.");
+    },
+
+    async listGigsOfSetlist(setlistId) {
+      const { data, error } = await sb.from("gig_setlists").select("gigs(id, title, gig_date)").eq("setlist_id", setlistId);
+      if (error) fail("load the gigs", error);
+      return ((data || []) as unknown as { gigs: { id: string; title: string; gig_date: string } | null }[])
+        .flatMap(r => r.gigs ? [{ id: r.gigs.id, title: r.gigs.title, date: r.gigs.gig_date }] : [])
+        .sort((a, b) => a.date.localeCompare(b.date));
+    },
+
+    async listBandGigs(bandId) {
+      const { data, error } = await sb.from("gigs").select(GIG_COLS).eq("band_id", bandId).order("gig_date").order("start_time", { nullsFirst: true });
+      if (error) fail("load the band's gigs", error);
+      return toGigs((data || []) as GigRow[]);
+    },
+
+    async listGigLineup(gigId) {
+      const { data, error } = await sb.rpc("gig_lineup_list", { p_gig: gigId });
+      if (error) fail("load the lineup", error);
+      return ((data || []) as { id: string; user_id: string | null; name: string; plays: string; contact: Record<string, string> | null }[])
+        .map((r): GigPerson => ({ id: r.id, userId: r.user_id, name: r.name, plays: r.plays || "", contact: r.contact || {} }));
+    },
+
+    async addGigPerson(gigId, f) {
+      const row = f.userId
+        ? { gig_id: gigId, user_id: f.userId, plays: f.plays.trim() }
+        : { gig_id: gigId, guest_name: (f.name || "").trim(), plays: f.plays.trim(), guest_phone: (f.phone || "").trim(), guest_email: (f.email || "").trim() };
+      const { error } = await sb.from("gig_lineup").insert(row);
+      if (error?.code === "23505") throw new Error("That person is already on the lineup.");
+      if (error) fail("add that person", error);
+    },
+
+    async updateGigPerson(_gigId, p, f) {
+      const patch = p.userId ? { plays: f.plays.trim() }
+        : { plays: f.plays.trim(), guest_name: (f.name || "").trim(), guest_phone: (f.phone || "").trim(), guest_email: (f.email || "").trim() };
+      const { data, error } = await sb.from("gig_lineup").update(patch).eq("id", p.id).select("id");
+      if (error) fail("save that person", error);
+      if (!data?.length) throw new Error("Couldn't save that person: you can't change this gig.");
+    },
+
+    async removeGigPerson(personId) {
+      const { error } = await sb.from("gig_lineup").delete().eq("id", personId);
+      if (error) fail("remove that person", error);
+    },
+
+    async listGigPhotos(gigId) {
+      const { data, error } = await sb.rpc("gig_photos", { p_gig: gigId });
+      if (error) fail("load the photos", error);
+      return ((data || []) as { id: string; source: "band" | "member"; owner_name: string | null; storage_path: string; name: string; mime: string }[]).map((r): GigPhoto => ({
+        id: r.id, source: r.source, ownerName: r.owner_name || "Member",
+        attachment: { id: r.id, noteId: null, lickId: null, resourceId: null, path: r.storage_path, kind: "image", name: r.name, mime: r.mime, size: 0, createdBy: "", createdAt: "" },
+      }));
     },
 
     async listLibrary() {

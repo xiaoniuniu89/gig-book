@@ -12,6 +12,7 @@ import { Modal } from "../Modal";
 import { Collaborators } from "../Collaborators";
 import { PeoplePicker, type Picked } from "../PeoplePicker";
 import { BandPoster } from "../Poster";
+import { BandGigs } from "../Gigs";
 import { Notes } from "../Notes";
 import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
@@ -21,8 +22,8 @@ import {
   type Attachment, type Band, type BandCandidate, type BandMember, type BandPerms, type BandSetlist,
 } from "@/lib/data/types";
 
-type Tab = "setlists" | "notes" | "people" | "kit" | "poster";
-const TABS: [Tab, string][] = [["setlists", "Setlists"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"]];
+type Tab = "setlists" | "gigs" | "notes" | "people" | "kit" | "poster";
+const TABS: [Tab, string][] = [["setlists", "Setlists"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"]];
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
 
 export function BandView() {
@@ -68,6 +69,7 @@ export function BandView() {
         {TABS.map(([k, label]) => <button key={k} role="tab" className="pl-tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}
       </div>
       {tab === "setlists" && <SetlistsTab band={band} />}
+      {tab === "gigs" && <BandGigs band={band} />}
       {tab === "notes" && (
         <Notes title="Band notes" hint="For the whole band: plans, contacts, who's driving." home={{ kind: "band", bandId: band.id }}
           admin={band.role === "admin"} readOnly={!band.perms.notes} />

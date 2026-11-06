@@ -141,6 +141,16 @@ Next.js 15 (App Router) + TypeScript + plain CSS on Vercel, Supabase for account
 - R14.7 Tables `transcriptions` and `transcription_shares`, private bucket `transcriptions` (`<owner>/<id>/<uuid>-<name>`), at most 20 uploads a day per person (a trigger and a log); migration `0038_transcriptions.sql`; tests in `tests/access/transcriptions.test.ts`.
 - R14.8 Not yet: star ratings and comments (#75), the name picker (#74), musician pages (#76), notifications for shares.
 
+### R15 Gigs
+- R15.1 A **gig** has a title, date, start time, venue name and address, a free-text schedule (load-in, soundcheck, sets), notes and an optional band (one of yours). Accounts only; signed out, the pages say "Sign in to plan gigs".
+- R15.2 **Setlists are linked, not copied.** A gig has any number of setlists and a setlist can be on many gigs; editing it changes it everywhere. **Copy for this gig** makes your own copy (named "<setlist> (<gig>)") and swaps the link on that gig only. You may put on a gig only setlists you own or can edit.
+- R15.3 **Lineup:** people with accounts (picked with the PeoplePicker, R4.6) and guests without accounts (name, instrument, phone, email, typed in by whoever edits the gig). Each has what they play. A person added gets a notification "added to a gig lineup" (R7), and the email follows the same "added to a setlist" setting (R7.2).
+- R15.4 **Contacts:** people on the gig (creator, lineup, band admins) see each lineup member's contact fields that member shares with My bands or Public (R11.4; a gig lineup counts as a band, with no per-band overrides). Guest phone and email are seen by people on the gig only and can't be read from the table. Band members who aren't on the lineup see names and what they play, no contacts. Nobody else sees anything.
+- R15.5 **Poster:** `components/Poster.tsx` with the gig's date, time and venue filled in and the lineup tagged. Photos to pick from: the band's press kit images (R10.8) and lineup members' images shared with My bands or Public (R11.3/R11.4); the storage read rule allows exactly those through `gig_file_readable`.
+- R15.6 **Who can do what:** the creator and, when it has a band, that band's admins edit and delete it. The lineup and the band's members read it. Reading a gig lets you read its setlists as a viewer (`setlist_role`); a viewer never gets edit rights. Anyone can remove themselves from a lineup.
+- R15.7 **Pages:** a **Gigs** card on the home page opens `/gigs` (Upcoming, soonest first, and Past tabs; **New gig** opens a modal). `/gigs/<id>` shows details, Setlists (Add setlist, Copy for this gig, Remove), Lineup with contacts, and the Poster. A setlist page shows "On gigs: …" with links and **Add to gig**. A band page has a Gigs tab listing its upcoming gigs.
+- R15.8 Tables `gigs`, `gig_setlists`, `gig_lineup` with RLS; functions `gig_lineup_list`, `gig_guest_details`, `gig_photos`; migration `0040_gigs.sql`; tests in `tests/access/gigs.test.ts`.
+
 ### Later (captured, not v1)
 - Offline chart view (service worker caching of setlists and attachments).
 - Storage quotas, open sign-up, public setlists.

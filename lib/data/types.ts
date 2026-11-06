@@ -94,7 +94,7 @@ export interface Note {
   updatedAt: string;
 }
 
-export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note" | "added_to_band" | "note_in_band";
+export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note" | "added_to_band" | "note_in_band" | "added_to_gig";
 
 export interface AppNotification {
   id: string;
@@ -105,6 +105,9 @@ export interface AppNotification {
   /** Band notifications. */
   bandId: string | null;
   bandName: string;
+  /** Gig notifications. */
+  gigId: string | null;
+  gigTitle: string;
   /** Setlist item (a tune) the note is on, when it's on a tune. */
   itemId: string | null;
   actorName: string;
@@ -247,6 +250,35 @@ export type Person = BandCandidate;
 /** A setlist shared with a band. */
 export interface BandSetlist { id: string; name: string; tunes: number; ownerId: string; ownerName: string; mine: boolean }
 
+/** A gig (R15). Accounts only. `date` is YYYY-MM-DD; `time` is free text ("20:00", "8pm"). */
+export interface Gig {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  address: string;
+  /** Load-in, soundcheck, sets: free text. */
+  schedule: string;
+  notes: string;
+  band: { id: string; name: string } | null;
+  createdBy: string;
+  /** You made it. */
+  mine: boolean;
+  /** You made it, or you're an admin of its band. */
+  canEdit: boolean;
+}
+export interface GigFields { title: string; date: string; time: string; venue: string; address: string; schedule: string; notes: string; bandId: string | null }
+/** A setlist on a gig. `mine` = you own it (so you can edit it). */
+export interface GigSetlist { id: string; name: string; tunes: number; mine: boolean; ownerName: string }
+/** A gig a setlist is on. */
+export interface GigRef { id: string; title: string; date: string }
+/** Someone on a gig's lineup: an account (`userId`) or a guest. `contact` uses CONTACT_FIELDS keys; empty unless you're on the gig. */
+export interface GigPerson { id: string; userId: string | null; name: string; plays: string; contact: Record<string, string> }
+export interface GigPersonFields { userId?: string; name?: string; plays: string; phone?: string; email?: string }
+/** A picture offered for the gig poster: the band's press kit or a lineup member's press photo. */
+export interface GigPhoto { id: string; source: "band" | "member"; ownerName: string; attachment: Attachment }
+
 /** Per-field choices for what one band sees of your profile: true = shown, false = hidden, missing = your account-wide choice. */
 export type BandShare = Record<string, boolean>;
 
@@ -350,6 +382,7 @@ export interface TranscriptionQuery {
 }
 export const PAGE_SIZES = [10, 20, 50] as const;
 export const NEEDS_ACCOUNT_TRANSCRIPTIONS = "Transcriptions need an account.";
+export const NEEDS_ACCOUNT_GIGS = "Sign in to plan gigs.";
 export interface TranscriptionShare { userId: string; name: string; email: string | null }
 
 /** A version of a tune's changes (R3.5), shared with everyone and keyed by song key. `changes` is the text format of lib/versions.ts. */
@@ -558,6 +591,27 @@ export interface DataStore {
   listBandFiles(bandId: string): Promise<Attachment[]>;
   /** Admins only. Progress is 0..1. */
   uploadBandFile(bandId: string, file: File, onProgress?: (p: number) => void): Promise<Attachment>;
+  /** Gigs you made, are on the lineup of, or can read through a band (soonest first). Local mode: none. */
+  listGigs(): Promise<Gig[]>;
+  getGig(id: string): Promise<Gig | null>;
+  createGig(f: GigFields): Promise<Gig>;
+  updateGig(id: string, f: GigFields): Promise<void>;
+  deleteGig(id: string): Promise<void>;
+  /** Setlists are linked to a gig, not copied: editing one changes it on every gig. */
+  listGigSetlists(gigId: string): Promise<GigSetlist[]>;
+  addGigSetlist(gigId: string, setlistId: string): Promise<void>;
+  removeGigSetlist(gigId: string, setlistId: string): Promise<void>;
+  /** Point the gig at `newId` instead of `oldId`, keeping its place (after Copy for this gig). */
+  swapGigSetlist(gigId: string, oldId: string, newId: string): Promise<void>;
+  listGigsOfSetlist(setlistId: string): Promise<GigRef[]>;
+  listBandGigs(bandId: string): Promise<Gig[]>;
+  /** The lineup, with the contacts each person shares (only if you're on the gig). */
+  listGigLineup(gigId: string): Promise<GigPerson[]>;
+  addGigPerson(gigId: string, f: GigPersonFields): Promise<void>;
+  /** Editors only. Guests can change name, phone and email; everyone can change what they play. */
+  updateGigPerson(gigId: string, p: GigPerson, f: GigPersonFields): Promise<void>;
+  removeGigPerson(personId: string): Promise<void>;
+  listGigPhotos(gigId: string): Promise<GigPhoto[]>;
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;

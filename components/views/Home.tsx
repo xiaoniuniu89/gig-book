@@ -29,6 +29,12 @@ export function Home() {
                 <span className="m">{total} charts · {names(library)}</span>
               </Link>
               {online && (
+                <Link className="book" href="/gigs">
+                  <span className="t">Gigs</span>
+                  <span className="m">Dates, setlists, lineup and poster</span>
+                </Link>
+              )}
+              {online && (
                 <Link className="book" href="/bands">
                   <span className="t">Bands</span>
                   <span className="m">Members, shared setlists and band notes</span>

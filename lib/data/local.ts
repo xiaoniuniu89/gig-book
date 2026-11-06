@@ -1,7 +1,7 @@
 // Local adapter: a tiny IndexedDB key-value store. Everything lives in this browser only.
 // Same database name, store and keys as the old static app ("setlist:<id>", "library:<id>").
 import { SETTINGS_KEY, loadLocalSettings, saveLocalSettings } from "../settings";
-import { NEEDS_ACCOUNT_TRANSCRIPTIONS, MAX_PRACTICE_BYTES, MAX_PRACTICE_TRACKS, slug, type PracticeTrack, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
+import { NEEDS_ACCOUNT_GIGS, NEEDS_ACCOUNT_TRANSCRIPTIONS,MAX_PRACTICE_BYTES, MAX_PRACTICE_TRACKS, slug, type PracticeTrack, type Arrangement, type DataStore, type LibraryPlaylist, type Note, type NoteHome, type NoteTag, type Setlist } from "./types";
 
 const DB_NAME = "gig-book", STORE = "kv";
 let dbp: Promise<IDBDatabase> | null = null;
@@ -168,6 +168,22 @@ export const localStore: DataStore = {
   linkResource: () => Promise.reject(new Error("Resources need an account.")),
   unlinkResource: () => Promise.reject(new Error("Resources need an account.")),
   // bands need an account (the UI hides them in local mode)
+  listGigs: async () => [],
+  getGig: async () => null,
+  createGig: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  updateGig: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  deleteGig: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  listGigSetlists: async () => [],
+  addGigSetlist: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  removeGigSetlist: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  swapGigSetlist: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  listGigsOfSetlist: async () => [],
+  listBandGigs: async () => [],
+  listGigLineup: async () => [],
+  addGigPerson: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  updateGigPerson: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  removeGigPerson: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  listGigPhotos: async () => [],
   listBands: async () => [],
   getBand: async () => null,
   createBand: () => Promise.reject(new Error("Bands need an account.")),
