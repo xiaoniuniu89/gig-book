@@ -1,6 +1,7 @@
 "use client";
 // Gigs (R15): the New/Edit dialog, the list rows, "On gigs" on a setlist page and a band's upcoming gigs.
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
@@ -17,7 +18,8 @@ export const todayIso = (): string => { const d = new Date(); return `${d.getFul
 export const gigWhen = (g: { date: string; time: string }): string => [prettyDate(g.date), g.time].filter(Boolean).join(" · ");
 export const byDate = (a: Gig, b: Gig): number => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
 
-export function GigDialog({ gig, bandId, onClose, onSaved }: { gig?: Gig; bandId?: string; onClose: () => void; onSaved: (g: Gig) => void }) {
+/** New or Edit gig. `bandId` and `setlistId` start a new gig with that band and that setlist on it. */
+export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: Gig; bandId?: string; setlistId?: string; onClose: () => void; onSaved: (g: Gig) => void }) {
   const { store, toast } = useApp();
   const [f, setF] = useState({
     title: gig?.title ?? "", date: gig?.date ?? "", time: gig?.time ?? "", venue: gig?.venue ?? "", address: gig?.address ?? "",
@@ -36,7 +38,11 @@ export function GigDialog({ gig, bandId, onClose, onSaved }: { gig?: Gig; bandId
     try {
       const fields = { ...f, bandId: f.bandId || null };
       if (gig) { await store.updateGig(gig.id, fields); onSaved((await store.getGig(gig.id)) ?? gig); }
-      else onSaved(await store.createGig(fields));
+      else {
+        const g = await store.createGig(fields);
+        if (setlistId) await store.addGigSetlist(g.id, setlistId).catch(er => toast(errText(er, "The gig is made, but the setlist couldn't be added.")));
+        onSaved(g);
+      }
     } catch (err) { toast(errText(err, "Couldn't save that gig.")); }
     setBusy(false);
   };
@@ -53,10 +59,7 @@ export function GigDialog({ gig, bandId, onClose, onSaved }: { gig?: Gig; bandId
         </div>
         <label className="field"><span className="field-label">Venue</span><input type="text" maxLength={200} value={f.venue} onChange={set("venue")} /></label>
         <label className="field"><span className="field-label">Address</span><textarea rows={2} maxLength={400} value={f.address} onChange={set("address")} /></label>
-        <label className="field"><span className="field-label">Schedule <Info label="About the schedule">Load-in, soundcheck and set times, one per line. Everyone on the lineup sees it.</Info></span>
-          <textarea rows={4} maxLength={5000} value={f.schedule} onChange={set("schedule")} />
-        </label>
-        <label className="field"><span className="field-label">Notes</span><textarea rows={3} maxLength={5000} value={f.notes} onChange={set("notes")} /></label>
+        <label className="field"><span className="field-label">Notes <Info label="About notes">Load-in and set times, parking, dress code, who to ask for at the door. Everyone on the lineup sees them.</Info></span><textarea rows={3} maxLength={5000} value={f.notes} onChange={set("notes")} /></label>
         <label className="field"><span className="field-label">Band <span className="field-opt">(optional)</span> <Info label="About the band on a gig">Members of the band can see the gig, and the band&apos;s admins can edit it. Without a band, only you and the people on the lineup can see it.</Info></span>
           <select value={f.bandId} onChange={set("bandId")}>
             <option value="">No band</option>
@@ -95,6 +98,8 @@ export function SetlistGigs({ setlistId, canAdd }: { setlistId: string; canAdd: 
   const [adding, setAdding] = useState(false);
   const [mine, setMine] = useState<Gig[]>([]);
   const [pick, setPick] = useState("");
+  const [making, setMaking] = useState(false);
+  const router = useRouter();
   const online = store.kind === "supabase";
   const load = () => store.listGigsOfSetlist(setlistId).then(setOn, () => setOn([]));
   useEffect(() => { if (online) void load(); }, [store, setlistId, online]); // eslint-disable-line react-hooks/exhaustive-deps -- load is stable enough
@@ -126,20 +131,26 @@ export function SetlistGigs({ setlistId, canAdd }: { setlistId: string; canAdd: 
                 <option value="">Pick a gig…</option>
                 {free.map(g => <option key={g.id} value={g.id}>{g.title} · {prettyDate(g.date)}</option>)}
               </select>
-              <span className="field-hint">The setlist is linked, not copied: changes you make to it show on the gig.</span>
             </label>
             <div className="row-btns">
               <button className="btn primary" disabled={!pick} onClick={add}>Add to gig</button>
-              <button className="btn" onClick={() => setAdding(false)}>Cancel</button>
+              <button className="btn" onClick={() => { setAdding(false); setMaking(true); }}><Icon name="plus" size={18} /> New gig</button>
+              <Info label="About adding to a gig">The setlist is linked, not copied: changes you make to it show on the gig.</Info>
             </div>
           </div>
-        ) : <p className="hint">No upcoming gigs you can add to. Make one under <Link href="/gigs">Gigs</Link>.</p>}
+        ) : (
+          <div className="chart-form">
+            <p className="hint">No upcoming gigs yet. Make one with this setlist on it.</p>
+            <div className="row-btns"><button className="btn primary" onClick={() => { setAdding(false); setMaking(true); }}><Icon name="plus" size={18} /> New gig</button></div>
+          </div>
+        )}
       </Modal>
+      {making && <GigDialog setlistId={setlistId} onClose={() => setMaking(false)} onSaved={g => { setMaking(false); router.push("/gigs/" + g.id); }} />}
     </>
   );
 }
 
-/** A band's upcoming gigs, on its page, with New gig for admins. */
+/** A band's upcoming gigs, on its page, with New gig for any member (the gig starts with this band on it). */
 export function BandGigs({ band }: { band: Band }) {
   const { store, toast } = useApp();
   const [gigs, setGigs] = useState<Gig[] | null>(null);
@@ -155,9 +166,9 @@ export function BandGigs({ band }: { band: Band }) {
     <section className="panel">
       <div className="panel-head">
         <h2>Upcoming gigs</h2>
-        {band.role === "admin" && <button className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> New gig</button>}
+        <button className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> New gig</button>
       </div>
-      {gigs === null ? <p className="hint">Loading…</p> : upcoming.length ? <GigRows gigs={upcoming} showBand={false} /> : <p className="hint">No upcoming gigs.</p>}
+      {gigs === null ? <p className="hint">Loading…</p> : upcoming.length ? <GigRows gigs={upcoming} showBand={false} /> : <p className="hint">No upcoming gigs. Tap New gig to add one.</p>}
       {adding && <GigDialog bandId={band.id} onClose={() => setAdding(false)} onSaved={g => { setGigs(l => (l ?? []).concat(g)); setAdding(false); }} />}
     </section>
   );
