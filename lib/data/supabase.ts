@@ -851,8 +851,13 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async listBandOriginals(bandId) {
-      const { data, error } = await sb.from("original_songs").select(OR_COLS).eq("visibility", "band").eq("band_id", bandId).order("title");
-      if (error) fail("load the band's songs", error);
+      const mem = await sb.from("band_members").select("user_id").eq("band_id", bandId);
+      if (mem.error) fail("load the band's originals", mem.error);
+      const ids = (mem.data || []).map(r => r.user_id as string);
+      if (!ids.length) return [];
+      const { data, error } = await sb.from("original_songs").select(OR_COLS).in("owner", ids)
+        .or(`visibility.eq.public,and(visibility.eq.band,band_id.eq.${bandId})`).order("title");
+      if (error) fail("load the band's originals", error);
       const rows = (data || []) as unknown as OriginalRow[];
       const nm = await namesOf(rows.map(r => r.owner));
       return rows.map(r => toOriginal(r, nm));

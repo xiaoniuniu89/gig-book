@@ -29,7 +29,7 @@ export const newItem = (raw: string, set: number, shift: number | null = null): 
 
 export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onClose }: {
   library: LibraryPlaylist[];
-  /** the setlist's band: adds a Band songs tab with the originals its members shared */
+  /** the setlist's band: adds a tab with its members' originals, and a new song is shared with the band */
   bandId?: string;
   /** pick exactly one tune (the checkboxes act as radio buttons) */
   single?: boolean;
@@ -75,6 +75,7 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose, adding]);
 
+  const addOwn = account && <p className="pad"><button type="button" className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Can&apos;t find it? Add your own song</button></p>;
   const toggle = (raw: string) => setPicked(p => p.includes(raw) ? p.filter(x => x !== raw) : single ? [raw] : [...p, raw]);
 
   return createPortal(
@@ -94,13 +95,13 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
       {bandId && account && (
         <div className="pl-tabs" role="tablist" aria-label="Where from">
           <button role="tab" className="pl-tab" aria-selected={tab === "all"} onClick={() => setTab("all")}>All tunes</button>
-          <button role="tab" className="pl-tab" aria-selected={tab === "band"} onClick={() => setTab("band")}>Band songs</button>
+          <button role="tab" className="pl-tab" aria-selected={tab === "band"} onClick={() => setTab("band")}>Band members&apos; originals</button>
         </div>
       )}
       {tab === "band" ? (
         <div className="sheet-list">
           {bandSongs === null ? <p className="hint pad">Loading…</p> : !bandShown.length
-            ? <p className="hint pad">{bandSongs.length ? "No band song matches." : "No songs shared with the band yet. Add them from the band's Songs tab."}</p>
+            ? <p className="hint pad">{bandSongs.length ? "No match." : "No originals by band members shared with the band yet."}</p>
             : bandShown.map(o => {
               const on = picked.includes(o.raw), m = meta(o.raw);
               return (
@@ -111,6 +112,7 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
                 </label>
               );
             })}
+          {addOwn}
         </div>
       ) : (
       <div className="sheet-list">
@@ -138,7 +140,7 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
           })}
         </>}
         {!shown.length && !extra.length && <p className="hint pad">{all.length ? "No match in the library." : "The library is empty. Import a playlist first."}</p>}
-        {account && <p className="pad"><button type="button" className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Can&apos;t find it? Add your own song</button></p>}
+        {addOwn}
       </div>
       )}
       <div className="sheet-foot">
@@ -147,8 +149,9 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
           {single ? "Pick" : <>Add {picked.length || ""}{sets > 1 ? ` to set ${set}` : ""}</>}
         </button>
       </div>
-      {adding && <NewSong title={q} onClose={() => setAdding(false)} onSaved={o => {
+      {adding && <NewSong title={q} bandId={bandId} onClose={() => setAdding(false)} onSaved={o => {
         setAdding(false);
+        if (bandId) void store.listBandOriginals(bandId).then(setBandSongs, () => undefined);
         if (single) { onAdd([o.raw], set); onClose(); }
         else { setQ(""); setPicked(p => p.includes(o.raw) ? p : [...p, o.raw]); }
       }} />}

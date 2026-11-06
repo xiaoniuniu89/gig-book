@@ -3,8 +3,8 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
     date: "2026-11-13",
     items: [
-      "Bands have a Songs tab: add your original songs for the band, and see everyone's in one place.",
-      "Add tunes on a band setlist has a Band songs tab with the originals your bandmates shared.",
+      "Bands have an Originals tab: the original songs by people in the band, in one place. Each song stays with whoever wrote it.",
+      "Add tunes on a band setlist lists your bandmates' originals too, and a song you add there is shared with the band.",
     ],
   },
   {

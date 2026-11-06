@@ -29,7 +29,7 @@ import {
 } from "@/lib/data/types";
 
 type Tab = "setlists" | "songs" | "gigs" | "notes" | "people" | "kit" | "poster" | "settings";
-const TABS: [Tab, string][] = [["setlists", "Setlists"], ["songs", "Songs"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"], ["settings", "Settings"]];
+const TABS: [Tab, string][] = [["setlists", "Setlists"], ["songs", "Originals"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"], ["settings", "Settings"]];
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
 
 export function BandView() {
@@ -215,14 +215,14 @@ function SetlistsTab({ band }: { band: Band }) {
 }
 
 /* ---------------------------------------------------------------- songs */
-// Original songs shared with the band. Anyone in the band can add one of theirs; only its writer changes it.
+// Original songs by the band's members: each belongs to whoever wrote it; shown here when shared with the band or public.
 function SongsTab({ band }: { band: Band }) {
   const { store, toast, originals } = useApp();
   const [list, setList] = useState<OriginalSong[] | null>(null);
   const [making, setMaking] = useState(false);
   const [editing, setEditing] = useState<OriginalSong | null>(null);
 
-  const load = useCallback(() => store.listBandOriginals(band.id).then(setList, e => { setList([]); toast(errText(e, "Couldn't load the band's songs.")); }), [store, band.id, toast]);
+  const load = useCallback(() => store.listBandOriginals(band.id).then(setList, e => { setList([]); toast(errText(e, "Couldn't load the originals.")); }), [store, band.id, toast]);
   useEffect(() => { void load(); }, [load]);
   const open = async (o: OriginalSong) => {
     try { window.open(await store.originalLeadSheetUrl(o), "_blank", "noopener"); } catch (e) { toast(errText(e, "Couldn't open the lead sheet.")); }
@@ -232,10 +232,10 @@ function SongsTab({ band }: { band: Band }) {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Band songs <Info label="About band songs">Original songs shared with the band. Everyone in the band can see them and add them to setlists with Add tunes. Only the person who wrote one can change it. To share one you already have, edit it in your Library and pick this band under Who can see it.</Info></h2>
+        <h2>Members&apos; originals <Info label="About members' originals">Original songs written by people in the band. Each song stays with whoever wrote it, and only they can change it. A song shows here when it&apos;s shared with this band or public. Anyone in the band can add these to a setlist with Add tunes. To share one you already have, edit it in your Library and choose this band or Public under Who can see it.</Info></h2>
         <button className="btn small" onClick={() => setMaking(true)}><Icon name="plus" size={16} /> New song</button>
       </div>
-      {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No songs shared with the band yet.</p> : (
+      {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No originals by band members shared here yet.</p> : (
         <div className="list">
           {list.map(o => {
             const i = o.mine ? originals.findIndex(x => x.id === o.id) : -1;
@@ -474,7 +474,7 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
     <section className="panel">
       <h2>Band settings</h2>
       <label className="acct-field"><span>Name</span><input type="text" required value={name} maxLength={200} onChange={e => setName(e.target.value)} /></label>
-      <label className="acct-field"><span>Group chat link <Info label="About the group chat link">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</Info></span><input type="url" value={chat} maxLength={500} placeholder="https://chat.whatsapp.com/…" onChange={e => setChat(e.target.value)} /></label>
+      <label className="acct-field"><span>Group chat link <Info label="About the group chat link">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</Info></span><input type="url" value={chat} maxLength={500} onChange={e => setChat(e.target.value)} /></label>
       <h3 className="modal-sub">What members can do by default</h3>
       <PermSwitches value={perms} onChange={setPerms} />
       <p className="hint">Admins can do everything. You can override these for one person under People.</p>
