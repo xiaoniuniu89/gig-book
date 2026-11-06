@@ -1,6 +1,16 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-22",
+    items: [
+      "Tidier pages: the song page has Notes, Licks, Resources and Transcriptions as tabs, and gigs, setlists, bands, settings and Transcribe split into tabs too, so you see one thing at a time.",
+      "Play setlist (or Play set 2) asks once: play along with the band, or listen to the recordings. The setlist's Spotify panel is now the Playlist tab, with Create Spotify playlist.",
+      "Actions on a row (a tune in a setlist, a note, a lick) are under its ⋯ button. Deleting something asks you to type approve first.",
+      "Buttons that save or search show it's working and can't be pressed twice.",
+      "Home shows your next gig, and a tune on a gig's setlist links back to the gig.",
+    ],
+  },
+  {
     date: "2026-11-21",
     items: [
       "Loop any bars: drag across them on the chart (on a phone, hold a bar, then slide) and press Loop. Press Stop to end it. You can also type the bar numbers under More settings in the band.",
