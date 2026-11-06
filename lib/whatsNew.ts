@@ -2,7 +2,10 @@
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
     date: "2026-11-18",
-    items: ["A band's setlist now shows the band in the trail at the top (Bands / your band / the setlist), so you can step back to the band."],
+    items: [
+      "A band's setlist now shows the band in the trail at the top (Bands / your band / the setlist), so you can step back to the band.",
+      "On a band's Setlists tab, Share one of yours picks from your setlists, and Take out of band asks you to confirm.",
+    ],
   },
   {
     date: "2026-11-17",

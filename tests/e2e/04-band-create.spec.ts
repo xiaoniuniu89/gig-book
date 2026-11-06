@@ -26,8 +26,8 @@ test("4. Ava makes a band, adds Ben (instrument preselected) and a setlist; a mu
 
   // put one of Ava's setlists in the band
   await page.getByRole("tab", { name: "Setlists" }).click();
-  await page.getByLabel("Your setlist").selectOption({ label: "Ava Solo Ballads" });
-  await page.getByRole("button", { name: "Add a setlist" }).click();
+  await page.getByRole("button", { name: "Share one of yours" }).click();
+  await page.getByRole("dialog").locator(".member", { hasText: "Ava Solo Ballads" }).getByRole("button", { name: "Share" }).click();
   await expect(page.locator("section.panel", { hasText: "Band setlists" }).getByText("Ava Solo Ballads")).toBeVisible();
 
   // Dev starts his own band and looks for Ava, who plays piano and vocals: no guess, "Add as" lists both

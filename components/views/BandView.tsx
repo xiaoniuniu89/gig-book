@@ -118,8 +118,8 @@ function SetlistsTab({ band }: { band: Band }) {
   const app = useApp();
   const { store, toast } = app;
   const [list, setList] = useState<BandSetlist[] | null>(null);
-  const [pick, setPick] = useState("");
-  const [armed, setArmed] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [taking, setTaking] = useState<BandSetlist | null>(null);
   const [making, setMaking] = useState(false);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -130,24 +130,23 @@ function SetlistsTab({ band }: { band: Band }) {
   const load = useCallback(() => store.listBandSetlists(band.id).then(setList, e => { setList([]); toast(errText(e, "Couldn't load the band's setlists.")); }), [store, band.id, toast]);
   useEffect(() => { void load(); }, [load]);
 
-  const add = async () => {
-    const s = mine.find(x => x.id === pick);
+  const add = async (id: string) => {
+    const s = mine.find(x => x.id === id);
     if (!s || busy) return;
     setBusy(true);
     try {
       await store.setSetlistBand(s.id, band.id);
       app.updateSetlist(s.id, x => ({ ...x, band: { id: band.id, name: band.name } }));
-      setPick(""); toast("Shared with the band.");
+      setPicking(false); toast(s.name + " is shared with the band.");
       await load();
     } catch (e) { toast(errText(e, "Couldn't add that setlist.")); }
     setBusy(false);
   };
   const remove = async (b: BandSetlist) => {
-    if (armed !== b.id) { setArmed(b.id); return; }
-    setArmed(null);
     try {
       await store.setSetlistBand(b.id, null);
       app.updateSetlist(b.id, x => ({ ...x, band: null }));
+      setTaking(null); toast(b.name + " is out of the band.");
       await load();
     } catch (e) { toast(errText(e, "Couldn't take it out of the band.")); }
   };
@@ -181,30 +180,38 @@ function SetlistsTab({ band }: { band: Band }) {
     <section className="panel">
       <div className="panel-head">
         <h2>Band setlists <Info label="About band setlists">A setlist stays owned by whoever made it. If they take it out or leave the band, it leaves the band too. Anyone can save their own copy.</Info></h2>
-        {canAdd && <button className="btn small" onClick={() => setMaking(true)}><Icon name="plus" size={16} /> New setlist</button>}
+        {canAdd && <span className="row-btns">
+          {mine.length > 0 && <button className="btn small" onClick={() => setPicking(true)}><Icon name="share" size={16} /> Share one of yours</button>}
+          <button className="btn small" onClick={() => setMaking(true)}><Icon name="plus" size={16} /> New setlist</button>
+        </span>}
       </div>
       {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No setlists shared with the band yet.</p> : (
         <div className="list">
           {list.map(b => (
             <div className="member" key={b.id}>
-              <span className="name"><Link href={"/set/" + encodeURIComponent(b.id)}>{b.name}</Link><span className="sub">{b.tunes} tunes · {b.ownerName}</span></span>
+              <span className="name"><Link href={"/set/" + encodeURIComponent(b.id)}>{b.name}</Link><span className="sub">{b.tunes} {b.tunes === 1 ? "tune" : "tunes"} · {b.ownerName}</span></span>
               <span className="tune-btns">
                 {!b.mine && <button className="btn small" onClick={() => save(b)}>Save to my setlists</button>}
-                {b.mine && <button className="btn small" onClick={() => remove(b)}>{armed === b.id ? "Take out?" : "Take out of band"}</button>}
+                {b.mine && <button className="btn small" onClick={() => setTaking(b)}>Take out of band</button>}
               </span>
             </div>
           ))}
         </div>
       )}
-      {canAdd && (
-        <div className="inline-form">
-          <select aria-label="Your setlist" value={pick} onChange={e => setPick(e.target.value)}>
-            <option value="">Add one of yours…</option>
-            {mine.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <button className="btn" disabled={!pick || busy} onClick={add}>Add a setlist</button>
+      <Modal open={picking} title={"Share a setlist with " + band.name} onClose={() => setPicking(false)}>
+        <div className="list">
+          {mine.map(s => (
+            <div className="member" key={s.id}>
+              <span className="name">{s.name}<span className="sub">{s.items.length} {s.items.length === 1 ? "tune" : "tunes"}</span></span>
+              <button className="btn small" disabled={busy} onClick={() => void add(s.id)}><Icon name="share" size={16} /> Share</button>
+            </div>
+          ))}
         </div>
-      )}
+      </Modal>
+      <ConfirmTyped open={!!taking} title={"Take " + (taking?.name ?? "") + " out of the band"} action="Take out of band" onClose={() => setTaking(null)}
+        onConfirm={() => taking ? remove(taking) : undefined}>
+        The band won&apos;t see this setlist any more. It stays in your setlists, and you can share it again.
+      </ConfirmTyped>
       <Modal open={making} title={"New setlist for " + band.name} onClose={() => setMaking(false)} dirty={!!newName.trim() && !busy}>
         <form className="new-set" onSubmit={e => { e.preventDefault(); void create(); }}>
           <input aria-label="Setlist name" autoFocus required maxLength={200} placeholder="Setlist name (required)" value={newName} onChange={e => setNewName(e.target.value)} />
