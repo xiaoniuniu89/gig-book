@@ -5,6 +5,7 @@ import { useApp } from "../AppProvider";
 import { meta, norm, prettyKey } from "@/lib/songs";
 import { BUILTIN_LIBRARY, ORIGINALS_ID } from "@/lib/seeds";
 import { NewSong } from "../Originals";
+import { UploadMenu, type UploadMode } from "../MenuButton";
 import { Icon } from "../Icon";
 import { ImportPanel } from "../ImportPanel";
 import { Modal } from "../Modal";
@@ -16,7 +17,7 @@ let lastPick = ""; // which playlist was open, remembered like the query
 
 export function Library() {
   const { library, setCrumb, setCurrent, ready, removeLibraryPlaylist, store } = useApp();
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<UploadMode | null>(null);
   const [q, setQ] = useState(lastQuery);
   const [pickId, setPickId] = useState(lastPick || BUILTIN_LIBRARY.id);
   const [delArmed, setDelArmed] = useState(false);
@@ -57,11 +58,11 @@ export function Library() {
       <div className="page-head" data-tour="library">
         <h1>Library</h1>
         <span className="row-btns">
-          {store.kind === "supabase" && <button className="btn" onClick={() => setCreating(true)}><Icon name="plus" size={18} /> New song</button>}
+          {store.kind === "supabase" && <UploadMenu label="New song" onPick={setCreating} />}
           <button className="btn" onClick={() => setImporting(true)}><Icon name="plus" size={18} /> Import playlist</button>
         </span>
       </div>
-      {creating && <NewSong onClose={() => setCreating(false)} onSaved={() => { setCreating(false); pick(ORIGINALS_ID); }} />}
+      {creating && <NewSong mode={creating} onClose={() => setCreating(null)} onSaved={() => { setCreating(null); pick(ORIGINALS_ID); }} />}
       <Modal open={importing} title="Import from iReal Pro" onClose={() => setImporting(false)}><ImportPanel onDone={() => setImporting(false)} /></Modal>
       <div className="pl-tabs" role="tablist" aria-label="Playlists">
         {library.map(p => (

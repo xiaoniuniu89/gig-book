@@ -10,12 +10,12 @@ import { Modal } from "./Modal";
 import { ChartEditor, blankSection, fromEdit, toEdit, type EditSection } from "./ChartEditor";
 import { chartFromLeadSheet } from "@/lib/ai/leadsheetClient";
 import { defaultTempo } from "@/lib/band/gen";
-import { encodeChart, sectionsFromBars, TIME_SIGS } from "@/lib/irealExport";
+import { encodeChart, sectionsFromBars, SONG_STYLES, TIME_SIGS } from "@/lib/irealExport";
 import { meta, prettyKey, song } from "@/lib/songs";
 import { MAX_LEAD_SHEET_MB, attachmentKind, type Band, type OriginalSong, type OriginalVisibility } from "@/lib/data/types";
 
 const ACCEPT = "application/pdf,image/*";
-const STYLES = ["Medium Swing", "Up Tempo Swing", "Medium Up Swing", "Medium Slow Swing", "Ballad", "Bossa Nova", "Latin", "Samba", "Waltz", "Even 8ths", "Funk", "Rock Pop"];
+const STYLES: readonly string[] = SONG_STYLES;
 const MAJOR = ["C", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B"];
 const KEYS = [...MAJOR, ...["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"].map(k => k + "-")];
 const msg = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
@@ -25,8 +25,11 @@ const storeComposer = (name: string) => name.trim().split(/\s+/).reverse().join(
 const where = (o: OriginalSong, bands: Band[]) =>
   o.visibility === "public" ? "Public" : o.visibility === "band" ? "Shared with " + (bands.find(b => b.id === o.bandId)?.name || "a band") : "Private";
 
-/** New song (no `o`) or edit one. `title` pre-fills the title, `bandId` shares a new one with that band. `onSaved` gets the saved song. */
-export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: OriginalSong; title?: string; bandId?: string; onClose: () => void; onSaved: (o: OriginalSong) => void }) {
+/** New song (no `o`) or edit one. `title` pre-fills the title, `bandId` shares a new one with that band. `mode` "ai": the lead
+ *  sheet first; AI reads it and fills in the form (title, composer, style, key, tempo, chart) for you to check. `onSaved` gets the saved song. */
+export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, onSaved }: {
+  o?: OriginalSong; title?: string; bandId?: string; mode?: "manual" | "ai"; onClose: () => void; onSaved: (o: OriginalSong) => void;
+}) {
   const { store, account, toast, putOriginal } = useApp();
   const start = o ? song(o.raw) : null;
   const [title, setTitle] = useState(start?.title ?? preTitle?.trim() ?? "");
@@ -42,6 +45,7 @@ export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: 
   const [edit, setEdit] = useState<EditSection[]>(() => start?.bars.length ? toEdit(sectionsFromBars(start.bars)) : [blankSection("A", "4/4")]);
   const [problems, setProblems] = useState<string[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
+  const [reading, setReading] = useState(false);
   const [pct, setPct] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const touched = useRef({ key: !!o, tempo: !!o });
@@ -56,7 +60,7 @@ export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: 
     const k = attachmentKind(f.type, f.name);
     if (k !== "pdf" && k !== "image") toast("Choose a PDF or a photo.");
     else if (f.size > MAX_LEAD_SHEET_MB * 1024 * 1024) toast(`Too big: a lead sheet can be up to ${MAX_LEAD_SHEET_MB} MB.`);
-    else { setFile(f); setDropSheet(false); }
+    else { setFile(f); setDropSheet(false); if (!o && mode === "ai" && !file) void fill(f); }
   };
   const changeTs = (next: string) => { setEdit(v => v.map(s => s.ts === ts ? { ...s, ts: next } : s)); setTs(next); };
 
@@ -66,6 +70,22 @@ export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: 
     const res = await fetch(await store.originalLeadSheetUrl(o));
     if (!res.ok) throw new Error("Couldn't open the lead sheet.");
     return new File([await res.blob()], o.leadSheet.name, { type: o.leadSheet.mime });
+  };
+  // AI mode: read the new lead sheet and fill in the form; whatever it can't read stays for you to type
+  const fill = async (f: File) => {
+    setReading(true); setProblems([]);
+    try {
+      const g = await chartFromLeadSheet(f);
+      if (g.title) setTitle(t => t.trim() ? t : g.title);
+      if (g.composer) setComposer(g.composer);
+      if (g.style) setStyle(g.style);
+      if (g.key) setKey(g.key);
+      if (g.tempo) setTempo(String(g.tempo));
+      if (g.errors.length) setProblems(["The AI's chart wasn't used, because:", ...g.errors]);
+      else { setEdit(toEdit(g.sections)); if (g.sections[0]?.ts) setTs(g.sections[0].ts); }
+      toast(g.errors.length ? "Filled in what it could. Type the chart in below." : "Filled in. Check it, then save.");
+    } catch (e) { toast(msg(e, "Couldn't read that file. Fill in the song yourself.")); }
+    finally { setReading(false); }
   };
   const makeChart = async () => {
     if (aiBusy) return;
@@ -81,6 +101,7 @@ export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: 
       if (first) setTs(first);
       if (g.key && !touched.current.key) setKey(g.key);
       if (g.tempo && !touched.current.tempo) setTempo(String(g.tempo));
+      if (g.title) setTitle(t => t.trim() ? t : g.title);
       toast("Chart made. Check it, then save.");
     } catch (e) { toast(msg(e, "Couldn't make the chart.")); }
     finally { setAiBusy(false); }
@@ -110,9 +131,33 @@ export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: 
   };
 
   const sheetName = file?.name ?? (!dropSheet ? o?.leadSheet?.name : undefined);
+  const aiFirst = !o && mode === "ai" && (!file || reading);
   return (
     <Modal open title={o ? "Edit song" : "New song"} onClose={() => { if (pct === null) onClose(); }} dirty={pct === null && snap !== snap0}>
       <form className="chart-form" onSubmit={save}>
+        <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
+        {aiFirst ? <>
+          <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Your lead sheet is sent to an AI service to fill in the song. It can make mistakes: check everything before you save.</span></div>
+          <div className="field"><span className="field-label">Lead sheet <Info label="About the lead sheet">A PDF (3 MB at most for AI) or a photo of your chart. AI reads the title, composer, style, key, tempo and chords from it, and the file is kept with the song. It counts toward your daily Niu AI requests.</Info></span>
+            <div className="attach-opts">
+              {file ? <span className="chip">{file.name}</span>
+                : <button className="btn small" type="button" onClick={() => input.current?.click()}><Icon name="import" size={16} /> Choose file</button>}
+            </div>
+            {reading && <span className="field-hint"><span className="spinner" aria-hidden="true" /> Reading the lead sheet…</span>}
+          </div>
+        </> : <>
+        <div className="field"><span className="field-label">Lead sheet <span className="field-opt">(optional)</span> <Info label="About the lead sheet">
+          A PDF or a photo, up to {MAX_LEAD_SHEET_MB} MB. It is kept with the song and shown on its page. Niu AI can read it and write out the chart for you; for that a PDF has to be 3 MB or less. Only you and whoever can see the song can open it.
+        </Info></span>
+          <div className="attach-opts">
+            {sheetName ? <><span className="chip">{sheetName}</span>
+              <button className="btn small" type="button" onClick={() => input.current?.click()}>Change</button>
+              <button className="btn small" type="button" onClick={() => { setFile(null); setDropSheet(true); }}>Remove</button></>
+              : <button className="btn small" type="button" onClick={() => input.current?.click()}><Icon name="import" size={16} /> Choose file</button>}
+            {sheetName && <button className="btn small" type="button" disabled={aiBusy} onClick={makeChart}><Icon name="sparkle" size={16} /> {aiBusy ? "Reading the lead sheet…" : "Make the chart with AI"}</button>}
+          </div>
+          {sheetName && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Make the chart with AI sends the lead sheet to an AI service. It counts toward your daily Niu AI requests, and it can make mistakes: check the chart before you save.</span></div>}
+        </div>
         <label className="field"><span className="field-label">Title</span>
           <input type="text" required maxLength={200} autoFocus={!title} value={title} onChange={e => setTitle(e.target.value)} />
         </label>
@@ -152,23 +197,11 @@ export function NewSong({ o, title: preTitle, bandId, onClose, onSaved }: { o?: 
             <option value="public">Public: anyone signed in</option>
           </select>
         </label>
-        <div className="field"><span className="field-label">Lead sheet <span className="field-opt">(optional)</span> <Info label="About the lead sheet">
-          A PDF or a photo, up to {MAX_LEAD_SHEET_MB} MB. It is kept with the song and shown on its page. Niu AI can read it and write out the chart for you; for that a PDF has to be 3 MB or less. Only you and whoever can see the song can open it.
-        </Info></span>
-          <input ref={input} type="file" accept={ACCEPT} hidden onChange={pick} />
-          <div className="attach-opts">
-            {sheetName ? <><span className="chip">{sheetName}</span>
-              <button className="btn small" type="button" onClick={() => input.current?.click()}>Change</button>
-              <button className="btn small" type="button" onClick={() => { setFile(null); setDropSheet(true); }}>Remove</button></>
-              : <button className="btn small" type="button" onClick={() => input.current?.click()}><Icon name="import" size={16} /> Choose file</button>}
-            {sheetName && <button className="btn small" type="button" disabled={aiBusy} onClick={makeChart}><Icon name="sparkle" size={16} /> {aiBusy ? "Reading the lead sheet…" : "Make the chart with AI"}</button>}
-          </div>
-          {sheetName && <div className="callout warn" role="note"><Icon name="info" size={18} /><span>Make the chart with AI sends the lead sheet to an AI service. It counts toward your daily Niu AI requests, and it can make mistakes: check the chart before you save.</span></div>}
-        </div>
         <ChartEditor value={edit} onChange={setEdit} ts={ts} />
         {problems.length > 0 && <ul className="field-err" role="alert">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
         {pct !== null && file && <progress max={1} value={pct} aria-label="Uploading" />}
         <div className="row-btns"><button className="btn primary" type="submit" disabled={pct !== null || aiBusy}>{pct !== null ? "Saving…" : o ? "Save" : "Save song"}</button></div>
+        </>}
       </form>
     </Modal>
   );

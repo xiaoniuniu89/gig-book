@@ -7,7 +7,7 @@ import { useApp } from "./AppProvider";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { Info } from "./Info";
-import { MenuButton } from "./MenuButton";
+import { UploadMenu, type UploadMode } from "./MenuButton";
 import { TunePicker } from "./TunePicker";
 import { getSupabase } from "@/lib/supabase/client";
 import { SOLO_INSTRUMENTS } from "@/lib/instruments";
@@ -41,16 +41,7 @@ export async function reportTranscription(t: Transcription) {
   if (!res.ok) throw new Error("Couldn't send the report.");
 }
 
-/** How a new transcription is uploaded: everything typed in by hand, or AI reads the file first. */
-export type UploadMode = "manual" | "ai";
-
-/** "Upload ▾": with AI, or manually. */
-export function UploadMenu({ label, className, onPick }: { label: string; className?: string; onPick: (m: UploadMode) => void }) {
-  return <MenuButton className={className} label={<><Icon name="upload" size={18} /> {label}</>} items={[
-    { label: <><Icon name="sparkle" size={18} /> With AI</>, onClick: () => onPick("ai") },
-    { label: <><Icon name="edit" size={18} /> Manually</>, onClick: () => onPick("manual") },
-  ]} />;
-}
+export { UploadMenu, type UploadMode } from "./MenuButton";
 
 /** Upload (no `t`) or edit (`t`) dialog. `tune` pre-fills the tune. Manual: the whole form, empty. AI: just the file first;
  *  AI reads it and fills in what it can, then the form shows for you to accept or edit. State lives here so the tune

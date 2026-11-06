@@ -21,6 +21,7 @@ import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
 import { NewSong } from "../Originals";
+import { UploadMenu, type UploadMode } from "../MenuButton";
 import { ORIGINALS_ID } from "@/lib/seeds";
 import { hrefFor } from "@/lib/contact";
 import {
@@ -219,7 +220,7 @@ function SetlistsTab({ band }: { band: Band }) {
 function SongsTab({ band }: { band: Band }) {
   const { store, toast, originals } = useApp();
   const [list, setList] = useState<OriginalSong[] | null>(null);
-  const [making, setMaking] = useState(false);
+  const [making, setMaking] = useState<UploadMode | null>(null);
   const [editing, setEditing] = useState<OriginalSong | null>(null);
 
   const load = useCallback(() => store.listBandOriginals(band.id).then(setList, e => { setList([]); toast(errText(e, "Couldn't load the originals.")); }), [store, band.id, toast]);
@@ -227,13 +228,13 @@ function SongsTab({ band }: { band: Band }) {
   const open = async (o: OriginalSong) => {
     try { window.open(await store.originalLeadSheetUrl(o), "_blank", "noopener"); } catch (e) { toast(errText(e, "Couldn't open the lead sheet.")); }
   };
-  const saved = () => { setMaking(false); setEditing(null); void load(); };
+  const saved = () => { setMaking(null); setEditing(null); void load(); };
 
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Members&apos; originals <Info label="About members' originals">Original songs written by people in the band. Each song stays with whoever wrote it, and only they can change it. A song shows here when it&apos;s shared with this band or public. Anyone in the band can add these to a setlist with Add tunes. To share one you already have, edit it in your Library and choose this band or Public under Who can see it.</Info></h2>
-        <button className="btn small" onClick={() => setMaking(true)}><Icon name="plus" size={16} /> New song</button>
+        <UploadMenu label="New song" className="btn small" onPick={setMaking} />
       </div>
       {list === null ? <p className="hint">Loading…</p> : !list.length ? <p className="hint">No originals by band members shared here yet.</p> : (
         <div className="list">
@@ -251,7 +252,7 @@ function SongsTab({ band }: { band: Band }) {
           })}
         </div>
       )}
-      {making && <NewSong bandId={band.id} onClose={() => setMaking(false)} onSaved={saved} />}
+      {making && <NewSong bandId={band.id} mode={making} onClose={() => setMaking(null)} onSaved={saved} />}
       {editing && <NewSong o={editing} onClose={() => setEditing(null)} onSaved={saved} />}
     </section>
   );
@@ -474,7 +475,7 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
     <section className="panel">
       <h2>Band settings</h2>
       <label className="acct-field"><span>Name</span><input type="text" required value={name} maxLength={200} onChange={e => setName(e.target.value)} /></label>
-      <label className="acct-field"><span>Group chat link <Info label="About the group chat link">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</Info></span><input type="url" value={chat} maxLength={500} onChange={e => setChat(e.target.value)} /></label>
+      <label className="acct-field"><span>Group chat link <Info label="About the group chat link">Members get a Band chat button that opens the group. To get the link in WhatsApp: open the group, tap its name at the top, tap Invite (or Add members), then Invite to group via link, then Copy link. Only group admins see this unless the group lets everyone add people. WeChat groups have no lasting link (people join by QR code), so they can&apos;t go here.</Info></span><input type="url" value={chat} maxLength={500} onChange={e => setChat(e.target.value)} /></label>
       <h3 className="modal-sub">What members can do by default</h3>
       <PermSwitches value={perms} onChange={setPerms} />
       <p className="hint">Admins can do everything. You can override these for one person under People.</p>

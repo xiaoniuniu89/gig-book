@@ -108,5 +108,11 @@ describe("validateChart (the AI's answer)", () => {
     expect(validateChart(null).errors.length).toBeGreaterThan(0);
     expect(validateChart("nonsense").errors.length).toBeGreaterThan(0);
   });
+  it("reads the title, composer and style as plain text, or leaves them empty", () => {
+    const g = validateChart({ ...good, title: "Blue Kinnegad", composer: "Dan Callaghan", style: "bossa nova" });
+    expect([g.title, g.composer, g.style]).toEqual(["Blue Kinnegad", "Dan Callaghan", "Bossa Nova"]);
+    const h = validateChart({ ...good, title: "<b>x</b>", style: "Polka" });
+    expect([h.title, h.style, h.errors]).toEqual(["", "", []]);
+  });
   it("ignores a key it doesn't know", () => expect(validateChart({ ...good, key: "H#" }).key).toBe(""));
 });

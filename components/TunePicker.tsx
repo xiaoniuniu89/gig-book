@@ -2,11 +2,11 @@
 // Full-screen sheet to pick tunes from the whole library (de-duplicated by title + composer) and add them to a setlist.
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "./Icon";
 import { meta, norm, prettyKey } from "@/lib/songs";
 import { newItemId, type LibraryPlaylist, type OriginalSong, type SetlistItem } from "@/lib/data/types";
 import { useApp } from "./AppProvider";
 import { NewSong } from "./Originals";
+import { UploadMenu, type UploadMode } from "./MenuButton";
 
 export interface LibTune { raw: string; title: string; composer: string; style: string; key: string; hay: string }
 
@@ -49,7 +49,7 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
   const inSet = useMemo(() => new Set(have.map(r => { const m = meta(r); return idOf(m.title, m.composer); })), [have]);
 
   const { store } = useApp();
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<UploadMode | null>(null);
   const [others, setOthers] = useState<OriginalSong[]>([]);
   const account = store.kind === "supabase";
   // other players' public originals (and your bands') that match; yours are in the library already
@@ -75,7 +75,7 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose, adding]);
 
-  const addOwn = account && <p className="pad"><button type="button" className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Can&apos;t find it? Add your own song</button></p>;
+  const addOwn = account && <p className="pad"><span className="hint">Can&apos;t find it?</span> <UploadMenu label="Add your own song" className="btn small" onPick={setAdding} /></p>;
   const toggle = (raw: string) => setPicked(p => p.includes(raw) ? p.filter(x => x !== raw) : single ? [raw] : [...p, raw]);
 
   return createPortal(
@@ -149,8 +149,8 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
           {single ? "Pick" : <>Add {picked.length || ""}{sets > 1 ? ` to set ${set}` : ""}</>}
         </button>
       </div>
-      {adding && <NewSong title={q} bandId={bandId} onClose={() => setAdding(false)} onSaved={o => {
-        setAdding(false);
+      {adding && <NewSong title={q} bandId={bandId} mode={adding} onClose={() => setAdding(null)} onSaved={o => {
+        setAdding(null);
         if (bandId) void store.listBandOriginals(bandId).then(setBandSongs, () => undefined);
         if (single) { onAdd([o.raw], set); onClose(); }
         else { setQ(""); setPicked(p => p.includes(o.raw) ? p : [...p, o.raw]); }

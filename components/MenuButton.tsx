@@ -1,6 +1,7 @@
 "use client";
 // A button that opens a short list of choices (always a dropdown, unlike More, which only folds in calm mode).
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Icon } from "./Icon";
 
 export function MenuButton({ label, className = "btn", items }: {
   label: ReactNode; className?: string; items: { label: ReactNode; onClick: () => void }[];
@@ -22,4 +23,15 @@ export function MenuButton({ label, className = "btn", items }: {
       </div>}
     </span>
   );
+}
+
+/** How something new is uploaded (a transcription, a song): everything typed in by hand, or AI reads the file first. */
+export type UploadMode = "manual" | "ai";
+
+/** "Upload ▾": with AI, or manually. */
+export function UploadMenu({ label, className, onPick }: { label: string; className?: string; onPick: (m: UploadMode) => void }) {
+  return <MenuButton className={className} label={<><Icon name="upload" size={18} /> {label}</>} items={[
+    { label: <><Icon name="sparkle" size={18} /> With AI</>, onClick: () => onPick("ai") },
+    { label: <><Icon name="edit" size={18} /> Manually</>, onClick: () => onPick("manual") },
+  ]} />;
 }

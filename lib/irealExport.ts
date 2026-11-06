@@ -136,6 +136,8 @@ export interface ChartBar {
 }
 export interface ChartSection { name: string; /** "4/4" */ ts: string; bars: ChartBar[] }
 
+/** The styles the New song form offers (iReal names). */
+export const SONG_STYLES = ["Medium Swing", "Up Tempo Swing", "Medium Up Swing", "Medium Slow Swing", "Ballad", "Bossa Nova", "Latin", "Samba", "Waltz", "Even 8ths", "Funk", "Rock Pop"] as const;
 export const TIME_SIGS = ["4/4", "3/4", "2/4", "5/4", "6/4", "7/4", "2/2", "3/8", "6/8", "9/8", "12/8"] as const;
 export const MAX_CHART_BARS = 400;
 export const MAX_SECTIONS = 20;
