@@ -80,8 +80,10 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   );
 }
 
-export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, tour }: {
+export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, legacy, tour, tabs }: {
   title: string;
+  /** Tabs shown under the title (Band / Private on a setlist tune). */
+  tabs?: React.ReactNode;
   /** Marks the panel for the first-run tour. */
   tour?: string;
   hint?: string;
@@ -228,6 +230,7 @@ export function Notes({ title, hint, home, setlist, admin, readOnly, itemRaw, le
         <h2>{title}</h2>
         {!readOnly && <button className="btn small" onClick={() => setComposing(true)}><Icon name="plus" size={16} /> Add note</button>}
       </div>
+      {tabs}
       {hint && <p className="hint">{hint}</p>}
       {notes === null ? <p className="hint">Loading…</p> : !top.length ? <p className="hint">No notes yet.</p> : (
         <div className="thread-list">

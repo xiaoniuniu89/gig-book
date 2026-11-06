@@ -183,7 +183,9 @@ export class Band {
       const n = Math.max(1, opts.choruses || 2);
       // medium swing plays the head in two and walks from the second chorus
       this.twoFeelHead = n > 1 && this.feel === "swing" && this.tempo <= 220;
-      for (let c = 1; c <= n; c++) unroll(song.bars, c === n).forEach((idx, k) => items.push({ idx, chorus: c, k, round: c - 1 }));
+      // an intro (iReal section "i") plays once: later choruses start at the top of the form, where the walking comes in
+      const intro = introLength(song.bars);
+      for (let c = 1; c <= n; c++) unroll(song.bars, c === n).filter(idx => c === 1 || idx >= intro).forEach((idx, k) => items.push({ idx, chorus: c, k, round: c - 1 }));
       items.push({ ending: true, beats: 4 });
     }
     this.items = items; this.pos = 0; this.loopPos = 0;
@@ -295,4 +297,11 @@ export class Band {
     }
     if (was && !silent) this.emit({ type: "stop" });
   }
+}
+
+/** Bars at the start marked as an intro (section "i"), up to the next section; 0 if none, or if the intro is the whole tune. */
+export function introLength(bars: { section: string | null }[]): number {
+  if (!bars.length || bars[0].section?.toLowerCase() !== "i") return 0;
+  const n = bars.findIndex((b, i) => i > 0 && b.section !== null && b.section.toLowerCase() !== "i");
+  return n > 0 ? n : 0;
 }

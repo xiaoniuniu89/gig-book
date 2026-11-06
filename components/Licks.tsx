@@ -207,12 +207,12 @@ export function LickCard({ lick, sheet, actions }: { lick: Lick; sheet?: Attachm
 }
 
 /** "Licks" on a tune: licks attached here, and one "Attach a lick" dialog to pick yours or a starter, or write a new one. */
-export function Licks(props: { title: string; hint?: string; home: LickHome; setlist?: Setlist }) {
+export function Licks(props: { title: string; hint?: string; home: LickHome; setlist?: Setlist; tabs?: React.ReactNode }) {
   const { store } = useApp();
   return store.kind === "supabase" ? <LicksHere {...props} /> : null; // local mode has no licks
 }
 
-function LicksHere({ title, hint, home, setlist }: { title: string; hint?: string; home: LickHome; setlist?: Setlist }) {
+function LicksHere({ title, hint, home, setlist, tabs }: { title: string; hint?: string; home: LickHome; setlist?: Setlist; tabs?: React.ReactNode }) {
   const app = useApp();
   const { store, toast } = app;
   const [links, setLinks] = useState<LickLink[] | null>(null);
@@ -281,6 +281,7 @@ function LicksHere({ title, hint, home, setlist }: { title: string; hint?: strin
         <h2>{title}</h2>
         <button className="btn small" onClick={open}><Icon name="plus" size={16} /> Attach a lick</button>
       </div>
+      {tabs}
       {hint && <p className="hint">{hint}</p>}
       <Modal open={mode !== null} title={mode === "new" ? "New lick" : "Attach a lick"} onClose={() => setMode(null)} dirty={mode === "new" && lickDirty}>
         {mode === "new" ? <LickForm newFiles cta="Save and add" onSubmit={create} onCancel={() => setMode("pick")} onDirty={setLickDirty} /> : <>
