@@ -12,3 +12,9 @@ export const canonInstrument = (s: string): string => {
 
 /** Cleaned list: canonical spelling, no blanks or repeats. */
 export const canonInstruments = (xs: string[]): string[] => [...new Set(xs.map(canonInstrument).filter(Boolean))];
+
+/** The shorter list for transcriptions: the usual jazz solo instruments, horns first. */
+export const SOLO_INSTRUMENTS = [
+  "Trumpet", "Alto sax", "Tenor sax", "Soprano sax", "Baritone sax", "Trombone", "Clarinet", "Flute",
+  "Piano", "Organ", "Vibes", "Guitar", "Bass", "Drums", "Vocals",
+] as const;

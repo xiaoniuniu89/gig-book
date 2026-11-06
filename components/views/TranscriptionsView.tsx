@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "../AppProvider";
 import { Info } from "../Info";
 import { TranscriptionDialog, TranscriptionRows, UploadMenu, type UploadMode } from "../Transcriptions";
-import { INSTRUMENTS } from "@/lib/instruments";
+import { SOLO_INSTRUMENTS } from "@/lib/instruments";
 import { PAGE_SIZES, type Transcription, type TranscriptionQuery } from "@/lib/data/types";
 
 const TABS: { value: TranscriptionQuery["tab"]; label: string }[] = [{ value: "all", label: "All" }, { value: "mine", label: "Mine" }, { value: "shared", label: "Shared with me" }];
@@ -49,7 +49,7 @@ export function TranscriptionsView() {
             <input className="search" type="search" aria-label="Search transcriptions" placeholder="Search title, tune or player" autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
             <select aria-label="Instrument" value={instrument} onChange={e => reset(setInstrument)(e.target.value)}>
               <option value="">All instruments</option>
-              {INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
+              {SOLO_INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
             </select>
           </div>
           <div className="row-btns">

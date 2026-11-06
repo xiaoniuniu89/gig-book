@@ -10,7 +10,7 @@ import { Info } from "./Info";
 import { MenuButton } from "./MenuButton";
 import { TunePicker } from "./TunePicker";
 import { getSupabase } from "@/lib/supabase/client";
-import { INSTRUMENTS } from "@/lib/instruments";
+import { SOLO_INSTRUMENTS } from "@/lib/instruments";
 import { meta, norm, songKey } from "@/lib/songs";
 import { parseYoutube } from "@/lib/youtube/ids";
 import { readTranscriptionFile } from "@/lib/ai/transcriptionClient";
@@ -154,7 +154,8 @@ export function TranscriptionDialog({ t, tune, mode = "manual", onClose, onSaved
           <label className="field"><span className="field-label">Instrument</span>
             <select value={instrument} onChange={e => setInstrument(e.target.value)}>
               <option value="">Not said</option>
-              {INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
+              {SOLO_INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
+              {instrument && !(SOLO_INSTRUMENTS as readonly string[]).includes(instrument) && <option value={instrument}>{instrument}</option>}
             </select>
           </label>
           <label className="field"><span className="field-label">Player <span className="field-opt">(whose solo)</span></span>
