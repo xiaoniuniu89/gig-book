@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useApp } from "../AppProvider";
 import { Icon } from "../Icon";
+import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
 import { Modal } from "../Modal";
 import { Oops } from "../Oops";
@@ -41,7 +42,6 @@ export function GigView() {
   if (!gig) return <Oops code={404} lines={["That gig isn't here.", "It may have been deleted, or you're not on it."]} links={[{ href: "/gigs", label: "Back to gigs" }]} />;
 
   const del = async () => {
-    if (!armed) { setArmed(true); return; }
     try { await store.deleteGig(gig.id); router.push("/gigs"); } catch (e) { toast(errText(e, "Couldn't delete that gig.")); }
   };
   const details: [string, string][] = [["Venue", gig.venue], ["Address", gig.address], ["Band", gig.band?.name ?? ""]];
@@ -56,9 +56,12 @@ export function GigView() {
         {gig.canEdit && (
           <div className="row-btns">
             <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit</button>
-            <button className="btn small" onClick={del}><Icon name="trash" size={16} /> {armed ? "Tap again to delete" : "Delete"}</button>
+            <button className="btn small" onClick={() => setArmed(true)}><Icon name="trash" size={16} /> Delete</button>
           </div>
         )}
+      <ConfirmTyped open={armed} title={"Delete " + gig.title} action="Delete gig" onClose={() => setArmed(false)} onConfirm={del}>
+        This deletes the gig, its lineup and its poster details for everyone on it. The setlists stay.
+      </ConfirmTyped>
       </div>
 
       <section className="panel" aria-label="Details">
@@ -151,6 +154,7 @@ function GigSetlists({ gig }: { gig: Gig }) {
 /* ---------------------------------------------------------------- lineup */
 function GigLineup({ gig, onLoaded }: { gig: Gig; onLoaded: (l: GigPerson[]) => void }) {
   const { store, toast, account } = useApp();
+  const router = useRouter();
   const [list, setList] = useState<GigPerson[] | null>(null);
   const [who, setWho] = useState<Picked | null>(null);
   const [plays, setPlays] = useState("");
@@ -180,6 +184,7 @@ function GigLineup({ gig, onLoaded }: { gig: Gig; onLoaded: (l: GigPerson[]) => 
     if (await act(() => store.addGigPerson(gig.id, { name: guest.name, plays: guest.plays, phone: guest.phone, email: guest.email }), "Couldn't add that guest.")) setGuest({ name: "", plays: "", phone: "", email: "" });
   };
   const remove = (p: GigPerson) => {
+    if (p.userId === account?.id && !gig.canEdit) { setArmed("leave:" + p.id); return; } // leaving: typed confirm
     if (armed !== p.id) { setArmed(p.id); return; }
     setArmed(null);
     void act(() => store.removeGigPerson(p.id), "Couldn't remove that person.");
@@ -203,6 +208,10 @@ function GigLineup({ gig, onLoaded }: { gig: Gig; onLoaded: (l: GigPerson[]) => 
                     <span className="tune-btns">
                       {gig.canEdit && <button className="btn small" disabled={busy} onClick={() => setEdit(p)}><Icon name="edit" size={16} /> Edit</button>}
                       <button className="btn small" disabled={busy} onClick={() => remove(p)}><Icon name={p.userId === account?.id && !gig.canEdit ? "logout" : "trash"} size={16} /> {armed === p.id ? "Sure?" : p.userId === account?.id && !gig.canEdit ? "Leave" : "Remove"}</button>
+                      <ConfirmTyped open={armed === "leave:" + p.id} title={"Leave " + gig.title} action="Leave gig" onClose={() => setArmed(null)}
+                        onConfirm={async () => { setArmed(null); await act(() => store.removeGigPerson(p.id), "Couldn't leave the gig."); router.push("/gigs"); }}>
+                        You&apos;ll come off the lineup and lose access to this gig.
+                      </ConfirmTyped>
                     </span>
                   )}
                 </div>

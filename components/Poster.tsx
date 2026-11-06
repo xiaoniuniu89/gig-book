@@ -70,7 +70,7 @@ function PosterBuilder({ heading, name, initial, people, photos, photosLabel, no
 
   return (
     <section className="panel poster">
-      <div className="panel-head"><h2>{heading}</h2></div>
+      <div className="panel-head"><h2>{heading}</h2><span className="tag">Work in progress</span></div>
       <div className="poster-grid">
         <div className="poster-form">
           <div className="acct-row">

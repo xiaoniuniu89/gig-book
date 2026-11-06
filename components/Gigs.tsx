@@ -45,16 +45,16 @@ export function GigDialog({ gig, bandId, onClose, onSaved }: { gig?: Gig; bandId
     <Modal open title={gig ? "Edit gig" : "New gig"} onClose={onClose}>
       <form className="chart-form" onSubmit={save}>
         <label className="field"><span className="field-label">Title</span>
-          <input type="text" maxLength={200} required value={f.title} onChange={set("title")} placeholder="Friday at the Blue Room" />
+          <input type="text" maxLength={200} required value={f.title} onChange={set("title")} />
         </label>
         <div className="acct-row">
           <label className="field"><span className="field-label">Date</span><input type="date" required value={f.date} onChange={set("date")} /></label>
-          <label className="field"><span className="field-label">Start time</span><input type="text" maxLength={30} value={f.time} onChange={set("time")} placeholder="8pm" /></label>
+          <label className="field"><span className="field-label">Start time</span><input type="text" maxLength={30} value={f.time} onChange={set("time")} /></label>
         </div>
         <label className="field"><span className="field-label">Venue</span><input type="text" maxLength={200} value={f.venue} onChange={set("venue")} /></label>
         <label className="field"><span className="field-label">Address</span><textarea rows={2} maxLength={400} value={f.address} onChange={set("address")} /></label>
-        <label className="field"><span className="field-label">Schedule <span className="field-opt">(load-in, soundcheck, sets)</span></span>
-          <textarea rows={4} maxLength={5000} value={f.schedule} onChange={set("schedule")} placeholder={"5:00 load-in\n6:00 soundcheck\n8:00 first set"} />
+        <label className="field"><span className="field-label">Schedule <Info label="About the schedule">Load-in, soundcheck and set times, one per line. Everyone on the lineup sees it.</Info></span>
+          <textarea rows={4} maxLength={5000} value={f.schedule} onChange={set("schedule")} />
         </label>
         <label className="field"><span className="field-label">Notes</span><textarea rows={3} maxLength={5000} value={f.notes} onChange={set("notes")} /></label>
         <label className="field"><span className="field-label">Band <span className="field-opt">(optional)</span> <Info label="About the band on a gig">Members of the band can see the gig, and the band&apos;s admins can edit it. Without a band, only you and the people on the lineup can see it.</Info></span>

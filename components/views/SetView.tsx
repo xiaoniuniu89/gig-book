@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type PointerEvent } from "react";
 import { Icon } from "../Icon";
+import { ConfirmTyped } from "../ConfirmTyped";
 import { More } from "../More";
 import { useApp, songHref } from "../AppProvider";
 import { irealShift, keyLabel } from "@/lib/theory";
@@ -291,12 +292,13 @@ function SetBody({ s }: { s: Setlist }) {
       {picking && <TunePicker library={library} have={s.items.map(it => it.raw)} sets={count} onAdd={addTunes} onClose={() => setPicking(false)} />}
       {isOwner && (
         <section className="danger-zone">
-          <button className="btn small" id="del-set" onClick={async () => {
-            if (!delArmed) { setDelArmed(true); return; }
-            await app.removeSetlist(s); router.push("/setlists");
-          }}>{delArmed ? "Tap again to delete " + s.name : "Delete this setlist"}</button>
+          <button className="btn small" id="del-set" onClick={() => setDelArmed(true)}><Icon name="trash" size={16} /> Delete this setlist</button>
         </section>
       )}
+      <ConfirmTyped open={delArmed} title={"Delete " + s.name} action="Delete setlist" onClose={() => setDelArmed(false)}
+        onConfirm={async () => { await app.removeSetlist(s); router.push("/setlists"); }}>
+        This deletes the setlist and its notes for everyone it&apos;s shared with, and takes it off any gigs.
+      </ConfirmTyped>
     </>
   );
 }
@@ -443,10 +445,11 @@ function Band({ s, owner }: { s: Setlist; owner: boolean }) {
         </>
       ) : members?.some(m => m.userId === app.account?.id) && (
         <div className="danger-zone">
-          <button className="btn small" id="leave-set" onClick={async () => {
-            if (armed !== "leave") { setArmed("leave"); return; }
-            if (await app.leaveSetlist(s)) router.push("/setlists");
-          }}>{armed === "leave" ? "Tap again to leave " + s.name : "Leave this setlist"}</button>
+          <button className="btn small" id="leave-set" onClick={() => setArmed("leave")}><Icon name="logout" size={16} /> Leave this setlist</button>
+          <ConfirmTyped open={armed === "leave"} title={"Leave " + s.name} action="Leave setlist" onClose={() => setArmed(null)}
+            onConfirm={async () => { if (await app.leaveSetlist(s)) router.push("/setlists"); }}>
+            You&apos;ll lose access to this setlist and its notes. The owner can add you back.
+          </ConfirmTyped>
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ const PATHS = {
   import: "M12 4v11M7 10l5 5 5-5M5 20h14",
   trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
   edit: "M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4",
+  copy: "M9 9h11v11H9V9zM5 15H4V4h11v1",
   sun: "M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z",
   moon: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
   bell: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 20a2 2 0 0 0 4 0",

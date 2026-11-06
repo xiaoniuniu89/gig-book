@@ -16,14 +16,16 @@ import { BandGigs } from "../Gigs";
 import { Notes } from "../Notes";
 import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
+import { ConfirmTyped } from "../ConfirmTyped";
+import { Info } from "../Info";
 import { hrefFor } from "@/lib/contact";
 import {
   BAND_PERMS, CONTACT_FIELDS, SLUG_RE, newItemId, slug,
   type Attachment, type Band, type BandCandidate, type BandMember, type BandPerms, type BandSetlist,
 } from "@/lib/data/types";
 
-type Tab = "setlists" | "gigs" | "notes" | "people" | "kit" | "poster";
-const TABS: [Tab, string][] = [["setlists", "Setlists"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"]];
+type Tab = "setlists" | "gigs" | "notes" | "people" | "kit" | "poster" | "settings";
+const TABS: [Tab, string][] = [["setlists", "Setlists"], ["gigs", "Gigs"], ["notes", "Notes"], ["people", "People"], ["kit", "Press kit"], ["poster", "Poster"], ["settings", "Settings"]];
 const errText = (e: unknown, fallback: string) => e instanceof Error ? e.message : fallback;
 
 export function BandView() {
@@ -77,6 +79,7 @@ export function BandView() {
       {tab === "people" && <PeopleTab band={band} reloadBand={reload} />}
       {tab === "kit" && <KitTab band={band} reloadBand={reload} />}
       {tab === "poster" && <BandPoster band={band} />}
+      {tab === "settings" && <SettingsTab band={band} reloadBand={reload} />}
       <Modal open={asking} title={"Join " + band.name} onClose={() => setAsking(false)}>
         <BandShareForm bandId={band.id} bandName={band.name} cta="Save" onSaved={() => setAsking(false)} />
       </Modal>
@@ -162,12 +165,10 @@ const contactRows = (m: BandMember) => CONTACT_FIELDS.filter(f => m.contact[f.ke
 
 function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
   const app = useApp();
-  const router = useRouter();
   const { store, toast, account } = app;
   const admin = band.role === "admin";
   const [members, setMembers] = useState<BandMember[] | null>(null);
   const [armed, setArmed] = useState<string | null>(null);
-  const [sharing, setSharing] = useState(false);
   const [plays, setPlays] = useState(band.plays);
   const [editPlays, setEditPlays] = useState(false);
 
@@ -191,10 +192,6 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
   };
   const savePlays = async () => {
     try { await store.setBandPlays(band.id, plays); setEditPlays(false); toast("Saved."); await Promise.all([load(), reloadBand()]); } catch (e) { toast(errText(e, "Couldn't save.")); }
-  };
-  const leave = async () => {
-    if (armed !== "leave") { setArmed("leave"); return; }
-    try { await store.leaveBand(band.id); router.push("/bands"); } catch (e) { toast(errText(e, "Couldn't leave.")); }
   };
 
   return (
@@ -248,22 +245,10 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
 
       {(admin || band.perms.invite) && <Invite band={band} memberIds={members?.map(m => m.userId) ?? []} onAdded={load} />}
 
-      <section className="panel">
-        <h2>You in this band</h2>
-        <div className="row-btns">
-          <button className="btn" onClick={() => setSharing(true)}>What the band sees of my profile</button>
-          <button className="btn" onClick={leave}>{armed === "leave" ? "Tap again to leave" : "Leave band"}</button>
-        </div>
-      </section>
       <Modal open={editPlays} title="What you play in this band" onClose={() => setEditPlays(false)}>
         <InstrumentPicker label="What you play in this band" dropdown value={plays} onChange={setPlays} />
         <div className="row-btns"><button className="btn primary" onClick={savePlays} disabled={plays.join("|") === band.plays.join("|")}>Save</button></div>
       </Modal>
-      <Modal open={sharing} title="What the band sees" onClose={() => setSharing(false)}>
-        <BandShareForm bandId={band.id} bandName={band.name} cta="Save" onSaved={() => { setSharing(false); toast("Saved."); void load(); }} />
-      </Modal>
-
-      {admin && <Settings band={band} reloadBand={reloadBand} />}
     </>
   );
 }
@@ -335,6 +320,35 @@ function Invite({ band, memberIds, onAdded }: { band: Band; memberIds: string[];
   );
 }
 
+/* ---------------------------------------------------------------- settings */
+// Your privacy here and leaving; for admins also the band's own settings and deleting it.
+function SettingsTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
+  const { store, toast } = useApp();
+  const router = useRouter();
+  const [privacy, setPrivacy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  return (
+    <>
+      <section className="panel">
+        <h2>You in this band</h2>
+        <div className="row-btns">
+          <button className="btn" onClick={() => setPrivacy(true)}><Icon name="lock" size={18} /> Privacy</button>
+          <Info label="About privacy">Choose which parts of your profile (contact details, bio, press photos) this band can see.</Info>
+          <button className="btn" onClick={() => setLeaving(true)}><Icon name="logout" size={18} /> Leave band</button>
+        </div>
+      </section>
+      {band.role === "admin" && <Settings band={band} reloadBand={reloadBand} />}
+      <Modal open={privacy} title={"Privacy in " + band.name} onClose={() => setPrivacy(false)}>
+        <BandShareForm bandId={band.id} bandName={band.name} cta="Save" onSaved={() => { setPrivacy(false); toast("Saved."); }} />
+      </Modal>
+      <ConfirmTyped open={leaving} title={"Leave " + band.name} action="Leave band" onClose={() => setLeaving(false)}
+        onConfirm={async () => { try { await store.leaveBand(band.id); router.push("/bands"); } catch (e) { toast(errText(e, "Couldn't leave.")); } }}>
+        You&apos;ll lose access to the band&apos;s setlists, notes and gigs. An admin can add you back.
+      </ConfirmTyped>
+    </>
+  );
+}
+
 // Admin: the band's name, what new members can do, and deleting it.
 function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
   const { store, toast } = useApp();
@@ -342,7 +356,7 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
   const [name, setName] = useState(band.name);
   const [perms, setPerms] = useState(band.defaultPerms);
   const [chat, setChat] = useState(band.chatUrl || "");
-  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const chatUrl = chat.trim() ? (/^https?:\/\//i.test(chat.trim()) ? chat.trim() : "https://" + chat.trim()).replace(/^http:/i, "https:") : null;
   const dirty = name.trim() !== band.name || JSON.stringify(perms) !== JSON.stringify(band.defaultPerms) || chatUrl !== band.chatUrl;
   const save = async () => {
@@ -354,7 +368,6 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
     } catch (e) { toast(errText(e, "Couldn't save.")); }
   };
   const del = async () => {
-    if (!armed) { setArmed(true); return; }
     try { await store.deleteBand(band.id); router.push("/bands"); } catch (e) { toast(errText(e, "Couldn't delete the band.")); }
   };
   return (
@@ -365,9 +378,12 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
       <p className="hint">Members get a Band chat button. In WhatsApp: group info, Invite via link, Copy link.</p>
       <h3 className="modal-sub">What members can do by default</h3>
       <PermSwitches value={perms} onChange={setPerms} />
-      <p className="hint">Admins can do everything. You can override these for one person in the list above.</p>
+      <p className="hint">Admins can do everything. You can override these for one person under People.</p>
       <div className="row-btns"><button className="btn primary" disabled={!dirty} onClick={save}>Save</button></div>
-      <div className="danger-zone"><button className="btn small" onClick={del}>{armed ? "Tap again to delete " + band.name : "Delete this band"}</button></div>
+      <div className="danger-zone"><button className="btn small" onClick={() => setDeleting(true)}><Icon name="trash" size={16} /> Delete this band</button></div>
+      <ConfirmTyped open={deleting} title={"Delete " + band.name} action="Delete band" onClose={() => setDeleting(false)} onConfirm={del}>
+        This deletes the band, its notes and its press kit for everyone. Setlists stay with whoever owns them.
+      </ConfirmTyped>
     </section>
   );
 }
