@@ -103,7 +103,7 @@ describe("originals: changing and deleting", () => {
     const row = must(await M.ava.sb.from("original_songs").select("title, composer").eq("id", s.id).single(), "row");
     expect(row).toEqual({ title: "Derived Title", composer: "Callaghan Dan" });
     must(await M.ava.sb.from("original_songs").update({ raw: rawOf("Renamed") }).eq("id", s.id), "rename");
-    expect(must(await M.ava.sb.from("original_songs").select("title").eq("id", s.id).single(), "row").title).toBe("Renamed");
+    expect(must(await M.ava.sb.from("original_songs").select("title").eq("id", s.id).single(), "row")!.title).toBe("Renamed");
   });
 
   it("only the owner updates or deletes, even a public one", async () => {
@@ -116,7 +116,7 @@ describe("originals: changing and deleting", () => {
     expect(await canDownload("ava", s.path)).toBe(true);
     // the owner can't hand it over or point it at another folder
     await M.ava.sb.from("original_songs").update({ owner: USERS.ben.id }).eq("id", s.id);
-    expect(must(await admin().from("original_songs").select("owner").eq("id", s.id).single(), "row").owner).toBe(USERS.ava.id);
+    expect(must(await admin().from("original_songs").select("owner").eq("id", s.id).single(), "row")!.owner).toBe(USERS.ava.id);
     const moved = await M.ava.sb.from("original_songs").update({ lead_sheet_path: `${USERS.ben.id}/${s.id}/x.pdf` }).eq("id", s.id).select("id");
     expect(moved.data ?? []).toHaveLength(0);
     // the owner deletes: row and file go
@@ -155,7 +155,7 @@ describe("originals: the daily cap", () => {
     const over = await M.dev.sb.from("original_songs").insert({ raw: rawOf("One too many") });
     expect(over.error?.message).toMatch(/new songs or lead sheets today/);
     // editing the chart isn't an upload
-    const one = must(await M.dev.sb.from("original_songs").select("id").eq("owner", USERS.dev.id).limit(1), "one")[0];
+    const one = must(await M.dev.sb.from("original_songs").select("id").eq("owner", USERS.dev.id).limit(1), "one")![0];
     expect((await M.dev.sb.from("original_songs").update({ raw: rawOf("Edited") }).eq("id", one.id)).error).toBeNull();
     // but a new lead sheet is
     const path = `${USERS.dev.id}/${one.id}/new.pdf`;
