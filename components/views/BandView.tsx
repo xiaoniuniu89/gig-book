@@ -506,8 +506,12 @@ function KitTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<vo
             <input id={"kit-" + f.key} type={f.kind} value={contact[f.key] || ""} maxLength={300} onChange={e => setContact(c => ({ ...c, [f.key]: e.target.value }))} />
           </div>
         ))}
-        <h3 className="modal-sub">Photos and files</h3>
-        <AttachMenu onFiles={fs => uploads.add(band.id, fs)} />
+        <h3 className="modal-sub">Photos and press kit PDF <Info label="About photos and the PDF">Band photos for posters and listings, and a one-page PDF about the band to send to venues. For recordings, add your Spotify, SoundCloud or Bandcamp link above.</Info></h3>
+        <AttachMenu noAudio onFiles={all => {
+          const fs = all.filter(f => f.type.startsWith("image/") || f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+          if (fs.length < all.length) toast("Only photos and PDFs here. For recordings, add the band's Spotify, SoundCloud or Bandcamp link.");
+          if (fs.length) uploads.add(band.id, fs);
+        }} />
         <UploadRows ups={uploads.ups} noteId={band.id} retry={uploads.retry} dismiss={uploads.dismiss} />
         {fileList}
       </section>
