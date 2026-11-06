@@ -2,6 +2,14 @@
 
 What's left to do, in order. Last updated 2026-11-06. Update it at the end of each session.
 
+## Released 2026-11-22 (UI audit, cd2e5f4)
+- Tabs over stacking everywhere: song page Notes / Licks / Resources / Transcriptions (one panel, `head` prop on each panel component); setlist Tunes / Notes / Playlist; gig, band People, Settings, Transcribe.
+- One Play setlist (and Play set N) asks band or recordings. "Create Spotify playlist"; "Link one you have" opens a modal.
+- Row actions in ⋯ menus, ConfirmTyped deletes, `BusyButton` for fetch/save buttons.
+- Home "Next up" card (next gig); song page eyebrow links to the setlist's gig; Chart view icon; crumbs fixed on Tools, Niu AI, a transcription.
+- No migrations. E2E not run locally (only typecheck + lint); CI runs on the main push. Tests touched: 02, 03, 05, 09, 10.
+- Audit items left: the setlist's "On gigs" line stays a line (not a Gigs tab); iReal and Who can see it collapse under More only in calm mode.
+
 ## Pending: one sharing model for setlists and transcriptions (#86)
 - Built by the bot. **Typecheck, lint and tests not run** (dependencies couldn't be installed): run `npm run typecheck && npm run lint && npm test` first. Needs `npm run db:dev` for migration **0048** (also 0047 if not yet applied).
 - Deviation from the issue: `setlist_readable()` is left as it was, because the notes, files, licks and charts SELECT rules use it, and widening it would show them to visibility readers. A new `setlist_visible()` (role, or `bands` + `shares_band(owner)`, or `public`) is used only by `setlists_select` and `setlist_items_select`. Header of the migration lists which policy uses which.
