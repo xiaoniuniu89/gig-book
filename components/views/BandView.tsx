@@ -36,6 +36,8 @@ export function BandView() {
   const [band, setBand] = useState<Band | null | undefined>(undefined);
   const [tab, setTab] = useState<Tab>("setlists");
   const [asking, setAsking] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState("");
   const signedIn = store.kind === "supabase";
 
   const reload = useCallback(async () => {
@@ -55,6 +57,18 @@ export function BandView() {
     return () => { gone = true; };
   }, [band?.id, store]); // eslint-disable-line react-hooks/exhaustive-deps -- once per band
 
+  const rename = async () => {
+    if (!renaming || !band) return;
+    setRenaming(false);
+    const v = draft.trim().slice(0, 200);
+    if (!v) { toast("A band needs a name."); return; }
+    if (v === band.name) return;
+    try {
+      await store.updateBand(band.id, { name: v, defaultPerms: band.defaultPerms, bio: band.bio, contact: band.contact, epkSlug: band.epkSlug, chatUrl: band.chatUrl });
+      await reload();
+    } catch (e) { toast(errText(e, "Couldn't rename the band.")); }
+  };
+
   if (!signedIn) return <section className="panel"><p className="hint">Sign in to use bands.</p></section>;
   if (band === undefined) return <p className="hint" role="status">Loading…</p>;
   if (!band) return <Oops code={403} lines={["You're not in this band, or it's been deleted."]} links={[{ href: "/bands", label: "Your bands" }, { href: "/", label: "Home" }]} />;
@@ -64,7 +78,13 @@ export function BandView() {
       <div className="page-head">
         <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
           <span className="eyebrow">Band · {band.role === "admin" ? "admin" : "member"}</span>
-          <h1>{band.name}</h1>
+          {renaming ? (
+            <input className="rename" aria-label="Band name" autoFocus maxLength={200} value={draft}
+              onChange={e => setDraft(e.target.value)} onBlur={() => void rename()}
+              onKeyDown={e => { if (e.key === "Enter") void rename(); else if (e.key === "Escape") setRenaming(false); }} />
+          ) : (
+            <h1>{band.name}{band.role === "admin" && <button className="btn icon-btn rename-btn" aria-label="Rename band" title="Rename" onClick={() => { setDraft(band.name); setRenaming(true); }}><Icon name="edit" /></button>}</h1>
+          )}
         </div>
         {band.chatUrl && <a className="btn" href={band.chatUrl} target="_blank" rel="noopener noreferrer"><Icon name="chat" size={18} /> Band chat</a>}
       </div>
