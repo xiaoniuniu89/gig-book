@@ -1,6 +1,24 @@
 # Next steps
 
-What's left to do, in order. Last updated 2026-11-05. Update it at the end of each session.
+What's left to do, in order. Last updated 2026-11-06. Update it at the end of each session.
+
+## State on 2026-11-06 (paused here)
+- Dev and live databases both have migrations up to **0046**. Everything below is released.
+- **Released this session:**
+  - Gigs (#79), with New gig from a setlist and from a band, and venue suggestions.
+  - Setlist to iReal Pro export.
+  - Transcriptions upload with AI.
+  - Originals with an AI chart from a lead sheet (#80).
+  - Calendar feed in Account → Connections (#81).
+  - Form validation sweep (#82).
+  - Press kit: one editor, rich bio, PDF, upload, Include the musicians (#84).
+  - Install the app (Account → Help).
+  - Band Settings tab: Privacy, typed "approve" confirms.
+  - Home page groups.
+- **Marked Work in progress** (Dan won't test these for now): Transcribe tool, Lyrics tab, Poster, Press kit editor.
+- **Open issues:** #75 (ratings and comments, later), #76 (musician pages, later), #77 (e2e hydration error), #78 (Magic Link email template: Dan's dashboard task), #83 (map venue picker: needs a choice of map service).
+- **Not tested:** the new `band_kit_members` and `public_band_members` functions (0045) have no access tests yet. Add them to `tests/access/bands.test.ts`.
+- **Tests:** unit tests pass. Access tests need Docker (CI only). See the latest `test.yml` run on `main`.
 
 ## Where things are
 - Work happens on `develop`; `main` is live (see CLAUDE.md, Shipping).
