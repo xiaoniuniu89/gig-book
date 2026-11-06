@@ -18,7 +18,7 @@ test("10. Ava shares a setlist with Bands I'm in; Ben (her bandmate) finds it un
   await expect(ava.page.locator("section[aria-label='Set 1'] .tune")).toHaveCount(1);
   const saved = ava.page.waitForResponse(r => r.url().includes("setlists") && r.request().method() === "PATCH" && r.ok());
   await ava.page.getByRole("button", { name: "Who can see it" }).click();
-  await ava.page.getByRole("dialog").getByLabel("Who can see it").selectOption("bands");
+  await ava.page.getByRole("dialog").getByRole("combobox", { name: "Who can see it" }).selectOption("bands");
   await saved;
   await expect(ava.page.getByRole("dialog").getByRole("button", { name: /Add (a person|by email)/ })).toHaveCount(0);
 
