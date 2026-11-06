@@ -10,7 +10,8 @@ const PDF = new Blob(["%PDF-1.4\n%%EOF"], { type: "application/pdf" });
 beforeAll(async () => { M = await everyone(); });
 afterAll(async () => { await cleanScratch(); await clearTranscriptions(); });
 
-const setVis = async (id: string, visibility: string) => must(await admin().from("setlists").update({ visibility }).eq("id", id), "set visibility");
+// only the owner may change who can see a setlist (guard_setlist_update), so Ava (who owns every scratch setlist here) does it
+const setVis = async (id: string, visibility: string) => must(await M.ava.sb.from("setlists").update({ visibility }).eq("id", id), "set visibility");
 const sees = async (who: Who, id: string) => (await M[who].sb.from("setlists").select("id").eq("id", id)).data?.length === 1;
 const items = async (who: Who, id: string) => (await M[who].sb.from("setlist_items").select("id").eq("setlist_id", id)).data?.length ?? 0;
 
@@ -60,8 +61,8 @@ describe("setlists: Public", () => {
 
   it("only allows private, bands and public", async () => {
     const id = await scratchSetlist({ owner: "ava" });
-    expect((await admin().from("setlists").update({ visibility: "link" }).eq("id", id)).error).toBeTruthy();
-    expect((await admin().from("setlists").update({ visibility: "bands" }).eq("id", id)).error).toBeNull();
+    expect((await M.ava.sb.from("setlists").update({ visibility: "link" }).eq("id", id)).error).toBeTruthy();
+    expect((await M.ava.sb.from("setlists").update({ visibility: "bands" }).eq("id", id)).error).toBeNull();
   });
 });
 
