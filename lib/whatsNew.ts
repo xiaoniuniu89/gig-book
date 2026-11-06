@@ -1,6 +1,17 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-11",
+    items: [
+      "Press kits (work in progress): one editor for you and your bands, with bold, italics, headings, lists and links in the bio.",
+      "Download your press kit as a one-page PDF to send to agents and venues, or copy the bio as plain text for booking forms.",
+      "Already have a press kit? Upload it at the top and AI fills in your bio and links; a PDF is kept as your press kit PDF.",
+      "Bands can tick Include the musicians to add each member's public press kit to the band's PDF and public page.",
+      "Install Niu Real Book on your phone, tablet or computer from Account → Help, so it opens like an app.",
+      "Band admins can rename the band with the pencil next to its name.",
+    ],
+  },
+  {
     date: "2026-11-10",
     items: [
       "Your gigs in your phone's calendar: connect once in Account → Connections, and every gig you're on shows up by itself, including ones other people add you to. If a gig moves or is cancelled, your calendar changes too.",
