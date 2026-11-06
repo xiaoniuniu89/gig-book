@@ -22,6 +22,7 @@ Dan's rules from feedback. Every UI change follows them; check new work against 
 - **Plain words.** Write for musicians, not developers: no dev labels ("Built in", storage names), no example placeholders, no jargon. Mark unfinished things with `<span className="stamp wip">Work in progress</span>`.
 - **Buttons have icons and text** (`Icon`); icon-only buttons need an `aria-label`.
 - **Consistent styles.** Reuse existing components and classes; no new one-off shapes (no rounded pills where the site uses flat tabs).
+- **Busy buttons say so.** Anything that fetches or saves disables its button while it runs and shows progress (spinner + "Finding…", "Saving…"), so it can't be pressed twice.
 - **Show only what applies.** Hide options that can't work here (an original has no famous recordings to search).
 
 ## Shipping

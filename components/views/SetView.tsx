@@ -68,9 +68,15 @@ function SetBody({ s }: { s: Setlist }) {
   const [view, setView] = useState<"tunes" | "listen">("tunes");
   const [ireal, setIreal] = useState(false);
   const yTube = app.settings.player === "youtube";
-  const playSet = () => {
-    if (yTube) void app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })), 0, s.name);
-    else if (s.spotify) void app.playSpotify(s.spotify, true);
+  // the first recording can take a few seconds to find: the button says so and can't be pressed twice
+  const [starting, setStarting] = useState(false);
+  const playSet = async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      if (yTube) await app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })), 0, s.name);
+      else if (s.spotify) await app.playSpotify(s.spotify, true);
+    } finally { setStarting(false); }
   };
   const canMake = !builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0;
   // back from connecting Spotify: reopen the playlist dialog
@@ -260,11 +266,11 @@ function SetBody({ s }: { s: Setlist }) {
         </div>
         <div className="row-btns">
           {yTube && s.items.length > 0 && <>
-            <button className="btn primary" id="play-pl" onClick={playSet}>▶ Play</button>
+            <button className="btn primary" id="play-pl" disabled={starting} aria-busy={starting} onClick={() => void playSet()}>{starting ? <><span className="spinner" aria-hidden="true" /> Finding…</> : "▶ Play"}</button>
             <Info label="About playing here">Plays each song&apos;s saved YouTube recording, or the best match found automatically. Whole songs on every device; it may show ads. Next and previous are in the Listen tab.</Info>
           </>}
           {!yTube && s.spotify && <>
-            <button className="btn primary" id="play-pl" onClick={playSet}>▶ Play</button>
+            <button className="btn primary" id="play-pl" disabled={starting} aria-busy={starting} onClick={() => void playSet()}>{starting ? <><span className="spinner" aria-hidden="true" /> Finding…</> : "▶ Play"}</button>
             <Info label="About playing here">Whether it plays whole songs depends on your browser. <PlaybackHelpLink /></Info>
           </>}
           {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="spotify" size={18} /> Open in Spotify</a>}
