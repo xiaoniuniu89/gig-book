@@ -22,6 +22,7 @@ export function TranscribeView() {
   const app = useApp();
   const { store, toast } = app;
   const [link, setLink] = useState("");
+  const [from, setFrom] = useState<"youtube" | "mine">("youtube");
   const [tracks, setTracks] = useState<PracticeTrack[]>([]);
   const [src, setSrc] = useState<Source | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -163,27 +164,34 @@ export function TranscribeView() {
         <Info label="About this tool">This tool is new and still being tested, so expect the odd bug. If something goes wrong, tell us with Bugs &amp; ideas.</Info>
       </div>
       <section className="panel tool-panel" aria-label="Choose a recording">
-        <form className="inline-form" onSubmit={e => { e.preventDefault(); void openYoutube(); }}>
-          <input type="url" aria-label="YouTube link" placeholder="Paste a YouTube link" value={link} onChange={e => setLink(e.target.value)} />
-          <button className="btn" type="submit"><Icon name="youtube" size={18} /> Open</button>
-        </form>
-        <div className="tr-tracks">
-          <div className="panel-head">
-            <h2>Your recordings <span className="hint">{tracks.length} of {MAX_PRACTICE_TRACKS}</span></h2>
-            <Info label="About your recordings">Upload an MP3 or other audio file to slow it down and loop it. You can keep {MAX_PRACTICE_TRACKS} at a time, up to 25 MB each; delete one to make room for a new one{store.kind === "supabase" ? " (up to 10 uploads a day)" : ""}. {store.kind === "supabase" ? "Only you can hear them." : "Signed out, they stay in this browser only."}</Info>
-          </div>
-          {tracks.map(t => (
-            <div className="ver" key={t.id}>
-              <button className="btn icon-btn small" aria-label={"Open " + t.name} aria-pressed={src?.kind === "file" && src.track.id === t.id} onClick={() => void openTrack(t)}>▶</button>
-              <span className="name">{t.name}<span className="sub">{mb(t.size)}</span></span>
-              <button className="btn small" aria-label={"Delete " + t.name} onClick={() => void remove(t)}>{armed === t.id ? "Delete?" : <Icon name="trash" size={16} />}</button>
-            </div>
-          ))}
-          <input ref={fileIn} type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden onChange={e => void upload(e.target.files?.[0])} />
-          {progress !== null
-            ? <p className="hint"><span className="spinner" aria-hidden="true" /> Uploading… {Math.round(progress * 100)}%</p>
-            : <button className="btn" disabled={full} onClick={() => fileIn.current?.click()}><Icon name="upload" size={18} /> {full ? "3 of 3: delete one to upload" : "Upload a recording"}</button>}
+        <div className="pl-tabs" role="tablist" aria-label="Where the recording comes from">
+          <button role="tab" className="pl-tab" aria-selected={from === "youtube"} onClick={() => setFrom("youtube")}><Icon name="youtube" size={16} /> YouTube</button>
+          <button role="tab" className="pl-tab" aria-selected={from === "mine"} onClick={() => setFrom("mine")}><Icon name="music" size={16} /> My recordings<span>{tracks.length}</span></button>
         </div>
+        {from === "youtube" ? (
+          <form className="inline-form" role="tabpanel" onSubmit={e => { e.preventDefault(); void openYoutube(); }}>
+            <input type="url" aria-label="YouTube link" placeholder="Paste a YouTube link" value={link} onChange={e => setLink(e.target.value)} />
+            <button className="btn" type="submit"><Icon name="youtube" size={18} /> Open</button>
+          </form>
+        ) : (
+          <div className="tr-tracks" role="tabpanel">
+            <div className="panel-head">
+              <span className="hint">{tracks.length} of {MAX_PRACTICE_TRACKS}</span>
+              <Info label="About your recordings">Upload an MP3 or other audio file to slow it down and loop it. You can keep {MAX_PRACTICE_TRACKS} at a time, up to 25 MB each; delete one to make room for a new one{store.kind === "supabase" ? " (up to 10 uploads a day)" : ""}. {store.kind === "supabase" ? "Only you can hear them." : "Signed out, they stay in this browser only."}</Info>
+            </div>
+            {tracks.map(t => (
+              <div className="ver" key={t.id}>
+                <button className="btn icon-btn small" aria-label={"Open " + t.name} aria-pressed={src?.kind === "file" && src.track.id === t.id} onClick={() => void openTrack(t)}>▶</button>
+                <span className="name">{t.name}<span className="sub">{mb(t.size)}</span></span>
+                <button className="btn small" aria-label={"Delete " + t.name} onClick={() => void remove(t)}>{armed === t.id ? "Delete?" : <Icon name="trash" size={16} />}</button>
+              </div>
+            ))}
+            <input ref={fileIn} type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden onChange={e => void upload(e.target.files?.[0])} />
+            {progress !== null
+              ? <p className="hint"><span className="spinner" aria-hidden="true" /> Uploading… {Math.round(progress * 100)}%</p>
+              : <button className="btn" disabled={full} onClick={() => fileIn.current?.click()}><Icon name="upload" size={18} /> {full ? "3 of 3: delete one to upload" : "Upload a recording"}</button>}
+          </div>
+        )}
       </section>
 
       {src && (

@@ -542,11 +542,29 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
   const removeVersion = (uri: string) => {
     onVersions?.(have => have.filter(v => v.uri !== uri));
   };
+  // tabs: what's saved, finding one on the chosen player, and (your originals) uploading your own
+  const nSaved = vs.length + (orig?.recording ? 1 : 0);
+  const tabs: ["saved" | "find" | "upload", string, number?][] = [
+    ...(onVersions || orig?.recording ? [["saved", "Saved", nSaved] as ["saved", string, number]] : []),
+    ["find", "Find on " + pName],
+    ...(orig?.mine ? [["upload", "Upload"] as ["upload", string]] : []),
+  ];
+  const [pickTab, setTab] = useState<"saved" | "find" | "upload" | null>(null);
+  const tab = pickTab && tabs.some(x => x[0] === pickTab) ? pickTab : nSaved || playing ? "saved" : tabs[0][0];
 
   return (
     <section className="panel" aria-label="Recordings">
       <div className="panel-head"><h2>Recordings</h2></div>
-      {orig && <OriginalRecording o={orig} />}
+      {tabs.length > 1 && (
+        <div className="pl-tabs" role="tablist" aria-label="Recordings">
+          {tabs.map(([k, label, n]) => (
+            <button key={k} role="tab" className="pl-tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}{n !== undefined && <span>{n}</span>}</button>
+          ))}
+        </div>
+      )}
+      {tab === "upload" && orig ? <div role="tabpanel"><OriginalRecording o={orig} /></div>
+      : tab === "saved" ? <div role="tabpanel">
+      {orig?.recording && <OriginalRecording o={orig} readOnly />}
       <div id="versions">
         {!onVersions ? null
           : vs.length ? vs.map(v => (
@@ -555,8 +573,9 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
               <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
-          )) : !playing && original ? <p className="hint">This is an original, so there&apos;s no famous recording to find.{orig?.mine ? " Upload your own above, or save one from YouTube below." : " Save one from YouTube below and it will always play that."}</p>
-          : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording below and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
+          )) : !playing && orig?.recording ? null
+          : !playing && original ? <p className="hint">{orig?.mine ? "Nothing yet. Upload your own recording, or find one on " + pName + " and save it." : "Nothing saved yet."}</p>
+          : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
         {playing && (
           <div className="ver">
             <span className="name"><span className="eyebrow">Playing now</span> {playing.title}<span className="sub">Picked automatically</span></span>
@@ -564,6 +583,8 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
           </div>
         )}
       </div>
+      </div>
+      : <div role="tabpanel">
       <div className="inline-form">
         <input id="v-q" type="search" aria-label="Search for recordings, or paste a link" placeholder={`Search ${pName} or paste a link`} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") go(); }} />
         <button className="btn" id="v-go" onClick={go} disabled={busy}><Icon name="search" size={16} /> Find recordings</button>
@@ -595,6 +616,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
         {src === "spotify" && found?.more && <button className="btn small v-more" onClick={() => find(found.page + 1)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
         {src === "youtube" && ytFound?.next && <button className="btn small v-more" onClick={() => findYt(true)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
       </div>
+      </div>}
     </section>
   );
 }

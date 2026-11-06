@@ -284,7 +284,8 @@ export function EditSongButton({ o }: { o: OriginalSong }) {
 }
 
 /** An original's own recording (there's none on Spotify or YouTube to find): play it; the writer uploads, replaces or removes it. */
-export function OriginalRecording({ o }: { o: OriginalSong }) {
+/** `readOnly`: just the player (the Saved tab); the Upload tab manages it. */
+export function OriginalRecording({ o, readOnly }: { o: OriginalSong; readOnly?: boolean }) {
   const { store, toast, putOriginal } = useApp();
   const [url, setUrl] = useState<string | null>(null);
   const [pct, setPct] = useState<number | null>(null);
@@ -306,7 +307,8 @@ export function OriginalRecording({ o }: { o: OriginalSong }) {
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save the recording."); }
     finally { setPct(null); }
   };
-  if (!o.recording && !o.mine) return null;
+  const manage = o.mine && !readOnly;
+  if (!o.recording && !manage) return null;
   return (
     <div className="orig-rec">
       <input ref={input} type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void save(f); }} />
@@ -315,7 +317,7 @@ export function OriginalRecording({ o }: { o: OriginalSong }) {
           <span className="name"><span className="eyebrow">{o.mine ? "Your recording" : "Recording by " + o.ownerName}</span> {o.recording.name}</span>
           <span className="orig-rec-row">
             <audio controls preload="none" src={url ?? undefined} aria-label={"Recording of " + o.title} />
-            {o.mine && <MenuButton className="btn icon-btn small" caret={false} ariaLabel="More for the recording" label="⋯" items={[
+            {manage && <MenuButton className="btn icon-btn small" caret={false} ariaLabel="More for the recording" label="⋯" items={[
               { label: <><Icon name="upload" size={16} /> Replace</>, onClick: () => input.current?.click() },
               { label: <><Icon name="trash" size={16} /> Remove</>, onClick: () => setRemoving(true) },
             ]} />}
