@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 
-export function MenuButton({ label, className = "btn", items }: {
-  label: ReactNode; className?: string; items: { label: ReactNode; onClick: () => void }[];
+/** `ariaLabel` names an icon-only button (like ⋯); `caret` false drops the ▾. */
+export function MenuButton({ label, className = "btn", items, ariaLabel, caret = true }: {
+  label: ReactNode; className?: string; items: { label: ReactNode; onClick: () => void }[]; ariaLabel?: string; caret?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
@@ -17,7 +18,7 @@ export function MenuButton({ label, className = "btn", items }: {
   }, [open]);
   return (
     <span className="more" ref={wrap}>
-      <button type="button" className={className} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}>{label} ▾</button>
+      <button type="button" className={className} aria-haspopup="menu" aria-expanded={open} aria-label={ariaLabel} title={ariaLabel} onClick={() => setOpen(o => !o)}>{label}{caret && " ▾"}</button>
       {open && <div className="more-panel" role="menu">
         {items.map((it, i) => <button key={i} type="button" role="menuitem" className="btn" onClick={() => { setOpen(false); it.onClick(); }}>{it.label}</button>)}
       </div>}

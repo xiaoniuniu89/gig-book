@@ -8,13 +8,14 @@ import { useApp } from "./AppProvider";
 
 const WORD = "approve";
 
-export function ConfirmTyped({ open, title, action, children, onClose, onConfirm }: {
-  open: boolean; title: string; action: string; children?: ReactNode; onClose: () => void; onConfirm: () => Promise<void> | void;
+/** `children`: what happens, as a hint; `fields`: choices to make before confirming (a picker, a checkbox); `ready` false keeps it locked. */
+export function ConfirmTyped({ open, title, action, children, fields, ready = true, onClose, onConfirm }: {
+  open: boolean; title: string; action: string; children?: ReactNode; fields?: ReactNode; ready?: boolean; onClose: () => void; onConfirm: () => Promise<void> | void;
 }) {
   const { toast } = useApp();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const ok = text.trim().toLowerCase() === WORD;
+  const ok = text.trim().toLowerCase() === WORD && ready;
   const close = () => { setText(""); onClose(); };
   const copy = async () => {
     try { await navigator.clipboard.writeText(WORD); toast("Copied."); } catch { /* they can type it */ }
@@ -28,6 +29,7 @@ export function ConfirmTyped({ open, title, action, children, onClose, onConfirm
         try { await onConfirm(); setText(""); } finally { setBusy(false); }
       }}>
         {children && <div className="hint">{children}</div>}
+        {fields}
         <label className="field"><span className="field-label">Type <b>{WORD}</b> to confirm
           <button type="button" className="btn icon-btn small" aria-label={"Copy " + WORD} title="Copy" onClick={() => void copy()}><Icon name="copy" size={16} /></button></span>
           <input type="text" autoComplete="off" autoCapitalize="none" spellCheck={false} value={text} onChange={e => setText(e.target.value)} />

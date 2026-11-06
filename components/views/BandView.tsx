@@ -20,6 +20,7 @@ import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
 import { NewSong } from "../Originals";
+import { MenuButton } from "../MenuButton";
 import { UploadMenu, type UploadMode } from "../MenuButton";
 import { ORIGINALS_ID } from "@/lib/seeds";
 import { hrefFor } from "@/lib/contact";
@@ -308,11 +309,11 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
                     <span className="name"><span><b>{m.name}{me ? " (you)" : ""}</b>{m.instruments.length > 0 && <span className="plays"> · {m.instruments.join(", ")}</span>}</span></span>
                     <span className="k">{m.role}</span>
                     {admin && !me && (
-                      <span className="tune-btns">
-                        <button className="btn small" onClick={() => setRole(m)}>{m.role === "admin" ? "Make member" : "Make admin"}</button>
-                        <button className="btn small" onClick={() => setHandTo(m)}><Icon name="user" size={16} /> Hand over</button>
-                        <button className="btn small" aria-label={"Remove " + m.name} onClick={() => setRemoving(m)}><Icon name="trash" size={16} /></button>
-                      </span>
+                      <MenuButton className="btn icon-btn small" caret={false} ariaLabel={"More for " + m.name} label="⋯" items={[
+                        { label: m.role === "admin" ? <><Icon name="user" size={16} /> Make member</> : <><Icon name="user" size={16} /> Make admin</>, onClick: () => void setRole(m) },
+                        { label: <><Icon name="share" size={16} /> Hand over the band</>, onClick: () => setHandTo(m) },
+                        { label: <><Icon name="trash" size={16} /> Remove from band</>, onClick: () => setRemoving(m) },
+                      ]} />
                     )}
                   </div>
                   {(m.bio || rows.length > 0) && (
@@ -489,40 +490,38 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
   );
 }
 
-/** Hand the band to someone: they become an admin first (so there's always one), then you can step down to a member. */
+/** Hand the band to someone: they become an admin first (so there's always one), then you can step down to a member.
+ *  Typed approve, like the other big changes. */
 function HandOver({ band, others, to: preset, onClose, onDone }: { band: Band; others: BandMember[]; to?: string; onClose: () => void; onDone: () => void }) {
   const { store, toast, account } = useApp();
   const [to, setTo] = useState(preset ?? "");
   const [stepDown, setStepDown] = useState(true);
-  const [busy, setBusy] = useState(false);
   const m = others.find(x => x.userId === to);
   const go = async () => {
-    if (!m || !account || busy) return;
-    setBusy(true);
+    if (!m || !account) return;
     try {
       if (m.role !== "admin") await store.setBandMember(band.id, m.userId, "admin", m.perms);
       if (stepDown) await store.setBandMember(band.id, account.id, "member", null);
       toast(m.name + (stepDown ? " runs the band now. You're a member." : " is an admin now."));
       onDone();
     } catch (e) { toast(errText(e, "Couldn't hand it over.")); }
-    setBusy(false);
   };
+  if (!others.length) return (
+    <Modal open title={"Hand over " + band.name} onClose={onClose}><p className="hint">There&apos;s nobody else in the band yet. Invite them under People first.</p></Modal>
+  );
   return (
-    <Modal open title={preset && m ? "Hand " + band.name + " to " + m.name : "Hand over " + band.name} onClose={onClose}>
-      {!others.length ? <p className="hint">There&apos;s nobody else in the band yet. Invite them under People first.</p> : (
-        <form className="chart-form" onSubmit={e => { e.preventDefault(); void go(); }}>
-          {!preset && <label className="field"><span className="field-label">Who runs the band now</span>
-            <select required value={to} onChange={e => setTo(e.target.value)}>
-              <option value="" disabled>Choose someone…</option>
-              {others.map(x => <option key={x.userId} value={x.userId}>{x.name}{x.role === "admin" ? " (already an admin)" : ""}</option>)}
-            </select>
-          </label>}
-          {preset && m && <p className="hint">{m.name} becomes an admin and can run the band.</p>}
-          <label className="toggle"><input type="checkbox" checked={stepDown} onChange={e => setStepDown(e.target.checked)} /> Make me an ordinary member</label>
-          <div className="row-btns"><button className="btn primary" type="submit" disabled={!m || busy}><Icon name="user" size={16} /> Hand over</button></div>
-        </form>
-      )}
-    </Modal>
+    <ConfirmTyped open title={preset && m ? "Hand " + band.name + " to " + m.name : "Hand over " + band.name} action="Hand over" ready={!!m} onClose={onClose} onConfirm={go}
+      fields={<>
+        {!preset && <label className="field"><span className="field-label">Who runs the band now</span>
+          <select required value={to} onChange={e => setTo(e.target.value)}>
+            <option value="" disabled>Choose someone…</option>
+            {others.map(x => <option key={x.userId} value={x.userId}>{x.name}{x.role === "admin" ? " (already an admin)" : ""}</option>)}
+          </select>
+        </label>}
+        <label className="toggle"><input type="checkbox" checked={stepDown} onChange={e => setStepDown(e.target.checked)} /> Make me an ordinary member</label>
+      </>}>
+      {m ? m.name + " becomes an admin and can run the band." : "They become an admin and can run the band."} If you step down, you stay in the band but can&apos;t change its settings or people any more, unless an admin makes you one again.
+    </ConfirmTyped>
   );
 }
 

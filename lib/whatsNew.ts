@@ -13,7 +13,7 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
       "A band's setlist now shows the band in the trail at the top (Bands / your band / the setlist), so you can step back to the band.",
       "On a band's Setlists tab, Share one of yours picks from your setlists, and Take out of band asks you to confirm.",
       "When nothing is playing, Listen now tells you how to start: open a tune and press Play this tune, or play a whole setlist.",
-      "Band admins can hand the band over to someone (Hand over on their row under People, or in Settings) and step down to an ordinary member.",
+      "Band admins can hand the band over to someone (the ⋯ on their row under People, or in Settings) and step down to an ordinary member. You confirm by typing approve.",
       "What you play comes from your account now. Bands show it as it is, with no separate instrument to pick per band.",
       "Removing someone from a band now asks you to confirm.",
     ],
