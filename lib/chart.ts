@@ -129,8 +129,8 @@ export function chartHTML(song: Song, opts: ChartOpts): string {
       const n = b.chords.length;
       if (n >= 2) cls.push("n" + Math.min(n, 4));
       let inner: string;
-      if (b.sim) inner = `<div class="cell"><div class="brk scb"></div><span class="ch sim">%</span></div>`;
-      else if (n === 1 && b.chords[0].cont) inner = `<div class="cell"><div class="brk scb"></div><span class="ch sim">·</span></div>`;
+      // % repeats the whole bar before; an empty bar after a two-chord bar only holds the last chord, so it names it
+      if (b.sim || (n === 1 && b.chords[0].cont && song.bars[bi - 1]?.chords.length === 1)) inner = `<div class="cell"><div class="brk scb"></div><span class="ch sim">%</span></div>`;
       else inner = b.chords.map((c, ci) => {
         const key = bi + ":" + ci;
         const f = info[key], g = fn[key];
