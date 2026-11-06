@@ -1,6 +1,13 @@
 // Shown to returning users once per release. Newest first; plain sentences a musician understands.
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-23",
+    items: [
+      "Uploaded PDF and photo charts stay readable on smaller laptop screens: the page no longer shrinks to fit the window, you scroll a little instead.",
+      "The key buttons are hidden on PDF and photo charts and lead sheets, since those can't change key.",
+    ],
+  },
+  {
     date: "2026-11-22",
     items: [
       "Tidier pages: the song page has Notes, Licks, Resources and Transcriptions as tabs, and gigs, setlists, bands, settings and Transcribe split into tabs too, so you see one thing at a time.",
