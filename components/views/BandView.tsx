@@ -273,7 +273,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
   const { store, toast, account } = app;
   const admin = band.role === "admin";
   const [members, setMembers] = useState<BandMember[] | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<BandMember | null>(null);
   const [plays, setPlays] = useState(band.plays);
   const [editPlays, setEditPlays] = useState(false);
 
@@ -290,10 +290,9 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
     if (p) BAND_PERMS.forEach(({ key }) => { if (p[key] !== band.defaultPerms[key]) diff[key] = p[key]; });
     return act("Couldn't change the permissions.", () => store.setBandMember(band.id, m.userId, m.role, Object.keys(diff).length ? diff : null));
   };
-  const remove = (m: BandMember) => {
-    if (armed !== m.userId) { setArmed(m.userId); return; }
-    setArmed(null);
-    void act("Couldn't remove them.", () => store.removeBandMember(band.id, m.userId));
+  const remove = async (m: BandMember) => {
+    await act("Couldn't remove them.", () => store.removeBandMember(band.id, m.userId));
+    setRemoving(null); toast(m.name + " is out of the band.");
   };
   const savePlays = async () => {
     try { await store.setBandPlays(band.id, plays); setEditPlays(false); toast("Saved."); await Promise.all([load(), reloadBand()]); } catch (e) { toast(errText(e, "Couldn't save.")); }
@@ -317,7 +316,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
                     {admin && !me && (
                       <span className="tune-btns">
                         <button className="btn small" onClick={() => setRole(m)}>{m.role === "admin" ? "Make member" : "Make admin"}</button>
-                        <button className="btn small" aria-label={"Remove " + m.name} onClick={() => remove(m)}>{armed === m.userId ? "Remove?" : "✕"}</button>
+                        <button className="btn small" aria-label={"Remove " + m.name} onClick={() => setRemoving(m)}><Icon name="trash" size={16} /></button>
                       </span>
                     )}
                   </div>
@@ -350,8 +349,12 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
 
       {(admin || band.perms.invite) && <Invite band={band} memberIds={members?.map(m => m.userId) ?? []} onAdded={load} />}
 
+      <ConfirmTyped open={!!removing} title={"Remove " + (removing?.name ?? "") + " from the band"} action="Remove from band" onClose={() => setRemoving(null)}
+        onConfirm={() => removing ? remove(removing) : undefined}>
+        They lose access to the band&apos;s setlists, notes and gigs, and their setlists leave the band. You can add them back later.
+      </ConfirmTyped>
       <Modal open={editPlays} title="What you play in this band" onClose={() => setEditPlays(false)}>
-        <InstrumentPicker label="What you play in this band" dropdown value={plays} onChange={setPlays} />
+        <InstrumentPicker label="What you play in this band" value={plays} onChange={setPlays} />
         <div className="row-btns"><button className="btn primary" onClick={savePlays} disabled={plays.join("|") === band.plays.join("|")}>Save</button></div>
       </Modal>
     </>
@@ -456,8 +459,27 @@ function SettingsTab({ band, reloadBand }: { band: Band; reloadBand: () => Promi
 
 // Admin: the band's name, what new members can do, and deleting it.
 function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
-  const { store, toast } = useApp();
+  const { store, toast, account } = useApp();
   const router = useRouter();
+  const [handing, setHanding] = useState(false);
+  const [others, setOthers] = useState<BandMember[]>([]);
+  const [to, setTo] = useState("");
+  const [stepDown, setStepDown] = useState(true);
+  const openHandOver = async () => {
+    try { setOthers((await store.listBandMembers(band.id)).filter(m => m.userId !== account?.id)); setTo(""); setStepDown(true); setHanding(true); }
+    catch (e) { toast(errText(e, "Couldn't load the people.")); }
+  };
+  // they become an admin first, so the band is never left without one; then you step down if you chose to
+  const handOver = async () => {
+    const m = others.find(x => x.userId === to);
+    if (!m || !account) return;
+    try {
+      if (m.role !== "admin") await store.setBandMember(band.id, m.userId, "admin", m.perms);
+      if (stepDown) await store.setBandMember(band.id, account.id, "member", null);
+      setHanding(false); toast(m.name + (stepDown ? " runs the band now. You're a member." : " is an admin now."));
+      await reloadBand();
+    } catch (e) { toast(errText(e, "Couldn't hand it over.")); }
+  };
   const [name, setName] = useState(band.name);
   const [perms, setPerms] = useState(band.defaultPerms);
   const [chat, setChat] = useState(band.chatUrl || "");
@@ -487,7 +509,23 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
       <PermSwitches value={perms} onChange={setPerms} />
       <p className="hint">Admins can do everything. You can override these for one person under People.</p>
       <div className="row-btns"><button className="btn primary" disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save"}</button></div>
+      <h3 className="modal-sub">Hand over the band <Info label="About handing over">Made the band for someone else? Hand it over: they become an admin, and you can step down to an ordinary member. You stay in the band either way.</Info></h3>
+      <div className="row-btns"><button className="btn" onClick={() => void openHandOver()}><Icon name="user" size={18} /> Hand over</button></div>
       <div className="danger-zone"><button className="btn small" onClick={() => setDeleting(true)}><Icon name="trash" size={16} /> Delete this band</button></div>
+      <Modal open={handing} title={"Hand over " + band.name} onClose={() => setHanding(false)}>
+        {!others.length ? <p className="hint">There&apos;s nobody else in the band yet. Invite them under People first.</p> : (
+          <form className="chart-form" onSubmit={e => { e.preventDefault(); void handOver(); }}>
+            <label className="field"><span className="field-label">Who runs the band now</span>
+              <select required value={to} onChange={e => setTo(e.target.value)}>
+                <option value="" disabled>Choose someone…</option>
+                {others.map(m => <option key={m.userId} value={m.userId}>{m.name}{m.role === "admin" ? " (already an admin)" : ""}</option>)}
+              </select>
+            </label>
+            <label className="toggle"><input type="checkbox" checked={stepDown} onChange={e => setStepDown(e.target.checked)} /> Make me an ordinary member</label>
+            <div className="row-btns"><button className="btn primary" type="submit" disabled={!to}>Hand over</button></div>
+          </form>
+        )}
+      </Modal>
       <ConfirmTyped open={deleting} title={"Delete " + band.name} action="Delete band" onClose={() => setDeleting(false)} onConfirm={del}>
         This deletes the band, its notes and its press kit for everyone. Setlists stay with whoever owns them.
       </ConfirmTyped>
