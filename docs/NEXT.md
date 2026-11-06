@@ -14,6 +14,14 @@ What's left to do, in order. Last updated 2026-11-05. Update it at the end of ea
   - **Niu AI** card and page (`/ai`): the AI setlist draft moved out of the New setlist dialog.
   - MusicXML upload and rendering, form clean-up, Share and Add note modals, band chat link.
 
+## Pending: one press kit editor, formatted bio, PDF (#84, R11, R10.8)
+- Built by the bot. `npm run typecheck` and `npm run lint` pass; `tests/unit/richtext.test.ts` passes. One unrelated unit test failed in the bot session (a chord-parsing "reports instead of fixing" test); access tests not run. Needs `npm run db:dev` for migration **0044** (bio columns allow 20,000 characters; the app limits visible text to 5,000).
+- New dependency: Tiptap (`@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, v3, which includes Link). `components/RichBio.tsx` is lazy-loaded from `components/PressKit.tsx` (`next/dynamic`).
+- Code: `components/PressKit.tsx` (shared by Account and the band Press kit tab; sub-tabs Bio, Contact and links, Photos and PDF, Public page; `kind` person/band, `canEdit`; Who can see it only for people), `lib/richtext.ts` (`sanitizeBio`, `bioToHtml`, `bioToText`), `components/Bio.tsx` (sanitises on render, also used by `/epk/<slug>`), `lib/kitPdf.ts` (print window, no PDF library). Account tabs are now Press kit, Connections, Help.
+- Choices: the PDF opens a print-styled window (Save as PDF); people's PDF has only Public items unless "Include private contact details" is ticked; bands include everything. Old plain-text bios show as paragraphs and are converted when next saved. The AI import is people-only for now (not on the band kit). Band photos have no 6-photo cap.
+- Smoke test: Account > Press kit > Bio > edit: format, paste from Word/Docs, add a link, Save; open `/epk/<slug>`; Download PDF with and without the box; Copy bio; same on a band's Press kit tab as admin and as member (read only).
+- Not done: What's new line ("Press kits: formatted bio, Download PDF and Copy bio") for release.
+
 ## Pending: form validation sweep (#82)
 - Built by the bot, **typecheck, lint and tests not run** (dependencies couldn't be installed): run `npm run typecheck && npm run lint` first.
 - New: `lib/validate.ts` (`checkFile`, `isEmail`, `tidyContact`, `contactProblem`, `plainError`); `Modal` takes `dirty` and asks before closing; `fail()` in `lib/data/supabase.ts` now gives plain sentences (raw error goes to the console).

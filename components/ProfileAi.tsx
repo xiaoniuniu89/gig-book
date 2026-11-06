@@ -7,6 +7,7 @@ import { Modal } from "./Modal";
 import { CONTACT_FIELDS, type Profile } from "@/lib/data/types";
 import { canonInstruments } from "@/lib/instruments";
 import { checkFile } from "@/lib/validate";
+import { bioToHtml, bioToText } from "@/lib/richtext";
 import { readSource, requestProfile, type ProfileSource, type ProfileSuggestion } from "@/lib/ai/profileClient";
 
 const LENGTHS = [["50", "About 50 words"], ["100", "About 100 words"], ["250", "About 250 words"], ["long", "Long version"]] as const;
@@ -17,7 +18,7 @@ function Review({ p, s, busy, onApply, onBack }: { p: Profile; s: ProfileSuggest
   const rows: { key: string; label: string; old: string; neu: string }[] = [];
   if (s.name) rows.push({ key: "name", label: "Name", old: p.displayName, neu: s.name });
   if (s.instruments.length) rows.push({ key: "instruments", label: "Instruments", old: p.instruments.join(", "), neu: s.instruments.join(", ") });
-  if (lens.length) rows.push({ key: "bio", label: "Bio", old: p.bio, neu: s.bios[len] || "" });
+  if (lens.length) rows.push({ key: "bio", label: "Bio", old: bioToText(p.bio), neu: s.bios[len] || "" });
   for (const f of CONTACT_FIELDS) if (s.contact[f.key]) rows.push({ key: f.key, label: f.label, old: p.contact[f.key] || "", neu: s.contact[f.key] });
   // empty now = ticked; has a value = unticked
   const [on, setOn] = useState<Record<string, boolean>>(() => Object.fromEntries(rows.map(r => [r.key, !r.old.trim()])));
@@ -26,7 +27,7 @@ function Review({ p, s, busy, onApply, onBack }: { p: Profile; s: ProfileSuggest
     const next: Profile = { ...p, contact: { ...p.contact } };
     if (on.name) next.displayName = s.name;
     if (on.instruments) next.instruments = canonInstruments(s.instruments);
-    if (on.bio) next.bio = s.bios[len];
+    if (on.bio) next.bio = bioToHtml(s.bios[len]);
     for (const f of CONTACT_FIELDS) if (on[f.key]) next.contact[f.key] = s.contact[f.key];
     onApply(next);
   };

@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useApp } from "./AppProvider";
 import { CONTACT_FIELDS, sharedWithBands, type BandShare, type Profile } from "@/lib/data/types";
 
-const clip = (s: string) => s.length > 60 ? s.slice(0, 57) + "…" : s;
+import { bioToText } from "@/lib/richtext";
+
+const clip =(s: string) => s.length > 60 ? s.slice(0, 57) + "…" : s;
 
 export function BandShareForm({ bandId, bandName, cta, onSaved }: { bandId: string; bandName: string; cta: string; onSaved: () => void }) {
   const { store, toast } = useApp();
@@ -24,7 +26,7 @@ export function BandShareForm({ bandId, bandName, cta, onSaved }: { bandId: stri
 
   if (!profile) return <p className="hint" role="status">Loading…</p>;
   const rows: { key: string; label: string; text: string }[] = [];
-  if (profile.bio.trim()) rows.push({ key: "bio", label: "Bio", text: clip(profile.bio.trim()) });
+  if (profile.bio.trim()) rows.push({ key: "bio", label: "Bio", text: clip(bioToText(profile.bio)) });
   if (profile.instruments.length) rows.push({ key: "instruments", label: "Instruments", text: profile.instruments.join(", ") });
   CONTACT_FIELDS.forEach(f => { const v = profile.contact[f.key]?.trim(); if (v) rows.push({ key: f.key, label: f.label.replace(/ \(.*\)$/, ""), text: clip(v) }); });
   const on = (key: string) => value[key] ?? sharedWithBands(profile.share, key);

@@ -2,6 +2,7 @@
 // promo files get short-lived signed URLs made here with the service key, which never leaves the server.
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { Bio } from "@/components/Bio";
 import { Qr } from "@/components/Qr";
 import { CONTACT_FIELDS, SLUG_RE } from "@/lib/data/types";
 import { hrefFor } from "@/lib/contact";
@@ -59,7 +60,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         <h1>{p.display_name || "Press kit"}</h1>
         {!!p.instruments?.length && <div className="tags">{p.instruments.map(t => <span className="tag" key={t}>{t}</span>)}</div>}
       </header>
-      {p.bio && <section><h2>Bio</h2><p className="epk-bio">{p.bio}</p></section>}
+      {p.bio && <section><h2>Bio</h2><Bio bio={p.bio} className="epk-bio" /></section>}
       {rows.length > 0 && (
         <section>
           <h2>Contact</h2>

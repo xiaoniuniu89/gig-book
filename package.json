@@ -17,6 +17,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "@tiptap/pm": "^3.33.0",
+    "@tiptap/react": "^3.33.0",
+    "@tiptap/starter-kit": "^3.33.0",
     "abcjs": "^6.7.2",
     "next": "^15.5.28",
     "opensheetmusicdisplay": "^2.2.1",

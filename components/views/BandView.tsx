@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useApp } from "../AppProvider";
-import { AttachMenu, AttachmentList, UploadRows, useUploads } from "../Attachments";
+import { useUploads } from "../Attachments";
+import { Bio } from "../Bio";
+import { PressKit } from "../PressKit";
 import { BandShareForm } from "../BandShare";
 import { InstrumentPicker } from "../Instruments";
 import { Modal } from "../Modal";
@@ -18,11 +20,10 @@ import { PermSwitches } from "../BandPerms";
 import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
-import { contactProblem, tidyContact } from "@/lib/validate";
 import { hrefFor } from "@/lib/contact";
 import {
-  BAND_PERMS, CONTACT_FIELDS, SLUG_RE, newItemId, slug,
-  type Attachment, type Band, type BandCandidate, type BandMember, type BandPerms, type BandSetlist,
+  BAND_PERMS, CONTACT_FIELDS, newItemId, slug,
+  type Attachment, type Band, type BandCandidate, type BandMember, type BandPerms, type BandSetlist, type Profile,
 } from "@/lib/data/types";
 
 type Tab = "setlists" | "gigs" | "notes" | "people" | "kit" | "poster" | "settings";
@@ -269,7 +270,7 @@ function PeopleTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise
                   {(m.bio || rows.length > 0) && (
                     <details className="member-more">
                       <summary>Contact and bio</summary>
-                      {m.bio && <p className="note-body">{m.bio}</p>}
+                      {m.bio && <Bio bio={m.bio} className="note-body" />}
                       <dl className="epk-contact">
                         {rows.map(f => {
                           const v = m.contact[f.key];
@@ -441,15 +442,10 @@ function Settings({ band, reloadBand }: { band: Band; reloadBand: () => Promise<
 }
 
 /* ---------------------------------------------------------------- press kit */
+// The shared PressKit editor; the band has no per-item sharing, admins edit and members read.
 function KitTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<void> }) {
   const { store, toast } = useApp();
-  const admin = band.role === "admin";
-  const [bio, setBio] = useState(band.bio);
-  const [contact, setContact] = useState(band.contact);
-  const [isPublic, setIsPublic] = useState(!!band.epkSlug);
-  const [slugText, setSlugText] = useState(band.epkSlug || "");
   const [files, setFiles] = useState<Attachment[] | null>(null);
-  const [busy, setBusy] = useState(false);
   const uploads = useUploads(store, "band", useCallback((a: Attachment) => setFiles(l => (l || []).concat(a)), []));
 
   useEffect(() => {
@@ -458,98 +454,20 @@ function KitTab({ band, reloadBand }: { band: Band; reloadBand: () => Promise<vo
     return () => { gone = true; };
   }, [store, band.id, toast]);
 
-  const slugOk = SLUG_RE.test(slugText);
-  const url = typeof window !== "undefined" && slugOk ? location.origin + "/epk/" + slugText : "";
-  const words = bio.trim().split(/\s+/).filter(Boolean).length;
-  const turnOn = (on: boolean) => {
-    setIsPublic(on);
-    if (on && !slugText) { const s = slug(band.name); setSlugText((s === "set" ? "our-band" : s).slice(0, 40)); }
-  };
-  const save = async () => {
-    if (isPublic && !slugOk) { toast("Page address: 3–40 letters, numbers or dashes."); return; }
-    const bad = contactProblem(contact);
-    if (bad) { toast(bad); return; }
-    setBusy(true);
-    try {
-      const clean = tidyContact(contact);
-      await store.updateBand(band.id, { name: band.name, defaultPerms: band.defaultPerms, bio, contact: clean, epkSlug: isPublic ? slugText : null });
-      await reloadBand(); toast("Saved.");
-    } catch (e) { toast(errText(e, "Couldn't save.")); }
-    setBusy(false);
-  };
-  const removeFile = async (a: Attachment) => {
-    try { await store.deleteAttachment(a); setFiles(l => (l || []).filter(x => x.id !== a.id)); } catch (e) { toast(errText(e, "Couldn't delete that file.")); }
-  };
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(url); toast("Link copied."); } catch { toast("Couldn't copy. Select the link and copy it."); }
-  };
-
-  const fileList = (
-    <>
-      {files === null ? <p className="hint">Loading…</p> : <AttachmentList store={store} items={files} canDelete={() => admin} onDelete={removeFile} />}
-      {files !== null && !files.length && <p className="hint">No photos or files yet.</p>}
-    </>
-  );
-
-  if (!admin) {
-    const rows = CONTACT_FIELDS.filter(f => band.contact[f.key]);
-    return (
-      <section className="panel">
-        <h2>Press kit</h2>
-        {band.bio ? <p className="note-body">{band.bio}</p> : <p className="hint">No bio yet.</p>}
-        <dl className="epk-contact">
-          {rows.map(f => {
-            const v = band.contact[f.key];
-            const href = f.key === "payment" ? null : hrefFor(f.key, v);
-            return <div key={f.key}><dt>{f.label.replace(/ \(.*\)$/, "")}</dt><dd>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{v}</a> : v}</dd></div>;
-          })}
-        </dl>
-        {fileList}
-        {band.epkSlug && <p className="hint">Public page: <code className="epk-url">/epk/{band.epkSlug}</code></p>}
-        <p className="hint">Admins edit the band&apos;s press kit.</p>
-      </section>
-    );
-  }
+  const kit: Profile = { displayName: band.name, bio: band.bio, instruments: [], contact: band.contact, share: {}, epkSlug: band.epkSlug };
+  const s0 = slug(band.name);
   return (
-    <>
-      <section className="panel">
-        <div className="panel-head"><h2>Press kit</h2><button className="btn primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button></div>
-        <div className="acct-field">
-          <label htmlFor="kit-bio">Bio</label>
-          <textarea id="kit-bio" rows={7} value={bio} maxLength={5000} onChange={e => setBio(e.target.value)} />
-          <span className="hint" aria-live="polite">{words} {words === 1 ? "word" : "words"}</span>
-        </div>
-        <h3 className="modal-sub">Links</h3>
-        {CONTACT_FIELDS.map(f => (
-          <div className="acct-field" key={f.key}>
-            <label htmlFor={"kit-" + f.key}>{f.label}</label>
-            <input id={"kit-" + f.key} type={f.kind} value={contact[f.key] || ""} maxLength={300} onChange={e => setContact(c => ({ ...c, [f.key]: e.target.value }))} />
-          </div>
-        ))}
-        <h3 className="modal-sub">Photos and press kit PDF <Info label="About photos and the PDF">Band photos for posters and listings, and a one-page PDF about the band to send to venues. For recordings, add your Spotify, SoundCloud or Bandcamp link above.</Info></h3>
-        <AttachMenu noAudio onFiles={all => {
-          const fs = all.filter(f => f.type.startsWith("image/") || f.type === "application/pdf" || /\.pdf$/i.test(f.name));
-          if (fs.length < all.length) toast("Only photos and PDFs here. For recordings, add the band's Spotify, SoundCloud or Bandcamp link.");
-          if (fs.length) uploads.add(band.id, fs);
-        }} />
-        <UploadRows ups={uploads.ups} noteId={band.id} retry={uploads.retry} dismiss={uploads.dismiss} />
-        {fileList}
-      </section>
-      <section className="panel">
-        <h2>Public page</h2>
-        <label className="toggle"><input type="checkbox" checked={isPublic} onChange={e => turnOn(e.target.checked)} /> Share the press kit with anyone who has the link</label>
-        {isPublic && <>
-          <label className="acct-field"><span>Page address</span>
-            <div className="acct-row"><span className="hint">/epk/</span>
-              <input type="text" value={slugText} maxLength={40} aria-invalid={!slugOk} autoCapitalize="none" spellCheck={false}
-                onChange={e => setSlugText(e.target.value.toLowerCase())} />
-            </div>
-          </label>
-          {!slugOk && <p className="hint">3–40 lowercase letters, numbers or dashes.</p>}
-          {url && <div className="acct-row"><code className="epk-url">{url}</code><button className="btn small" type="button" onClick={copy}>Copy</button></div>}
-          <p className="hint">The page shows the band name, bio, links and every file above. Save to publish.</p>
-        </>}
-      </section>
-    </>
+    <section className="panel">
+      <h2>Press kit</h2>
+      <PressKit kind="band" kit={kit} canEdit={band.role === "admin"} files={files} uploads={uploads} uploadHome={band.id}
+        onSave={async n => {
+          await store.updateBand(band.id, { name: band.name, defaultPerms: band.defaultPerms, bio: n.bio, contact: n.contact, epkSlug: n.epkSlug });
+          await reloadBand();
+        }}
+        onRemoveFile={async a => {
+          try { await store.deleteAttachment(a); setFiles(l => (l || []).filter(x => x.id !== a.id)); } catch (e) { toast(errText(e, "Couldn't delete that file.")); }
+        }}
+        defaultSlug={(s0 === "set" ? "our-band" : s0).slice(0, 40)} />
+    </section>
   );
 }
