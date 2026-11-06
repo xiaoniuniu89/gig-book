@@ -123,6 +123,7 @@ p { margin: 0; }
 .btn.link-btn { border-color: transparent; background: none; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 .btn.link-btn:hover { color: var(--ink); }
 .sp-panel { display: grid; gap: 12px; }
+.play-choice { display: grid; gap: 12px; }
 .ai-form { display: grid; gap: 16px; margin-top: 14px; }
 .ai-q { display: grid; gap: 8px; }
 .ai-row { display: flex; flex-wrap: wrap; gap: 16px 32px; }

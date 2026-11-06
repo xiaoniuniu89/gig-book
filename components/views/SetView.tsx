@@ -65,20 +65,28 @@ function SetBody({ s }: { s: Setlist }) {
   const [sharing, setSharing] = useState(false);
   const [making, setMaking] = useState(false);
   const [pasting, setPasting] = useState(false);
-  const [view, setView] = useState<"tunes" | "listen">("tunes");
+  const [view, setView] = useState<"tunes" | "playlist">("tunes");
+  const [playFor, setPlayFor] = useState<"all" | number | null>(null); // the Play choice: band or recordings, for the setlist or one set
   const [ireal, setIreal] = useState(false);
   const yTube = app.settings.player === "youtube";
   // the first recording can take a few seconds to find: the button says so and can't be pressed twice
   const [starting, setStarting] = useState(false);
-  const playSet = async () => {
+  const inSet = (which: "all" | number) => s.items.map((it, i) => ({ it, i })).filter(x => which === "all" || (x.it.set || 1) === which);
+  // recordings: YouTube finds one per tune (so a single set works); a Spotify playlist only plays whole
+  const hasRecs = (which: "all" | number) => yTube ? inSet(which).length > 0 : !!s.spotify && which === "all";
+  const playSet = async (which: "all" | number) => {
     if (starting) return;
     setStarting(true);
     try {
-      if (yTube) await app.playYoutube(s.items.map((it, i) => tuneQueueItem(song(it.raw), it.versions, { setId: s.id, idx: i })), 0, s.name);
+      if (yTube) await app.playYoutube(inSet(which).map(x => tuneQueueItem(song(x.it.raw), x.it.versions, { setId: s.id, idx: x.i })), 0, which === "all" ? s.name : `${s.name}, set ${which}`);
       else if (s.spotify) await app.playSpotify(s.spotify, true);
+      setPlayFor(null);
     } finally { setStarting(false); }
   };
+  // one Play button: it asks band or recordings, and goes straight to the band when there are no recordings to play
+  const choosePlay = (which: "all" | number) => { if (hasRecs(which)) setPlayFor(which); else app.startGig(s, which); };
   const canMake = !builtin && canEdit && app.store.kind === "supabase" && s.items.length > 0;
+  const hasPl = !!s.spotify || canMake || canEdit; // the Playlist tab, only when there's a playlist or you can make one
   // back from connecting Spotify: reopen the playlist dialog
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -215,7 +223,7 @@ function SetBody({ s }: { s: Setlist }) {
           {canEdit && count < MAX_SETS && <button className="btn" onClick={() => setShown(count + 1)}><Icon name="plus" size={18} /> Add set</button>}
           {builtin && <button className="btn" id="copy-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Make a copy</button>}
           {s.viewOnly && <button className="btn primary" id="save-set" onClick={() => void makeCopy()}><Icon name="plus" size={18} /> Save to my setlists</button>}
-          <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => app.startGig(s, "all")}>Practice gig with the band</button>
+          {s.items.length > 0 && <button className="btn primary" data-gig="all" data-tour="gig" onClick={() => choosePlay("all")}><Icon name="play" size={18} /> Play setlist</button>}
           {s.items.length > 0 && <button className="btn" id="to-ireal" onClick={() => setIreal(true)}><Icon name="share" size={18} /> iReal Pro</button>}
           {!builtin && !s.viewOnly && app.store.kind === "supabase" && <More><button className="btn" id="share-set" data-tour="share" onClick={() => setSharing(true)}><Icon name="user" size={18} /> {isOwner ? "Who can see it" : "Members"}</button></More>}
         </div>
@@ -223,7 +231,7 @@ function SetBody({ s }: { s: Setlist }) {
       {!builtin && !s.viewOnly && <SetlistGigs setlistId={s.id} canAdd={canEdit} />}
       <div className="pl-tabs" role="tablist" aria-label="Setlist sections">
         <button role="tab" className="pl-tab" aria-selected={view === "tunes"} onClick={() => setView("tunes")}>Tunes<span>{s.items.length}</span></button>
-        <button role="tab" className="pl-tab" aria-selected={view === "listen"} data-tour="playlist" onClick={() => setView("listen")}><Icon name={yTube ? "youtube" : "spotify"} size={16} /> Listen</button>
+        {hasPl && <button role="tab" className="pl-tab" aria-selected={view === "playlist"} data-tour="playlist" onClick={() => setView("playlist")}><Icon name="spotify" size={16} /> Playlist</button>}
       </div>
       <div className="sets" data-tour="tunes" role="tabpanel" hidden={view !== "tunes"}>
         {nums.map(n => (
@@ -231,7 +239,7 @@ function SetBody({ s }: { s: Setlist }) {
             <div className="set-title">
               <h2>Set {n}</h2>
               <span className="dur">{sets[n - 1].length} tunes · about {mins(sets[n - 1])} min</span>
-              {count > 1 && sets[n - 1].length > 0 && <button className="btn small" data-gig={n} title={`Practice set ${n} with the band`} aria-label={`Practice set ${n} with the band`} onClick={() => app.startGig(s, n)}>▶</button>}
+              {count > 1 && sets[n - 1].length > 0 && <button className="btn small" data-gig={n} onClick={() => choosePlay(n)}><Icon name="play" size={14} /> Play set {n}</button>}
               {canEdit && n === count && n > used && <button className="btn small" title="Remove this empty set" aria-label={`Remove set ${n}`} onClick={() => setShown(count - 1)}>✕</button>}
             </div>
             {sets[n - 1].length ? sets[n - 1].map((x, pos) => {
@@ -259,20 +267,12 @@ function SetBody({ s }: { s: Setlist }) {
           </section>
         ))}
       </div>
-      <section className="panel sp-panel" aria-label="Listen" role="tabpanel" hidden={view !== "listen"}>
+      {hasPl && <section className="panel sp-panel" aria-label="Playlist" role="tabpanel" hidden={view !== "playlist"}>
         <div className="panel-head">
-          <h2>Listen</h2>
-          <Info label="About playing the setlist">Play runs through the setlist&apos;s recordings in the Listen tab, and the chart follows whichever one is playing. Save to Spotify makes a playlist in your Spotify; it doesn&apos;t change how the app plays.</Info>
+          <h2>Playlist</h2>
+          <Info label="About the playlist">A Spotify playlist of the setlist, to share or play in Spotify. Save to Spotify makes one in your Spotify; it doesn&apos;t change how Play setlist works here.</Info>
         </div>
         <div className="row-btns">
-          {yTube && s.items.length > 0 && <>
-            <button className="btn primary" id="play-pl" disabled={starting} aria-busy={starting} onClick={() => void playSet()}>{starting ? <><span className="spinner" aria-hidden="true" /> Finding…</> : "▶ Play"}</button>
-            <Info label="About playing here">Plays each song&apos;s saved YouTube recording, or the best match found automatically. Whole songs on every device; it may show ads. Next and previous are in the Listen tab.</Info>
-          </>}
-          {!yTube && s.spotify && <>
-            <button className="btn primary" id="play-pl" disabled={starting} aria-busy={starting} onClick={() => void playSet()}>{starting ? <><span className="spinner" aria-hidden="true" /> Finding…</> : "▶ Play"}</button>
-            <Info label="About playing here">Whether it plays whole songs depends on your browser. <PlaybackHelpLink /></Info>
-          </>}
           {s.spotify && <a className="btn" href={webUrl(s.spotify)} target="_blank" rel="noopener"><Icon name="spotify" size={18} /> Open in Spotify</a>}
           {canMake && <button className="btn" id="make-pl" onClick={() => setMaking(true)}>
             <Icon name="spotify" size={18} /> {s.spotify?.startsWith("spotify:playlist:") ? "Update Spotify playlist" : "Save to Spotify"}
@@ -281,7 +281,6 @@ function SetBody({ s }: { s: Setlist }) {
             ? <button className="btn small link-btn" onClick={() => setPasting(true)}>Change</button>
             : canMake && <button className="btn small link-btn" onClick={() => setPasting(true)}>or use one you already have</button>)}
         </div>
-        {!yTube && !s.spotify && !canEdit && <p className="hint">No playlist yet.</p>}
         {canEdit && (pasting || (!yTube && !s.spotify && !canMake)) && (
           <form className="inline-form" onSubmit={e => { e.preventDefault(); savePl(); }}>
             <input id="pl-link" type="url" aria-label="Spotify playlist or album link" placeholder="Paste a playlist or album link" maxLength={500} value={plLink} onChange={e => setPlLink(e.target.value)} />
@@ -289,10 +288,26 @@ function SetBody({ s }: { s: Setlist }) {
             {s.spotify && <button className="btn" type="button" onClick={() => { setPlLink(""); edit(x => ({ ...x, spotify: null })); setPasting(false); toast("Playlist removed."); }}>Remove</button>}
           </form>
         )}
-      </section>
+      </section>}
       {!builtin && !s.viewOnly && <Notes title="Setlist notes" hint="For the whole setlist, e.g. how we open or close." home={{ kind: "setlist", setlistId: s.id }} setlist={s} />}
       <Modal open={making} title={(s.spotify?.startsWith("spotify:playlist:") ? "Update playlist: " : "Create playlist: ") + s.name} onClose={() => setMaking(false)}>
         <SpotifyPlaylist s={s} onClose={() => setMaking(false)} />
+      </Modal>
+      <Modal open={playFor !== null} title={playFor === "all" || playFor === null ? "Play " + s.name : `Play set ${playFor}`} onClose={() => { if (!starting) setPlayFor(null); }}>
+        <div className="play-choice">
+          <span className="row-btns">
+            <button className="btn primary" onClick={() => { const w = playFor ?? "all"; setPlayFor(null); app.startGig(s, w); }}><Icon name="drum" size={18} /> Play along with the band</button>
+            <Info label="About playing along">The backing band plays each tune with its chart, then moves on to the next one for you.</Info>
+          </span>
+          <span className="row-btns">
+            <button className="btn" disabled={starting} aria-busy={starting} onClick={() => void playSet(playFor ?? "all")}>
+              {starting ? <><span className="spinner" aria-hidden="true" /> Finding…</> : <><Icon name={yTube ? "youtube" : "spotify"} size={18} /> Listen to recordings</>}
+            </button>
+            <Info label="About listening">{yTube
+              ? <>Plays each song&apos;s saved YouTube recording, or the best match found automatically, and the chart follows along. Whole songs on every device; it may show ads.</>
+              : <>Plays the setlist&apos;s Spotify playlist, and the chart follows along. Whether it plays whole songs depends on your browser. <PlaybackHelpLink /></>}</Info>
+          </span>
+        </div>
       </Modal>
       <Modal open={ireal} title={"Send to iReal Pro: " + s.name} onClose={() => setIreal(false)}>
         <IrealExport s={s} />

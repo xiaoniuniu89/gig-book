@@ -621,9 +621,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const order = s.items.map((it, i) => ({ it, i })).filter(x => which === "all" || (x.it.set || 1) === which).map(x => x.i);
     if (!order.length) { toast("That set is empty."); return; }
     setGig({ setId: s.id, order, pos: 0 });
+    if (prefsRef.current.dockSize === "hidden") setDockSize("full"); // Stop and the tempo are on screen from the first count-in, as with recordings
     band?.init().catch(() => { /* reported through the band's error event */ });
     gotoGigSong(true);
-  }, [band, toast, gotoGigSong]);
+  }, [band, toast, gotoGigSong, setDockSize]);
 
   // start the band once the gig's next tune is on screen
   useEffect(() => {
