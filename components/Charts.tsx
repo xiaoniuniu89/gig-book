@@ -9,6 +9,7 @@ import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
 import { FileChart, Recorder, useSignedUrl } from "./Attachments";
+import { TranscribeButton } from "./TranscribeButton";
 import { CHART_NAMES, MAX_FILE_MB, attachmentKind, type Chart, type Setlist } from "@/lib/data/types";
 
 const TAB_KEY = "gigbook-chart-tab";
@@ -235,6 +236,7 @@ export function ChartAudio({ c }: { c: Chart }) {
     <div className="chart-audio">
       <span className="hint">♪ {c.audio.name}</span>
       {url ? <audio controls preload="none" src={url} /> : <span className="hint">{url === null ? "Couldn't load the recording." : "Loading…"}</span>}
+      {url && <TranscribeButton source={{ kind: "file", name: c.audio.name, url }} />}
     </div>
   );
 }

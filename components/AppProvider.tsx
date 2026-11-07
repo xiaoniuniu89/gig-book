@@ -24,7 +24,7 @@ import { DEFAULT_SETTINGS, applySettings, loadLocalSettings, normalizeSettings, 
 import { BUILTIN_LIBRARY, LEGACY_SEED_IDS, ORIGINALS_ID, isBuiltin, withBuiltins } from "@/lib/seeds";
 
 /** One video in the YouTube list: a saved `id`, or null to use the song's automatic pick. setId/idx let "charts follow the music" open the tune. */
-export interface YtQueueItem { key: string; title: string; composer: string; id: string | null; performer?: string; setId?: string; idx?: number }
+export interface YtQueueItem { key: string; title: string; composer: string; id: string | null; performer?: string; setId?: string; idx?: number; start?: number; end?: number }
 
 /* ---------------- types ---------------- */
 export type Current =
@@ -744,7 +744,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ytPlayerRef.current.on(ev => onYtRef.current(ev));
         }
         playerRef.current?.pause();
-        await ytPlayerRef.current.load(id, true);
+        await ytPlayerRef.current.load(id, true, it.id ? it.start : undefined, it.id ? it.end : undefined);
       } catch (e) { toast(e instanceof Error ? e.message : "YouTube's player didn't load."); return; }
       if (token !== ytToken.current) return;
       setYt({ queue, pos: i, now: { id, title, picked: !it.id } });

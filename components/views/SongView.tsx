@@ -29,7 +29,7 @@ import { validateHits } from "@/lib/hits";
 import { searchTracks, SpotifyUnavailable, trackName } from "@/lib/spotify/client";
 import type { TrackResult } from "@/lib/spotify/uri";
 import { searchVideos, videoInfo, type VideoResult } from "@/lib/youtube/client";
-import { isYtUri, parseRecordingLink, ytId } from "@/lib/youtube/ids";
+import { clock, isYtUri, parseClock, parseRecordingLink, youtubeStart, ytId } from "@/lib/youtube/ids";
 import { ArrangementActions, MakeArrangement } from "../Arrangements";
 import { arrangementKey, newItemId, type GigRef, type Setlist, type SetlistItem, type Version } from "@/lib/data/types";
 
@@ -101,6 +101,12 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const canEdit = !s || s.role !== "viewer";
   const shareTo = s && !isBuiltin(s.id) ? s : undefined; // charts can be shared with a real setlist
   const ch = useCharts(songKey(sg.raw), shareTo?.id);
+  // a song with a lead sheet and no chords typed in opens on its lead sheet
+  const noChords = cur0.song.bars.every(b => !b.chords.length);
+  const sheetOnly = !!orig?.leadSheet && noChords;
+  const { tab: chTab, setTab: setChTab } = ch;
+  useEffect(() => { if (sheetOnly && chTab === "ireal") setChTab("leadsheet"); /* once per tune, so iReal stays openable */ // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetOnly, sg.raw]);
   // an arrangement keeps its own private notes, licks and resources under its own key
   const mineKey = arr ? arrangementKey(arr.id) : songKey(sg.raw);
   const mineWhere = arr ? "this arrangement" : "this song";
@@ -225,7 +231,8 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         {ch.tab === "leadsheet" && orig?.leadSheet ? <LeadSheetPane o={orig} fit={140} />
         : ch.tab === "lyrics" ? <LyricsPane songKey={songKey(cur0.song.raw)} title={cur0.song.title} composer={composerName(cur0.song.composer)} form={form}
           chart={<ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />} />
-        : ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} /> : <>
+        : ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} />
+        : sheetOnly ? <p className="hint pad">No chords typed in for this song yet. Its chords are on the Lead sheet tab.</p> : <>
         <VersionBar sg={cur0.song} vs={vs} />
         <div className="panel-head">
           <span className="seg" role="group" aria-label="Approach">
@@ -468,8 +475,23 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
   // the other player's versions stay saved but aren't listed or playable here
   const vs = (versions ?? []).filter(v => isYtUri(v.uri) === (src === "youtube"));
   const ref = cur.kind === "set" ? { setId: cur.setId, idx: cur.itemIdx } : undefined;
-  const playVideo = (id: string, title: string) => void app.playYoutube([{ key: "yt:" + id, title, composer: "", id, ...ref }]);
-  const playUri = (uri: string, name: string) => { if (isYtUri(uri)) playVideo(ytId(uri), name); else void app.playSpotify(uri, true); };
+  const playVideo = (id: string, title: string, start?: number, end?: number) => void app.playYoutube([{ key: "yt:" + id, title, composer: "", id, start, end, ...ref }]);
+  const playUri = (v: Pick<Version, "uri" | "name" | "start" | "end">) => { if (isYtUri(v.uri)) playVideo(ytId(v.uri), v.name, v.start, v.end); else void app.playSpotify(v.uri, true); };
+  // play just part of a long video
+  const [timing, setTiming] = useState<Version | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const openTimes = (v: Version) => { setTiming(v); setFrom(v.start ? clock(v.start) : ""); setTo(v.end ? clock(v.end) : ""); };
+  const saveTimes = () => {
+    if (!timing) return;
+    const s = from.trim() ? parseClock(from) : 0, e = to.trim() ? parseClock(to) : 0;
+    if (s === null || e === null) { app.toast("Write times like 12:34."); return; }
+    if (e && e <= (s ?? 0)) { app.toast("The end has to be after the start."); return; }
+    const { uri } = timing;
+    onVersions?.(have => have.map(v => v.uri === uri ? { uri: v.uri, name: v.name, artists: v.artists, ...(s ? { start: s } : {}), ...(e ? { end: e } : {}) } : v));
+    setTiming(null);
+  };
+  const part = (v: Version) => v.start || v.end ? ` · ${clock(v.start ?? 0)} to ${v.end ? clock(v.end) : "the end"}` : "";
 
   const findYt = async (more = false) => {
     const query = q.trim() || cur.song.title;
@@ -497,13 +519,28 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
   const findLink = async (link: { uri: string; kind: "youtube" | "spotify" }) => {
     setStatus({ msg: "Looking it up…" }); setBusy(true); setPasted(null);
     try {
-      if (link.kind === "youtube") { const v = await videoInfo(ytId(link.uri)); setPasted({ uri: link.uri, name: v.title, artists: v.channel }); }
+      if (link.kind === "youtube") { const v = await videoInfo(ytId(link.uri)); const start = youtubeStart(q); setPasted({ uri: link.uri, name: v.title, artists: v.channel, ...(start ? { start } : {}) }); }
       else { const t = await trackName(link.uri); setPasted({ uri: link.uri, name: t.name, artists: t.artists }); }
       setStatus(null);
     } catch (e) {
       setStatus({ msg: e instanceof Error ? e.message : "Couldn't look that up.", flag: true });
     }
     setBusy(false);
+  };
+  // the Saved tab's box: a link goes straight onto the tune
+  const [paste, setPaste] = useState("");
+  const [adding, setAdding] = useState(false);
+  const addLink = async () => {
+    const link = parseRecordingLink(paste);
+    if (!link) { app.toast(`Paste a link to a ${src === "youtube" ? "YouTube video" : "Spotify track"}.`); return; }
+    if (link.kind !== src) { app.toast(`That's a ${link.kind === "youtube" ? "YouTube" : "Spotify"} link. You're playing with ${pName}; change it in Settings.`); return; }
+    setAdding(true);
+    try {
+      if (link.kind === "youtube") { const v = await videoInfo(ytId(link.uri)); saveVersion({ uri: link.uri, name: v.title, artists: v.channel, start: youtubeStart(paste) || undefined }); }
+      else { const t = await trackName(link.uri); saveVersion({ uri: link.uri, name: t.name, artists: t.artists }); }
+      setPaste("");
+    } catch (e) { app.toast(e instanceof Error ? e.message : "Couldn't look that up."); }
+    setAdding(false);
   };
   const go = () => {
     const link = parseRecordingLink(q);
@@ -553,11 +590,11 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
     setBusy(false);
   };
   const saveVersion = (r: Version) => {
-    onVersions?.(have => have.some(v => v.uri === r.uri) ? have : [...have, { uri: r.uri, name: r.name, artists: r.artists }]);
+    onVersions?.(have => have.some(v => v.uri === r.uri) ? have : [...have, { uri: r.uri, name: r.name, artists: r.artists, ...(r.start ? { start: r.start } : {}) }]);
     setSaved(prev => new Set(prev).add(r.uri));
   };
   const canSave = !!onVersions && canEdit;
-  const orig = useOriginal(cur.song.raw), original = !!orig;
+  const orig = useOriginal(cur.song.raw);
   const saveBtn = (r: Version) => {
     const done = saved.has(r.uri) || vs.some(v => v.uri === r.uri);
     return canSave && <button className="btn small" disabled={done} onClick={() => saveVersion(r)}>{done ? "Saved" : "Save"}</button>;
@@ -595,13 +632,13 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
         {!onVersions ? null
           : vs.length ? vs.map(v => (
             <div className="ver" key={v.uri}>
-              <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => playUri(v.uri, v.name)}>▶</button>
-              <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}</span></span>
+              <button className="btn icon-btn small" aria-label={"Play " + v.name} onClick={() => playUri(v)}>▶</button>
+              <span className="name"><Icon name={isYtUri(v.uri) ? "youtube" : "spotify"} size={14} /> {v.name}<span className="sub">{v.artists}{part(v)}</span></span>
+              {canEdit && isYtUri(v.uri) && <button className="btn small" aria-label={"Start and end for " + v.name} title="Play just part of it" onClick={() => openTimes(v)}><Icon name="clock" size={14} /></button>}
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
           )) : !playing && orig?.recording ? null
-          : !playing && original ? <p className="hint">{orig?.mine ? "Nothing yet. Upload your own recording, or find one on " + pName + " and save it." : "Nothing saved yet."}</p>
-          : !playing && <p className="hint">{canSave ? "Nothing saved yet. Find a recording and save it, so this tune always plays that one." : "Nothing saved yet."}</p>}
+          : !playing && <p className="hint">{orig?.mine ? "Nothing yet. Upload your own recording, or add one here." : "Nothing saved yet."}</p>}
         {playing && (
           <div className="ver">
             <span className="name"><span className="eyebrow">Playing now</span> {playing.title}<span className="sub">Picked automatically</span></span>
@@ -609,6 +646,12 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
           </div>
         )}
       </div>
+      {canSave && (
+        <form className="inline-form" onSubmit={e => { e.preventDefault(); void addLink(); }}>
+          <input type="url" aria-label={`Paste a ${pName} link`} placeholder={`Paste a ${pName} link`} value={paste} onChange={e => setPaste(e.target.value)} />
+          <button className="btn" type="submit" disabled={adding || !paste.trim()}>{adding ? <><span className="spinner" aria-hidden="true" /> Adding…</> : <><Icon name="plus" size={16} /> Add</>}</button>
+        </form>
+      )}
       </div>
       : <div role="tabpanel">
       <div className="inline-form">
@@ -619,14 +662,14 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
         {status && <p className={status.flag ? "flag" : "hint"}>{status.msg}{status.settings && <> <Link href="/settings">Open Settings</Link></>}</p>}
         {pasted && (
           <div className="ver">
-            <button className="btn icon-btn small" aria-label={"Play " + pasted.name} onClick={() => playUri(pasted.uri, pasted.name)}>▶</button>
-            <span className="name"><Icon name={isYtUri(pasted.uri) ? "youtube" : "spotify"} size={14} /> {pasted.name}<span className="sub">{pasted.artists}</span></span>
+            <button className="btn icon-btn small" aria-label={"Play " + pasted.name} onClick={() => playUri(pasted)}>▶</button>
+            <span className="name"><Icon name={isYtUri(pasted.uri) ? "youtube" : "spotify"} size={14} /> {pasted.name}<span className="sub">{pasted.artists}{part(pasted)}</span></span>
             {saveBtn(pasted)}
           </div>
         )}
         {src === "spotify" && results && results.map(r => (
           <div className="ver" key={r.uri}>
-            <button className="btn icon-btn small" aria-label="Play" onClick={() => playUri(r.uri, r.name)}>▶</button>
+            <button className="btn icon-btn small" aria-label="Play" onClick={() => playUri(r)}>▶</button>
             <span className="name">{r.artists}<span className="sub">{r.name} · {r.album}{r.year ? " · " + r.year : ""}</span></span>
             {saveBtn(r)}
           </div>
@@ -643,6 +686,16 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
         {src === "youtube" && ytFound?.next && <button className="btn small v-more" onClick={() => findYt(true)} disabled={busy}>{busy ? "Searching…" : "Find more"}</button>}
       </div>
       </div>}
+      <Modal open={!!timing} title="Play just part of it" onClose={() => setTiming(null)}>
+        <form className="chart-form" onSubmit={e => { e.preventDefault(); saveTimes(); }}>
+          <div className="field-grid">
+            <label className="field"><span className="field-label">Start</span><input type="text" inputMode="numeric" autoFocus value={from} onChange={e => setFrom(e.target.value)} /></label>
+            <label className="field"><span className="field-label">End</span><input type="text" inputMode="numeric" value={to} onChange={e => setTo(e.target.value)} /></label>
+          </div>
+          <p className="hint">Minutes and seconds, like 12:34. Leave one empty for the very start or end of the video.</p>
+          <div className="row-btns"><button className="btn primary" type="submit"><Icon name="clock" size={16} /> Save</button></div>
+        </form>
+      </Modal>
     </section>
   );
 }

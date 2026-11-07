@@ -10,9 +10,13 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 - No migrations. E2E not run locally (only typecheck + lint); CI runs on the main push. Tests touched: 02, 03, 05, 09, 10.
 - Audit items left: the setlist's "On gigs" line stays a line (not a Gigs tab); iReal and Who can see it collapse under More only in calm mode.
 
-## Idea, not agreed yet: add a song from a recording (experimental)
-- Dan's idea: a third way to add a song, after iReal import and lead sheet (`lib/ai/leadsheet.ts`): give a YouTube link or an MP3, and Niu AI makes the chart. Mark it experimental. Keep the MP3 as the song's recording if a song is made; don't keep it if not.
-- To check before building: can the AI hear audio through OpenRouter, and how good are the chords? An MP3 is over the 4.5 MB route limit, so it needs direct upload. YouTube audio can't be downloaded. Searching the web for a lead sheet raises copyright questions.
+## Recordings and lead sheets (2026-11-07, released)
+- **Find a lead sheet** (Library, Work in progress): `components/FindLeadSheet.tsx`, `lib/ai/leadsheetSearch.ts`, `app/api/ai/leadsheet-search`, `lib/ai/sheetLink.ts`. It never listens to audio: the song name, YouTube title or MP3 file name is searched via OpenRouter's web plugin. The player picks a result and presses Generate; `/api/ai/leadsheet { url }` opens it (public addresses only, 3 MB) and reads a PDF, an image, a PDF linked on the page, or the page text. The sheet isn't kept. An MP3 is kept only if the song is saved. A YouTube link isn't attached to the new song yet.
+- **Transcribe button**: `components/TranscribeButton.tsx`, `lib/transcribeHandoff.ts` (in memory, so signed URLs stay out of links). On the YouTube player, chart audio, original recordings and audio on notes. Not on Spotify.
+- **Start and end on a saved YouTube recording**: optional `start`, `end` on `Version` (jsonb, no migration). Clock button on the row; a pasted link's t= fills the start. Not carried into Transcribe.
+- **Lead sheet but no chords**: the song opens on its Lead sheet tab; iReal says no chords yet. Open: making an iReal chart from it on a setlist. Editing an original doesn't change setlist copies, and a non-owner can't edit it.
+- Notifications: gigs only notify when you're added; note attachments never notify. Opt-in for gig updates not built.
+- **Paste a link on the Saved tab** of Recordings attaches it at once (when you can edit the setlist or arrangement).
 
 ## Draft a setlist from a list (2026-11-07, released, marked Work in progress)
 - Niu AI page: a box to type in, **Add a list** (photo, screenshot or PDF, kept in memory, sent with the request, never stored), and More options holding the chips. No tune count is sent unless picked; the AI defaults to about 10.

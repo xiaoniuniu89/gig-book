@@ -6,6 +6,7 @@ import { meta, norm, prettyKey } from "@/lib/songs";
 import { BUILTIN_LIBRARY, ORIGINALS_ID } from "@/lib/seeds";
 import { NewSong } from "../Originals";
 import { UploadMenu, type UploadMode } from "../MenuButton";
+import { FindLeadSheet } from "../FindLeadSheet";
 import { Icon } from "../Icon";
 import { ImportPanel } from "../ImportPanel";
 import { Modal } from "../Modal";
@@ -60,6 +61,7 @@ export function Library() {
         <h1>Library</h1>
         <span className="row-btns">
           {store.kind === "supabase" && <UploadMenu label="New song" onPick={setCreating} />}
+          {store.kind === "supabase" && <FindLeadSheet onSaved={() => pick(ORIGINALS_ID)} />}
           <button className="btn" onClick={() => setImporting(true)}><Icon name="plus" size={18} /> Import playlist</button>
         </span>
       </div>

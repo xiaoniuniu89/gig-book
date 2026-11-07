@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "./AppProvider";
 import { MAX_FILE_MB, attachmentKind, type Attachment, type DataStore, type NoteHome } from "@/lib/data/types";
 import { MusicXml } from "./MusicXml";
+import { TranscribeButton } from "./TranscribeButton";
 
 export const ACCEPT = "application/pdf,image/*,audio/*,.musicxml,.mxl,.xml,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,text/xml,application/xml";
 
@@ -212,6 +213,7 @@ function One({ store, a, canDelete, onDelete }: { store: DataStore; a: Attachmen
       {a.kind === "audio" && <>
         <span className="att-name">{a.name}</span>
         {url ? <audio controls preload="none" src={url} /> : <span className="hint">{url === null ? "Couldn't load." : "Loading…"}</span>}
+        {url && <TranscribeButton source={{ kind: "file", name: a.name, url }} />}
       </>}
       {a.kind === "image" && (url
         ? <button className="thumb" type="button" aria-label={"View " + a.name} onClick={() => setShow(true)}>

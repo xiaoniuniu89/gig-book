@@ -10,9 +10,10 @@ import { MenuButton } from "../MenuButton";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { YtLooper } from "@/lib/youtube/embed";
 import { parseYoutube } from "@/lib/youtube/ids";
+import { onTranscribe, takeTranscribe } from "@/lib/transcribeHandoff";
 import { MAX_PRACTICE_TRACKS, type PracticeTrack } from "@/lib/data/types";
 
-type Source = { kind: "youtube"; id: string } | { kind: "file"; track: PracticeTrack; url: string };
+type Source = { kind: "youtube"; id: string } | { kind: "file"; name: string; trackId?: string; url: string };
 const PRESETS = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1];
 const MIN_SPEED = 0.25, MAX_SPEED = 2;
 const clampSpeed = (r: number) => Math.round(Math.min(MAX_SPEED, Math.max(MIN_SPEED, r)) * 100) / 100;
@@ -77,8 +78,8 @@ export function TranscribeView() {
   }, [src, ctl]);
 
   const reset = () => { setA(null); setB(null); setNow(0); setDur(0); setPlaying(false); setSpeed(1); setActual(1); };
-  const openYoutube = async () => {
-    const id = parseYoutube(link.trim());
+  const openYoutube = async (text = link) => {
+    const id = parseYoutube(text.trim());
     if (!id) { toast("Paste a YouTube link, like youtube.com/watch?v=…"); return; }
     audio.current?.pause();
     reset(); setSrc({ kind: "youtube", id });
@@ -94,9 +95,22 @@ export function TranscribeView() {
     try {
       const url = await store.practiceTrackUrl(t);
       yt.current?.destroy(); yt.current = null;
-      reset(); setSrc({ kind: "file", track: t, url });
+      reset(); setSrc({ kind: "file", name: t.name, trackId: t.id, url });
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn't open that recording."); }
   };
+  // sent here from a song, a note or the player
+  const openRef = useRef(openYoutube); openRef.current = openYoutube;
+  useEffect(() => {
+    const run = () => {
+      const s = takeTranscribe();
+      if (!s) return;
+      if (s.kind === "youtube") { setFrom("youtube"); setLink("https://youtu.be/" + s.id); void openRef.current(s.id); return; }
+      audio.current?.pause(); yt.current?.destroy(); yt.current = null;
+      reset(); setSrc({ kind: "file", name: s.name, url: s.url });
+    };
+    run();
+    return onTranscribe(run);
+  }, []);
   const upload = async (f: File | undefined) => {
     if (!f) return;
     setProgress(0);
@@ -113,7 +127,7 @@ export function TranscribeView() {
       await store.deletePracticeTrack(t);
       setDeleting(null);
       setTracks(l => l.filter(x => x.id !== t.id));
-      if (src?.kind === "file" && src.track.id === t.id) { audio.current?.pause(); setSrc(null); }
+      if (src?.kind === "file" && src.trackId === t.id) { audio.current?.pause(); setSrc(null); }
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn't delete that."); }
   };
 
@@ -182,7 +196,7 @@ export function TranscribeView() {
             </div>
             {tracks.map(t => (
               <div className="ver" key={t.id}>
-                <button className="btn icon-btn small" aria-label={"Open " + t.name} aria-pressed={src?.kind === "file" && src.track.id === t.id} onClick={() => void openTrack(t)}>▶</button>
+                <button className="btn icon-btn small" aria-label={"Open " + t.name} aria-pressed={src?.kind === "file" && src.trackId === t.id} onClick={() => void openTrack(t)}>▶</button>
                 <span className="name">{t.name}<span className="sub">{mb(t.size)}</span></span>
                 <MenuButton className="btn small" label="⋯" ariaLabel={"More for " + t.name} caret={false}
                   items={[{ label: <><Icon name="trash" size={16} /> Delete</>, onClick: () => setDeleting(t) }]} />
@@ -201,7 +215,7 @@ export function TranscribeView() {
           {src.kind === "youtube"
             ? <div className="tr-video" ref={ytEl} />
             : <>
-                <b className="tr-name">{src.track.name}</b>
+                <b className="tr-name">{src.name}</b>
                 <audio ref={audio} src={src.url} preload="auto" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
               </>}
 

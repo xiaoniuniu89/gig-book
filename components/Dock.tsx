@@ -7,6 +7,7 @@ import { Info } from "./Info";
 import { PlaybackHelpLink, useMyPlayback } from "./PlaybackHelp";
 import { Icon } from "./Icon";
 import { PREMIUM_NOTE, YOUTUBE_SIGN_IN } from "./YoutubePremium";
+import { TranscribeButton } from "./TranscribeButton";
 import { tuneQueueItem } from "@/lib/youtube/queue";
 import { songKey } from "@/lib/songs";
 import { GENERAL_HINT } from "@/lib/playback";
@@ -157,6 +158,7 @@ export function Dock() {
                 <button className="btn icon-btn small" aria-label="Previous video" disabled={app.ytPos.pos === 0} onClick={() => app.ytStep(-1)}>⏮</button>
                 <button className="btn icon-btn small" aria-label="Next video" disabled={app.ytPos.pos >= app.ytPos.count - 1} onClick={() => app.ytStep(1)}>⏭</button>
               </>}
+              {app.ytNow && <TranscribeButton source={{ kind: "youtube", id: app.ytNow.id }} before={() => { if (app.ytPlaying) app.ytToggle(); }} />}
               {/* only on a setlist tune whose setlist has a playlist; elsewhere there's no "this setlist" */}
               {!yTube && current?.kind === "set" && app.setlistById(current.setId)?.spotify &&
                 <button className="btn small" id="rec-load" onClick={recLoad}>Load this setlist&apos;s playlist</button>}

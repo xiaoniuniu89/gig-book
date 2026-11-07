@@ -2,8 +2,9 @@
 // Throws a short message on any failure. The server checks the answer; the editor checks it again before saving.
 import { getSupabase } from "../supabase/client";
 import type { ChartGuess } from "./leadsheet";
+import type { FoundSheet } from "./leadsheetSearch";
 
-export type { ChartGuess };
+export type { ChartGuess, FoundSheet };
 const MAX = 3 * 1024 * 1024;
 
 const toBase64 = (buf: ArrayBuffer): string => {
@@ -24,21 +25,31 @@ async function shrink(file: File): Promise<string> {
   return toBase64(await blob.arrayBuffer());
 }
 
-export async function chartFromLeadSheet(file: File): Promise<ChartGuess> {
+async function post(path: string, body: string): Promise<Record<string, unknown>> {
   const { data } = (await getSupabase()?.auth.getSession()) ?? { data: null };
   const token = data?.session?.access_token;
   if (!token) throw new Error("Sign in to use this.");
+  let res: Response;
+  try {
+    res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body });
+  } catch { throw new Error("Couldn't reach the server."); }
+  const j = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(j?.error || "That didn't work (" + res.status + ").");
+  return j;
+}
+
+/** Searches the web. Nothing is read until the player picks a result. */
+export const findLeadSheets = async (q: string) => (await post("/api/ai/leadsheet-search", JSON.stringify({ q }))).results as FoundSheet[];
+
+/** The server opens the page or file at this link and makes a chart from it. The file isn't kept. */
+export const chartFromLink = async (url: string) => (await post("/api/ai/leadsheet", JSON.stringify({ url }))).chart as ChartGuess;
+
+export async function chartFromLeadSheet(file: File): Promise<ChartGuess> {
   let body: string;
   if (file.type.startsWith("image/")) body = JSON.stringify({ image: await shrink(file), mime: "image/jpeg" });
   else {
     if (file.size > MAX) throw new Error("That PDF is too big for AI to read (3 MB at most). The chart can still be typed in.");
     body = JSON.stringify({ pdf: toBase64(await file.arrayBuffer()) });
   }
-  let res: Response;
-  try {
-    res = await fetch("/api/ai/leadsheet", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body });
-  } catch { throw new Error("Couldn't reach the server."); }
-  const j = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(j?.error || "That didn't work (" + res.status + ").");
-  return j.chart as ChartGuess;
+  return (await post("/api/ai/leadsheet", body)).chart as ChartGuess;
 }

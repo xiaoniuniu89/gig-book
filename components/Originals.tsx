@@ -12,7 +12,8 @@ import { MenuButton } from "./MenuButton";
 import { ConfirmTyped } from "./ConfirmTyped";
 import { PdfPages } from "./PdfPages";
 import { ChartEditor, blankSection, fromEdit, toEdit, type EditSection } from "./ChartEditor";
-import { chartFromLeadSheet } from "@/lib/ai/leadsheetClient";
+import { chartFromLeadSheet, type ChartGuess } from "@/lib/ai/leadsheetClient";
+import { TranscribeButton } from "./TranscribeButton";
 import { defaultTempo } from "@/lib/band/gen";
 import { encodeChart, sectionsFromBars, SONG_STYLES, TIME_SIGS } from "@/lib/irealExport";
 import { meta, prettyKey, song } from "@/lib/songs";
@@ -28,25 +29,26 @@ const storeComposer = (name: string) => name.trim().split(/\s+/).reverse().join(
 
 
 /** New song (no `o`) or edit one. `title` pre-fills the title, `bandId` shares a new one with that band. `mode` "ai": the lead
- *  sheet first; AI reads it and fills in the form (title, composer, style, key, tempo, chart) for you to check. `onSaved` gets the saved song. */
-export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, onSaved }: {
-  o?: OriginalSong; title?: string; bandId?: string; mode?: "manual" | "ai"; onClose: () => void; onSaved: (o: OriginalSong) => void;
+ *  sheet first; AI reads it and fills in the form (title, composer, style, key, tempo, chart) for you to check. `onSaved` gets the saved song.
+ *  `guess`: a chart AI already made, to check. `recording`: kept with the song only if it's saved. */
+export function NewSong({ o, title: preTitle, bandId, mode = "manual", guess, recording, onClose, onSaved }: {
+  o?: OriginalSong; title?: string; bandId?: string; mode?: "manual" | "ai"; guess?: ChartGuess; recording?: File; onClose: () => void; onSaved: (o: OriginalSong) => void;
 }) {
   const { store, account, toast, putOriginal, dropOriginal } = useApp();
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const start = o ? song(o.raw) : null;
-  const [title, setTitle] = useState(start?.title ?? preTitle?.trim() ?? "");
-  const [composer, setComposer] = useState(o ? meta(o.raw).composer : account?.name ?? "");
-  const [style, setStyle] = useState(start?.style || "Medium Swing");
-  const [key, setKey] = useState(start?.key || "C");
-  const [tempo, setTempo] = useState(start?.tempo ? String(start.tempo) : "");
-  const [ts, setTs] = useState(start?.bars[0] ? start.bars[0].ts.num + "/" + start.bars[0].ts.den : "4/4");
+  const [title, setTitle] = useState(start?.title ?? guess?.title ?? preTitle?.trim() ?? "");
+  const [composer, setComposer] = useState(o ? meta(o.raw).composer : guess ? guess.composer : account?.name ?? "");
+  const [style, setStyle] = useState(start?.style || guess?.style || "Medium Swing");
+  const [key, setKey] = useState(start?.key || guess?.key || "C");
+  const [tempo, setTempo] = useState(start?.tempo ? String(start.tempo) : guess?.tempo ? String(guess.tempo) : "");
+  const [ts, setTs] = useState(start?.bars[0] ? start.bars[0].ts.num + "/" + start.bars[0].ts.den : guess?.sections[0]?.ts ?? "4/4");
   const [vis, setVis] = useState<string>(o ? (o.visibility === "band" ? "band:" + o.bandId : o.visibility) : bandId ? "bands" : "private");
   const [bands, setBands] = useState<Band[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [dropSheet, setDropSheet] = useState(false);
-  const [edit, setEdit] = useState<EditSection[]>(() => start?.bars.length ? toEdit(sectionsFromBars(start.bars)) : [blankSection("A", "4/4")]);
+  const [edit, setEdit] = useState<EditSection[]>(() => start?.bars.length ? toEdit(sectionsFromBars(start.bars)) : guess?.sections.length ? toEdit(guess.sections) : [blankSection("A", "4/4")]);
   const [problems, setProblems] = useState<string[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [reading, setReading] = useState(false);
@@ -133,10 +135,14 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
     const raw = encodeChart({ title: name, composer: storeComposer(composer), style, key, tempo: t >= 30 && t <= 400 ? t : undefined, sections: r.sections });
     setPct(0);
     try {
-      const saved = o
+      let saved = o
         ? await store.updateOriginal(o, { raw, visibility, bandId }, file ?? (dropSheet ? "remove" : undefined))
         : await store.createOriginal({ raw, visibility, bandId }, file, setPct);
       putOriginal(saved);
+      if (recording) {
+        try { saved = await store.setOriginalRecording(saved, recording, setPct); putOriginal(saved); }
+        catch (er) { toast(msg(er, "The song is saved, but its recording couldn't upload.")); }
+      }
       onSaved(saved);
     } catch (er) { toast(msg(er, "Couldn't save that song.")); setPct(null); }
   };
@@ -206,6 +212,7 @@ export function NewSong({ o, title: preTitle, bandId, mode = "manual", onClose, 
             {vis.startsWith("band:") && <option value={vis}>Only {bands.find(b => "band:" + b.id === vis)?.name || "one band"}</option>}
           </select>
         </label>
+        {recording && <p className="hint"><Icon name="music" size={14} /> {recording.name} is added as the song&apos;s recording when you save.</p>}
         <ChartEditor value={edit} onChange={setEdit} ts={ts} ai={{ ready: !!sheetName, busy: aiBusy, run: makeChart }} />
         {problems.length > 0 && <ul className="field-err" role="alert">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
         {pct !== null && file && <progress max={1} value={pct} aria-label="Uploading" />}
@@ -318,6 +325,7 @@ export function OriginalRecording({ o, readOnly }: { o: OriginalSong; readOnly?:
           <span className="name"><span className="eyebrow">{o.mine ? "Your recording" : "Recording by " + o.ownerName}</span> {o.recording.name}</span>
           <span className="orig-rec-row">
             <audio controls preload="none" src={url ?? undefined} aria-label={"Recording of " + o.title} />
+            {url && <TranscribeButton source={{ kind: "file", name: o.recording.name, url }} />}
             {manage && <MenuButton className="btn icon-btn small" caret={false} ariaLabel="More for the recording" label="⋯" items={[
               { label: <><Icon name="upload" size={16} /> Replace</>, onClick: () => input.current?.click() },
               { label: <><Icon name="trash" size={16} /> Remove</>, onClick: () => setRemoving(true) },

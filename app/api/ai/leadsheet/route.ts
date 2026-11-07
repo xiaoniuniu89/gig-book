@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { AiError, isConfigured } from "@/lib/ai/draft";
-import { MAX_AI_FILE, parseLeadSheet, readLeadSheet } from "@/lib/ai/leadsheet";
+import { MAX_AI_FILE, parseLeadSheet, readLeadSheet, type LeadSheetSource } from "@/lib/ai/leadsheet";
+import { openSheetLink } from "@/lib/ai/sheetLink";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// POST /api/ai/leadsheet  { pdf } | { image, mime }  ->  { chart: { sections, key, tempo, errors } }
+// POST /api/ai/leadsheet  { pdf } | { image, mime } | { url }  ->  { chart: { sections, key, tempo, errors } }
 // Needs "Authorization: Bearer <supabase access token>". Claims one daily Niu AI request (ai_claim). Nothing sent is stored.
 // The answer is checked here (chords parse, bars fit the time signature); `errors` lists what failed and the page must not save then.
 export async function POST(req: NextRequest) {
@@ -21,7 +22,13 @@ export async function POST(req: NextRequest) {
   if (Number(req.headers.get("content-length") || 0) > MAX_AI_FILE * 1.4 + 2000) return NextResponse.json({ error: "That file is too big for AI to read." }, { status: 413 });
   let body: unknown = null;
   try { body = await req.json(); } catch { /* handled below */ }
-  const src = parseLeadSheet(body);
+  const link = (body as { url?: unknown } | null)?.url;
+  let src: LeadSheetSource | null;
+  if (typeof link === "string") {
+    // opened before the claim: a link with nothing to read shouldn't cost a request
+    try { src = await openSheetLink(link); }
+    catch (e) { return NextResponse.json({ error: e instanceof AiError ? e.message : "Couldn't open that link." }, { status: e instanceof AiError ? e.status : 502 }); }
+  } else src = parseLeadSheet(body);
   if (!src) return NextResponse.json({ error: "Bad request." }, { status: 400 });
 
   const { error: ce } = await sb.rpc("ai_claim");

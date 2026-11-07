@@ -2,7 +2,11 @@
 import type { Settings } from "../settings";
 import type { Hit, Feels } from "../hits";
 
-export interface Version { uri: string; name: string; artists: string }
+export interface Version {
+  uri: string; name: string; artists: string;
+  /** YouTube only: play just this part of a long video, in seconds. */
+  start?: number; end?: number;
+}
 
 export interface SetlistItem {
   id: string;

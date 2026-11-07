@@ -2,7 +2,7 @@
 // The listener's own YouTube session decides about ads; the embed needs nothing from us.
 
 interface YTPlayerApi {
-  loadVideoById(id: string): void;
+  loadVideoById(id: string | { videoId: string; startSeconds?: number; endSeconds?: number }): void;
   cueVideoById(id: string): void;
   playVideo(): void;
   pauseVideo(): void;
@@ -50,16 +50,17 @@ export class YtPlayer {
   constructor(el: HTMLElement) { this.el = el; }
   on(fn: (ev: YtEvent) => void) { this.handler = fn; }
 
-  async load(id: string, play = true) {
+  /** `start` and `end` (seconds) play just part of the video; it counts as ended at `end`. */
+  async load(id: string, play = true, start?: number, end?: number) {
     const YT = await loadApi();
-    if (this.p) { if (play) this.p.loadVideoById(id); else this.p.cueVideoById(id); return; }
+    if (this.p) { if (play) this.p.loadVideoById(start || end ? { videoId: id, startSeconds: start, endSeconds: end } : id); else this.p.cueVideoById(id); return; }
     await new Promise<void>(resolve => {
       const target = document.createElement("div");
       this.el.innerHTML = ""; this.el.appendChild(target);
       // at least 200x200, inline on iPhone, nothing drawn over the video
       this.p = new YT.Player(target, {
         width: "100%", height: 220, videoId: id,
-        playerVars: { playsinline: 1, rel: 0, autoplay: play ? 1 : 0, origin: location.origin },
+        playerVars: { playsinline: 1, rel: 0, autoplay: play ? 1 : 0, origin: location.origin, ...(start ? { start: Math.floor(start) } : {}), ...(end ? { end: Math.floor(end) } : {}) },
         events: {
           onReady: () => resolve(),
           onStateChange: e => { if (e.data === 0) this.handler({ type: "ended" }); else if (e.data === 1) this.handler({ type: "playing" }); else if (e.data === 2) this.handler({ type: "paused" }); },

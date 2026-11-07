@@ -2,6 +2,15 @@
 // New features only: no entry for bug fixes or small tweaks (musicians don't care about those).
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-24",
+    items: [
+      "A Transcribe button on recordings: from the YouTube player, a song's recording, or audio on a note, open it straight in the slow-down and loop tool.",
+      "Paste a YouTube link right on a tune's Recordings to attach it, including on a song someone else added.",
+      "Long concert video? Set a start and end on a saved YouTube recording (the clock button) and it plays just that part.",
+      "Work in progress: Find a lead sheet in the Library. Name a song or paste a YouTube link, Niu AI searches the web, you pick a result and it drafts the chart for you to check.",
+    ],
+  },
+  {
     date: "2026-11-23",
     items: [
       "Work in progress: draft a setlist from a list. Add a photo, screenshot or PDF of songs, like a handwritten note, and Niu AI finds them in your library.",
