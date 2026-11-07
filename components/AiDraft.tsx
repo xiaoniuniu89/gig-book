@@ -9,6 +9,7 @@ import { prettyKey } from "@/lib/songs";
 import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
+import { Modal } from "./Modal";
 
 interface Row { tune: LibTune; reason: string }
 
@@ -44,6 +45,7 @@ export function AiDraft() {
   // a list to read: kept in memory only, sent with the request, never saved
   const [file, setFile] = useState<File | null>(null);
   const fileIn = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
   const prompt = [
     gig.length && `Gig: ${gig.join(", ")}.`,
@@ -119,15 +121,12 @@ export function AiDraft() {
           <textarea rows={3} maxLength={400} value={extra} onChange={e => setExtra(e.target.value)} />
         </label>
         <div className="ai-q">
-          <input ref={fileIn} type="file" accept="image/*,application/pdf,.pdf" hidden aria-label="Add a list" onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ""; }} />
           <span className="row-btns">
             {file
               ? <><span className="hint">{file.name}</span><button className="btn small" type="button" disabled={busy} onClick={() => setFile(null)}><Icon name="close" size={16} /> Remove</button></>
-              : <button className="btn small" type="button" onClick={() => fileIn.current?.click()}><Icon name="upload" size={16} /> Add a list</button>}
-            <Info label="About adding a list">A photo, screenshot or PDF of a list of songs, like a handwritten note from your pianist. Niu AI finds those songs in your library, in the same order, and tells you which ones it couldn&apos;t find. We don&apos;t save the file.</Info>
+              : <button className="btn small" type="button" onClick={() => setUploading(true)}><Icon name="upload" size={16} /> Create from an upload</button>}
             <span className="stamp wip">Work in progress</span>
           </span>
-          {file && <AiNote what="your file">We don&apos;t save it.</AiNote>}
         </div>
         <details className="ai-more">
           <summary>More options{chosen > 0 && <span className="hint"> ({chosen} picked)</span>}</summary>
@@ -146,6 +145,15 @@ export function AiDraft() {
           {left !== null && <span className="hint">{left === 0 ? "No drafts left today. You get more tomorrow." : `${left} draft${left === 1 ? "" : "s"} left today`}</span>}
         </div>
       </form>
+      <Modal open={uploading} title="Create from an upload" onClose={() => setUploading(false)}>
+        <div className="chart-form">
+          <p className="hint">Upload a list of songs, like a handwritten note from your pianist. Niu AI finds them in your library, in the same order, and tells you which ones it couldn&apos;t find.</p>
+          <p><b>You can upload:</b> a photo or screenshot (JPG or PNG), or a PDF up to 3 MB.</p>
+          <AiNote what="your file">We don&apos;t save it.</AiNote>
+          <input ref={fileIn} type="file" accept="image/*,application/pdf,.pdf" hidden aria-label="Choose a file" onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ""; setUploading(false); }} />
+          <div className="row-btns"><button className="btn primary" type="button" onClick={() => fileIn.current?.click()}><Icon name="upload" size={18} /> Choose a file</button></div>
+        </div>
+      </Modal>
       {err && <p className="flag" role="alert">{err}</p>}
       {rows && (
         <div className="ai-review">

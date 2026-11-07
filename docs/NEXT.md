@@ -22,7 +22,7 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 - **Paste a link on the Saved tab** of Recordings attaches it at once (when you can edit the setlist or arrangement).
 
 ## Draft a setlist from a list (2026-11-07, released, marked Work in progress)
-- Niu AI page: a box to type in, **Add a list** (photo, screenshot or PDF, kept in memory, sent with the request, never stored), and More options holding the chips. No tune count is sent unless picked; the AI defaults to about 10.
+- Niu AI page: a box to type in, **Create from an upload** (photo, screenshot or PDF, kept in memory, sent with the request, never stored), and More options holding the chips. No tune count is sent unless picked; the AI defaults to about 10.
 - With a file the AI matches the songs on it to the library in written order, and returns `missing` for ones it can't match. Limits go up with a file: 2500 library tunes, 60 picks. Without a file the old 600-tune cut still applies (alphabetical, so a big library loses the end of the alphabet: worth fixing).
 - Tested for real: a rendered handwriting-style image and PDF through `draftSetlist`, and the page and route end to end on the dev database. Not tried: a real phone photo, or a big imported library.
 - What's new line at release: "Draft a setlist from a list: add a photo, screenshot or PDF of songs, like a handwritten note, and Niu AI finds them in your library."

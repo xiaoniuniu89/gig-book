@@ -35,6 +35,19 @@ describe("ai limits", () => {
     expect(count).toBe(per_user);
   });
 
+  it("a site admin has no limit and records nothing; nobody can see or join the list", async () => {
+    expect((await M.ava.sb.from("site_admins").insert({ user_id: USERS.ava.id })).error).toBeTruthy();
+    expect((await M.ava.sb.from("site_admins").select("user_id")).error).toBeTruthy();
+    await clear();
+    must(await admin().from("site_admins").insert({ user_id: USERS.ava.id }));
+    try {
+      expect(must(await M.ava.sb.rpc("ai_remaining"))).toBeNull();
+      expect(must(await M.ava.sb.rpc("ai_claim"))).toBeNull();
+      const { count } = await admin().from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", USERS.ava.id);
+      expect(count).toBe(0);
+    } finally { await admin().from("site_admins").delete().eq("user_id", USERS.ava.id); }
+  });
+
   it("signed out can't claim", async () => {
     expect((await anon().rpc("ai_claim")).error).toBeTruthy();
     expect((await anon().from("ai_usage").insert({ user_id: USERS.ava.id })).error).toBeTruthy();
