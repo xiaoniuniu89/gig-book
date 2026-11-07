@@ -8,17 +8,15 @@ import { AiNote } from "./AiNote";
 import { Icon } from "./Icon";
 import { Info } from "./Info";
 import { Modal } from "./Modal";
-import { MenuButton } from "./MenuButton";
 import { ConfirmTyped } from "./ConfirmTyped";
 import { PdfPages } from "./PdfPages";
 import { ChartEditor, blankSection, fromEdit, toEdit, type EditSection } from "./ChartEditor";
 import { chartFromLeadSheet, type ChartGuess } from "@/lib/ai/leadsheetClient";
-import { TranscribeButton } from "./TranscribeButton";
-import { Recorder } from "./Attachments";
+import { RecordingList } from "./RecordingList";
 import { defaultTempo } from "@/lib/band/gen";
 import { encodeChart, sectionsFromBars, SONG_STYLES, TIME_SIGS } from "@/lib/irealExport";
 import { meta, prettyKey, song } from "@/lib/songs";
-import { MAX_LEAD_SHEET_MB, MAX_RECORDING_MB, MAX_SONG_RECORDINGS, attachmentKind, type Band, type OriginalSong, type RecordingFile, type OriginalVisibility } from "@/lib/data/types";
+import { MAX_LEAD_SHEET_MB, attachmentKind, type Band, type OriginalSong, type OriginalVisibility } from "@/lib/data/types";
 
 const ACCEPT = "application/pdf,image/*";
 const STYLES: readonly string[] = SONG_STYLES;
@@ -292,85 +290,16 @@ export function EditSongButton({ o }: { o: OriginalSong }) {
   </>;
 }
 
-/** One recording: play it, send it to Transcribe and, on the Upload tab, remove it. */
-function RecordingRow({ o, rec, manage, onRemove }: { o: OriginalSong; rec: RecordingFile; manage: boolean; onRemove: () => void }) {
-  const { store } = useApp();
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let live = true;
-    setUrl(null); setFailed(false);
-    store.originalRecordingUrl(rec).then(u => { if (live) setUrl(u); }, () => { if (live) setFailed(true); });
-    return () => { live = false; };
-  }, [store, rec]);
-  // links last an hour: on a page left open, get a new one; if it's the same link, the browser really can't play it
-  const onError = async () => {
-    if (!url) return;
-    const u = await store.originalRecordingUrl(rec).catch(() => url);
-    if (u === url) setFailed(true); else setUrl(u);
-  };
-  return (
-    <div className="orig-rec">
-      <span className="name"><span className="eyebrow">{o.mine ? "Your recording" : "Recording by " + o.ownerName}</span> {rec.name}</span>
-      <span className="orig-rec-row">
-        <audio controls preload="none" src={url ?? undefined} aria-label={"Recording of " + o.title + ": " + rec.name} onError={() => void onError()} />
-        {url && <TranscribeButton source={{ kind: "file", name: rec.name, url }} />}
-        {manage && <MenuButton className="btn icon-btn small" caret={false} ariaLabel={"More for " + rec.name} label="⋯" items={[
-          { label: <><Icon name="trash" size={16} /> Remove</>, onClick: onRemove },
-        ]} />}
-      </span>
-      {failed && <p className="flag" role="alert">This recording won&apos;t play here. {url && <a href={url} download={rec.name}>Download it</a>}</p>}
-    </div>
-  );
-}
-
 /** An original's own recordings (there are none on Spotify or YouTube to find). `readOnly`: just the players (the Saved tab); the Upload tab adds and removes them. */
 export function OriginalRecordings({ o, readOnly }: { o: OriginalSong; readOnly?: boolean }) {
-  const { store, toast, putOriginal } = useApp();
-  const [status, setStatus] = useState<string | null>(null);
-  const [removing, setRemoving] = useState<RecordingFile | null>(null);
-  const [recording, setRecording] = useState(false);
-  const canRecord = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
-  const input = useRef<HTMLInputElement>(null);
+  const { store, putOriginal } = useApp();
+  const latest = useRef(o); latest.current = o;
   const manage = o.mine && !readOnly;
-  const full = o.recordings.length >= MAX_SONG_RECORDINGS;
-  const upload = async (files: File[]) => {
-    let now = o, done = 0;
-    try {
-      for (const f of files) {
-        const label = files.length > 1 ? `Uploading ${done + 1} of ${files.length}…` : "Uploading…";
-        setStatus(label + " 0%");
-        now = await store.addOriginalRecording(now, f, p => setStatus(`${label} ${Math.round(p * 100)}%`));
-        putOriginal(now);
-        done++;
-      }
-      toast(done > 1 ? `${done} recordings saved.` : "Recording saved.");
-    } catch (e) { toast(e instanceof Error ? e.message : "Couldn't save the recording."); }
-    finally { setStatus(null); }
-  };
-  const remove = async (rec: RecordingFile) => {
-    try { putOriginal(await store.removeOriginalRecording(o, rec)); toast("Recording removed."); }
-    catch (e) { toast(e instanceof Error ? e.message : "Couldn't remove the recording."); }
-  };
   if (!o.recordings.length && !manage) return null;
-  return <>
-    {o.recordings.map(r => <RecordingRow key={r.path} o={o} rec={r} manage={manage} onRemove={() => setRemoving(r)} />)}
-    {manage && (
-      <div className="orig-rec">
-        <input ref={input} type="file" multiple accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ""; if (f.length) void upload(f); }} />
-        {status ? <p className="hint" role="status">{status}</p>
-          : recording ? <Recorder onCancel={() => setRecording(false)} onDone={f => { setRecording(false); void upload([f]); }} />
-          : <span className="orig-rec-row">
-            <button className="btn" disabled={full} onClick={() => input.current?.click()}><Icon name="upload" size={16} /> Upload {o.recordings.length ? "another recording" : "a recording"}</button>
-            {canRecord && <button className="btn" disabled={full} onClick={() => setRecording(true)}><Icon name="music" size={16} /> Record</button>}
-            <Info label="About recordings">MP3, M4A or WAV, up to {MAX_RECORDING_MB} MB each and {MAX_SONG_RECORDINGS} on a song. Whoever can see the song can play them.</Info>
-          </span>}
-        {full && !status && <p className="hint">That&apos;s the most a song can have. Remove one to add another.</p>}
-      </div>
-    )}
-    <ConfirmTyped open={!!removing} title="Remove the recording" action="Remove recording" onClose={() => setRemoving(null)}
-      onConfirm={async () => { if (removing) await remove(removing); setRemoving(null); }}>
-      {removing?.name} is deleted. You can upload it again later.
-    </ConfirmTyped>
-  </>;
+  return <RecordingList items={o.recordings} title={o.title} about="Whoever can see the song can play them."
+    by={() => o.mine ? "Your recording" : "Recording by " + o.ownerName}
+    url={r => store.originalRecordingUrl(r)}
+    canRemove={() => true}
+    onAdd={manage ? async (f, p) => { const n = await store.addOriginalRecording(latest.current, f, p); latest.current = n; putOriginal(n); } : undefined}
+    onRemove={manage ? async r => putOriginal(await store.removeOriginalRecording(latest.current, r)) : undefined} />;
 }

@@ -408,6 +408,8 @@ export type OriginalVisibility = "private" | "band" | "bands" | "public";
 export interface RecordingFile { path: string; name: string; mime: string; size: number }
 export const MAX_RECORDING_MB = 25;
 export const MAX_SONG_RECORDINGS = 10;
+/** A recording someone added to a tune on one setlist. */
+export interface TuneRecording extends RecordingFile { ownerName: string; mine: boolean }
 export interface LeadSheetFile { path: string; kind: "pdf" | "image"; name: string; mime: string; size: number }
 export interface OriginalSong {
   id: string;
@@ -565,6 +567,13 @@ export interface DataStore {
   deleteOriginal(o: OriginalSong): Promise<void>;
   /** A temporary link to the lead sheet. */
   originalLeadSheetUrl(o: OriginalSong): Promise<string>;
+  /** The recordings on this setlist's copy of a tune, oldest first (local mode: none). */
+  listTuneRecordings(setlistId: string, songKey: string): Promise<TuneRecording[]>;
+  /** Anyone who can edit the setlist. At most MAX_SONG_RECORDINGS on a tune. */
+  addTuneRecording(setlistId: string, songKey: string, file: File, onProgress?: (p: number) => void): Promise<TuneRecording>;
+  /** The person who added it, or the setlist's owner. */
+  removeTuneRecording(rec: TuneRecording): Promise<void>;
+  tuneRecordingUrl(rec: TuneRecording): Promise<string>;
   /** Owner only: adds a recording to the song, at most MAX_SONG_RECORDINGS. Counts toward the daily uploads. */
   addOriginalRecording(o: OriginalSong, file: File, onProgress?: (p: number) => void): Promise<OriginalSong>;
   /** Owner only. */

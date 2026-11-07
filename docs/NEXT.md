@@ -12,7 +12,10 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 
 ## Several recordings on an original (2026-11-07, released)
 - `original_recordings` (0053) holds up to 10 per song; Upload tab has Upload and Record. Listen on a song with uploads points at them instead of searching YouTube.
-- Still to do: drop the empty `recording_*` columns on `original_songs` in a new migration. Only a song's owner can upload, so bandmates have nowhere obvious for a recording on a setlist tune.
+- Still to do: drop the empty `recording_*` columns on `original_songs` in a new migration.
+- `setlist_recordings` (0054): anyone who can edit a setlist adds recordings to its tunes (Recordings → Upload), kept to that setlist. The Listen tab's hint only knows about originals' uploads.
+- A note can now be just a file (it was refused with "Write a note first"). Phones get a Recordings button on the tune page, because the drawer is shut there.
+- Check: CI e2e failed on 2e1313c with React hydration error #418 (home, licks, band access). Not reproduced on a production build locally.
 
 ## Recordings and lead sheets (2026-11-07, released)
 - **Find a lead sheet** (Library, Work in progress): `components/FindLeadSheet.tsx`, `lib/ai/leadsheetSearch.ts`, `app/api/ai/leadsheet-search`, `lib/ai/sheetLink.ts`. It never listens to audio: the song name, YouTube title or MP3 file name is searched via OpenRouter's web plugin. The player picks a result and presses Generate; `/api/ai/leadsheet { url }` opens it (public addresses only, 3 MB) and reads a PDF, an image, a PDF linked on the page, or the page text. The sheet isn't kept. An MP3 is kept only if the song is saved. A YouTube link isn't attached to the new song yet.

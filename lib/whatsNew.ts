@@ -5,6 +5,7 @@ export const WHATS_NEW: { date: string; items: string[] }[] = [
     date: "2026-11-26",
     items: [
       "Your original songs can have up to 10 recordings: upload several takes or record one on your phone under Recordings, and everyone who can see the song can play them.",
+      "Add a recording to any tune on a setlist you can edit: open the tune, then Recordings → Upload. Upload a file or record on your phone, and everyone who can see the setlist can play it.",
     ],
   },
   {

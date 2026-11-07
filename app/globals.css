@@ -367,6 +367,9 @@ span.chip { display: inline-block; padding: 2px 8px; }
 .orig-rec-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .orig-rec-row audio { flex: 1 1 100%; min-width: 0; height: 36px; }
 .orig-rec-row .more-panel { left: 0; right: auto; }
+/* on a phone the drawer is shut, so the tune page needs its own way to Recordings */
+.btn.phone-only { display: none; }
+@media (max-width: 900px) { .btn.phone-only { display: inline-flex; } }
 .dock-slot { display: grid; gap: 16px; }
 .dock-slot:not(:empty) { border-top: 1px solid var(--rule); padding-top: 16px; }
 .dock-slot .panel { padding: 0; border: 0; background: none; }

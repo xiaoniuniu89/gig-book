@@ -88,6 +88,7 @@ const trFields = (f: TranscriptionFields) => ({
 });
 const LEADSHEET_BUCKET = "leadsheets";
 const RECORDING_BUCKET = "original-recordings";
+const TUNE_RECORDING_BUCKET = "setlist-recordings";
 interface OriginalRow {
   id: string; owner: string; raw: string; title: string; composer: string; visibility: "private" | "band" | "public"; band_id: string | null;
   lead_sheet_path: string | null; lead_sheet_kind: "pdf" | "image" | null; lead_sheet_name: string | null; lead_sheet_mime: string | null; lead_sheet_size: number | null;
@@ -387,6 +388,9 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     },
 
     async deleteSetlist(id) {
+      // the rows go with the setlist, so take the files first while the storage rule can still find them
+      const { data: recs } = await sb.from("setlist_recordings").select("path").eq("setlist_id", id);
+      if (recs?.length) await sb.storage.from(TUNE_RECORDING_BUCKET).remove(recs.map(r => r.path as string));
       const { error } = await sb.from("setlists").delete().eq("id", id);
       if (error) fail("delete the setlist", error);
     },
@@ -966,6 +970,41 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async originalLeadSheetUrl(o) {
       if (!o.leadSheet) throw new Error("This song has no lead sheet.");
       return signedUrl(LEADSHEET_BUCKET, o.leadSheet.path, "open the lead sheet");
+    },
+
+    async listTuneRecordings(setlistId, key) {
+      if (!UUID.test(setlistId)) return [];
+      const { data, error } = await sb.from("setlist_recordings").select("owner, path, name, mime, size").eq("setlist_id", setlistId).eq("song_key", key).order("created_at");
+      if (error) fail("load the recordings", error);
+      const rows = (data || []) as { owner: string; path: string; name: string; mime: string; size: number }[];
+      const nm = await namesOf(rows.map(r => r.owner));
+      return rows.map(r => ({ path: r.path, name: r.name, mime: r.mime, size: Number(r.size) || 0, ownerName: nm.get(r.owner) || "Member", mine: r.owner === userId }));
+    },
+
+    async addTuneRecording(setlistId, key, file, onProgress) {
+      if (attachmentKind(file.type, file.name) !== "audio") throw new Error("That isn't an audio file. Try an MP3, M4A or WAV.");
+      if (file.size > MAX_RECORDING_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_RECORDING_MB} MB.`);
+      const rec = { path: `${userId}/${setlistId}/${newUuid()}-${safeName(file.name)}`, name: file.name.slice(0, 300), mime: mimeOf(file), size: file.size };
+      const { error } = await sb.from("setlist_recordings").insert({ setlist_id: setlistId, song_key: key, ...rec });
+      if (error) {
+        if (/uploads today|already has/.test(error.message)) throw new Error(error.message);
+        fail("save the recording", error);
+      }
+      try { await putFile(TUNE_RECORDING_BUCKET, rec.path, file, rec.mime, onProgress); }
+      catch (e) { await sb.from("setlist_recordings").delete().eq("path", rec.path); throw e; }
+      return { ...rec, ownerName: "You", mine: true };
+    },
+
+    async removeTuneRecording(rec) {
+      // file first: the setlist owner's storage rule needs the row to still be there
+      await sb.storage.from(TUNE_RECORDING_BUCKET).remove([rec.path]);
+      const { data, error } = await sb.from("setlist_recordings").delete().eq("path", rec.path).select("id");
+      if (error) fail("remove the recording", error);
+      if (!data?.length) throw new Error("Couldn't remove that recording: it isn't yours to remove.");
+    },
+
+    async tuneRecordingUrl(rec) {
+      return signedUrl(TUNE_RECORDING_BUCKET, rec.path, "play the recording");
     },
 
     async addOriginalRecording(o, file, onProgress) {

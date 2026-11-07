@@ -44,7 +44,8 @@ function Compose({ label, placeholder, tags, attach, initial, cta, onSubmit, onC
   useEffect(() => { onDirty?.(!!body.trim() || files.length > 0); }, [body, files, onDirty]);
   const submit = async () => {
     if (busy) return;
-    const v = body.trim();
+    // a file on its own is a fine note: it's named after the file
+    const v = body.trim() || files.map(f => f.name).join(", ").slice(0, 10000);
     if (!v) { setErr("Write a note first."); return; }
     setErr("");
     setBusy(true);
