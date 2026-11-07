@@ -2,6 +2,17 @@
 // New features only: no entry for bug fixes or small tweaks (musicians don't care about those).
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-25",
+    items: [
+      "Choose your updates: tick Tell me about updates on a gig or band, or turn it on for everything in Settings → Notifications, and the bell tells you when details, setlists, notes or files change. It's off until you turn it on.",
+      "Importing from iReal Pro now adds the playlist to your library straight away. Making a setlist from it is an extra button.",
+      "The Library opens on a new All tab with every tune in one list, and remembers the tab you last used.",
+      "Find a lead sheet is now on every song without one: see what's out there, and if the song has no chords yet, generate its iReal chart.",
+      "Share a library playlist: open it and press Share, set who can see it, and send the link. They can add their own copy to their library.",
+      "A song with a lead sheet but no chords can get its iReal chart: anyone on the gig can make one for the setlist, and the song's owner can save it on the song too. Gig editors can turn this off for a gig.",
+    ],
+  },
+  {
     date: "2026-11-24",
     items: [
       "A Transcribe button on recordings: from the YouTube player, a song's recording, or audio on a note, open it straight in the slow-down and loop tool.",

@@ -101,7 +101,9 @@ export interface Note {
   updatedAt: string;
 }
 
-export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note" | "added_to_band" | "note_in_band" | "added_to_gig";
+export type NotificationKind = "added_to_setlist" | "note_on_setlist" | "reply_to_note" | "added_to_band" | "note_in_band" | "added_to_gig" | "gig_update" | "band_update";
+/** What changed, on a gig_update or band_update. */
+export type UpdateWhat = "details" | "setlist" | "note" | "file" | "chart";
 
 export interface AppNotification {
   id: string;
@@ -117,6 +119,7 @@ export interface AppNotification {
   gigTitle: string;
   /** Setlist item (a tune) the note is on, when it's on a tune. */
   itemId: string | null;
+  what?: UpdateWhat;
   actorName: string;
   read: boolean;
   createdAt: string;
@@ -279,8 +282,10 @@ export interface Gig {
   mine: boolean;
   /** You made it, or you're an admin of its band. */
   canEdit: boolean;
+  /** People on the gig can make iReal charts for its setlists. */
+  lineupCharts: boolean;
 }
-export interface GigFields { title: string; date: string; time: string; venue: string; address: string; schedule: string; notes: string; bandId: string | null }
+export interface GigFields { title: string; date: string; time: string; venue: string; address: string; schedule: string; notes: string; bandId: string | null; lineupCharts?: boolean }
 /** A setlist on a gig. `mine` = you own it (so you can edit it). */
 export interface GigSetlist { id: string; name: string; tunes: number; mine: boolean; ownerName: string }
 /** A gig a setlist is on. */
@@ -450,6 +455,8 @@ export const VERSION_DAILY_LIMIT = 10;
 export const CHART_NAMES = ["Lead sheet", "Intro", "Outro", "Arrangement", "Bass part", "Horn parts"] as const;
 
 export interface LibraryPlaylist { id: string; name: string; songs: string[] }
+/** A library playlist opened by its link. */
+export interface SharedPlaylist extends LibraryPlaylist { ownerName: string; mine: boolean; visibility: Visibility }
 
 /** A fresh id for a setlist item (a UUID, so Supabase keeps it). */
 /** Most sets a setlist can have (the database allows up to 9). */
@@ -493,6 +500,14 @@ export interface DataStore {
   copyNote(noteId: string, to: NoteHome): Promise<void>;
   /** Your 50 newest notifications (accounts only; local mode has none). */
   listNotifications(): Promise<AppNotification[]>;
+  /** Your opt-ins for updates in the bell: everything you're on, or one gig or band at a time. */
+  listUpdateSubs(): Promise<{ all: boolean; gigs: string[]; bands: string[] }>;
+  /** No target: everything you're on. */
+  setUpdateSub(target: { gigId?: string; bandId?: string }, on: boolean): Promise<void>;
+  /** You can make an iReal chart for this setlist's tunes: you can edit it, or you're on a gig it's on. */
+  canChartSetlist(setlistId: string): Promise<boolean>;
+  /** Replaces the chart on one tune in a setlist (`itemId`: its database id). The title and composer have to stay the same. */
+  setItemChart(setlistId: string, itemId: string, raw: string): Promise<void>;
   /** Mark the given notifications read, or all of yours when no ids are given. */
   markNotificationsRead(ids?: string[]): Promise<void>;
   /** Files on the given notes. Empty in local mode. */
@@ -679,6 +694,9 @@ export interface DataStore {
   listLibrary(): Promise<LibraryPlaylist[]>;
   saveLibraryPlaylist(p: LibraryPlaylist): Promise<void>;
   deleteLibraryPlaylist(id: string): Promise<void>;
+  /** A playlist you own or that's shared with you; null if you can't see it. */
+  getSharedPlaylist(id: string): Promise<SharedPlaylist | null>;
+  setLibraryVisibility(id: string, visibility: Visibility): Promise<void>;
 }
 
 export const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "set";

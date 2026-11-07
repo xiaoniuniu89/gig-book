@@ -23,5 +23,7 @@ export const withBuiltins = (own: Setlist[]): Setlist[] =>
 
 /** Built into every library and never stored: core jazz standards, charts from the iReal Pro forum's Jazz 1460 playlist. */
 /** The library playlist made from your original songs (R16); it is never stored as a playlist. */
+/** localStorage: the Library tab you last chose. */
+export const LIBRARY_TAB_KEY = "gigbook-library-tab";
 export const ORIGINALS_ID = "originals";
 export const BUILTIN_LIBRARY: LibraryPlaylist = { id: "jazz-essentials", name: "Jazz Essentials", songs: standards as string[] };

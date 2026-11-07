@@ -41,8 +41,9 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
     title: gig?.title ?? "", date: gig?.date ?? "", time: gig?.time ?? "", venue: gig?.venue ?? "", address: gig?.address ?? "",
     schedule: gig?.schedule ?? "", notes: gig?.notes ?? "", bandId: gig?.band?.id ?? bandId ?? "",
   });
+  const [lineupCharts, setLineupCharts] = useState(gig?.lineupCharts ?? true);
   const [init] = useState(f);
-  const dirty = JSON.stringify(f) !== JSON.stringify(init);
+  const dirty = JSON.stringify(f) !== JSON.stringify(init) || lineupCharts !== (gig?.lineupCharts ?? true);
   const [bands, setBands] = useState<Band[]>([]);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(x => ({ ...x, [k]: e.target.value }));
@@ -77,7 +78,7 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
     if (!f.date) { toast("Pick a date."); return; }
     setBusy(true);
     try {
-      const fields = { ...f, bandId: f.bandId || null };
+      const fields = { ...f, bandId: f.bandId || null, lineupCharts };
       if (gig) { await store.updateGig(gig.id, fields); onSaved((await store.getGig(gig.id)) ?? gig); }
       else {
         const g = await store.createGig(fields);
@@ -126,6 +127,7 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
             {bands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </label>
+        <label className="toggle"><input type="checkbox" checked={lineupCharts} onChange={e => setLineupCharts(e.target.checked)} /> People on this gig can make iReal charts <Info label="About making charts">When a song on the gig&apos;s setlists has a lead sheet but no chords, anyone on the gig can make its iReal chart. It&apos;s saved on the setlist&apos;s copy of the song.</Info></label>
         <div className="row-btns">
           <button className="btn primary" type="submit" disabled={busy}>{busy ? "Saving…" : "Save gig"}</button>
           <button className="btn" type="button" onClick={onClose}>Cancel</button>

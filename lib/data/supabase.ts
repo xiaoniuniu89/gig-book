@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import { plainError } from "../validate";
 import type { Hit, Feels } from "../hits";
-import { MAX_FILE_MB, MAX_LEAD_SHEET_MB, MAX_RECORDING_MB, type OriginalSong,MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
+import { MAX_FILE_MB, MAX_LEAD_SHEET_MB, MAX_RECORDING_MB, type OriginalSong, type UpdateWhat,MAX_PRACTICE_BYTES, type Gig, type GigFields, type GigPerson, type GigPhoto,type Transcription, type TranscriptionFields, MEMBER_NOT_FOUND, attachmentKind, effectivePerms, DEFAULT_BAND_PERMS, type AppNotification, type Arrangement, type Attachment, type Band, type BandCandidate, type BandPerms, type BandRole, type BandShare, type Chart, type DataStore, type TuneVersion, VERSION_DAILY_LIMIT, type Lick, type LickFields, type LibraryPlaylist, type Resource, type ResourceFields, type Member, type Note, type NoteHome, type Profile, type NoteTag, type Role, Setlist, SetlistItem, Version, Visibility } from "./types";
 
 interface SetlistRow {
   id: string;
@@ -41,7 +41,7 @@ interface NoteRow {
 interface NotificationRow {
   id: string;
   kind: AppNotification["kind"];
-  payload: { setlist_id?: string; setlist_name?: string; item_id?: string; band_id?: string; band_name?: string; gig_id?: string; gig_title?: string };
+  payload: { setlist_id?: string; setlist_name?: string; item_id?: string; band_id?: string; band_name?: string; gig_id?: string; gig_title?: string; what?: UpdateWhat };
   actor: string | null;
   read_at: string | null;
   created_at: string;
@@ -153,12 +153,12 @@ const newUuid = () => crypto.randomUUID();
 const mimeOf = (f: File): string => (f.type || "application/octet-stream").split(";")[0].trim();
 interface GigRow {
   id: string; created_by: string; band_id: string | null; title: string; gig_date: string; start_time: string | null;
-  venue: string; address: string; schedule: string; notes: string; bands?: { name: string } | null;
+  venue: string; address: string; schedule: string; notes: string; lineup_can_chart?: boolean; bands?: { name: string } | null;
 }
-const GIG_COLS = "id, created_by, band_id, title, gig_date, start_time, venue, address, schedule, notes, bands(name)";
+const GIG_COLS = "id, created_by, band_id, title, gig_date, start_time, venue, address, schedule, notes, lineup_can_chart, bands(name)";
 const gigCols = (f: GigFields) => ({
   title: f.title.trim(), gig_date: f.date, start_time: f.time.trim() || null, venue: f.venue.trim(), address: f.address.trim(),
-  schedule: f.schedule, notes: f.notes, band_id: f.bandId,
+  schedule: f.schedule, notes: f.notes, band_id: f.bandId, ...(f.lineupCharts === undefined ? {} : { lineup_can_chart: f.lineupCharts }),
 });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -292,7 +292,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     return rows.map(r => ({
       id: r.id, title: r.title, date: r.gig_date, time: r.start_time || "", venue: r.venue, address: r.address, schedule: r.schedule, notes: r.notes,
       band: r.band_id ? { id: r.band_id, name: r.bands?.name || "Band" } : null, createdBy: r.created_by,
-      mine: r.created_by === userId, canEdit: r.created_by === userId || (!!r.band_id && admin.has(r.band_id)),
+      mine: r.created_by === userId, canEdit: r.created_by === userId || (!!r.band_id && admin.has(r.band_id)), lineupCharts: r.lineup_can_chart !== false,
     }));
   };
 
@@ -450,8 +450,39 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
         id: r.id, kind: r.kind, setlistId: r.payload.setlist_id || null, setlistName: r.payload.setlist_name || "a setlist",
         bandId: r.payload.band_id || null, bandName: r.payload.band_name || "a band",
         gigId: r.payload.gig_id || null, gigTitle: r.payload.gig_title || "a gig",
-        itemId: r.payload.item_id || null, actorName: (r.actor && nm.get(r.actor)) || "Someone", read: !!r.read_at, createdAt: r.created_at,
+        itemId: r.payload.item_id || null, what: r.payload.what, actorName: (r.actor && nm.get(r.actor)) || "Someone", read: !!r.read_at, createdAt: r.created_at,
       }));
+    },
+
+    async listUpdateSubs() {
+      const { data, error } = await sb.from("update_subscriptions").select("gig_id, band_id").eq("user_id", userId);
+      if (error) fail("load your updates", error);
+      const rows = (data || []) as { gig_id: string | null; band_id: string | null }[];
+      return { all: rows.some(r => !r.gig_id && !r.band_id), gigs: rows.flatMap(r => r.gig_id ? [r.gig_id] : []), bands: rows.flatMap(r => r.band_id ? [r.band_id] : []) };
+    },
+
+    async setUpdateSub({ gigId, bandId }, on) {
+      if (on) {
+        const { error } = await sb.from("update_subscriptions").insert({ user_id: userId, gig_id: gigId ?? null, band_id: bandId ?? null });
+        if (error && error.code !== "23505") fail("turn on updates", error); // already on is fine
+        return;
+      }
+      let q = sb.from("update_subscriptions").delete().eq("user_id", userId);
+      q = gigId ? q.eq("gig_id", gigId) : q.is("gig_id", null);
+      q = bandId ? q.eq("band_id", bandId) : q.is("band_id", null);
+      const { error } = await q;
+      if (error) fail("turn off updates", error);
+    },
+
+    async canChartSetlist(setlistId) {
+      const { data, error } = await sb.rpc("can_chart_setlist", { p_setlist: setlistId });
+      if (error) fail("check that setlist", error);
+      return !!data;
+    },
+
+    async setItemChart(setlistId, itemId, raw) {
+      const { error } = await sb.rpc("set_item_chart", { p_setlist: setlistId, p_item: itemId, p_raw: raw });
+      if (error) fail("save the chart", error);
     },
 
     async markNotificationsRead(ids) {
@@ -1403,6 +1434,22 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async saveLibraryPlaylist(p: LibraryPlaylist) {
       const { error } = await sb.from("library_playlists").upsert({ id: p.id, owner: userId, name: p.name, songs: p.songs });
       if (error) fail("save to your library", error);
+    },
+
+    async getSharedPlaylist(id) {
+      if (!UUID.test(id)) return null;
+      const { data, error } = await sb.from("library_playlists").select("id, name, songs, owner, visibility").eq("id", id).maybeSingle();
+      if (error) fail("open that playlist", error);
+      if (!data) return null;
+      const r = data as PlaylistRow & { owner: string; visibility: Visibility };
+      const nm = await namesOf([r.owner]);
+      return { id: r.id, name: r.name, songs: r.songs || [], ownerName: nm.get(r.owner) || "A musician", mine: r.owner === userId, visibility: r.visibility };
+    },
+
+    async setLibraryVisibility(id, visibility) {
+      const { data, error } = await sb.from("library_playlists").update({ visibility }).eq("id", id).eq("owner", userId).select("id");
+      if (error) fail("share that playlist", error);
+      if (!data?.length) throw new Error("Couldn't share that playlist: it isn't yours.");
     },
 
     async deleteLibraryPlaylist(id) {

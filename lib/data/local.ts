@@ -178,6 +178,12 @@ export const localStore: DataStore = {
   linkResource: () => Promise.reject(new Error("Resources need an account.")),
   unlinkResource: () => Promise.reject(new Error("Resources need an account.")),
   // bands need an account (the UI hides them in local mode)
+  getSharedPlaylist: async () => null,
+  setLibraryVisibility: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  listUpdateSubs: async () => ({ all: false, gigs: [], bands: [] }),
+  setUpdateSub: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
+  canChartSetlist: async () => false,
+  setItemChart: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),
   listGigs: async () => [],
   getGig: async () => null,
   createGig: () => Promise.reject(new Error(NEEDS_ACCOUNT_GIGS)),

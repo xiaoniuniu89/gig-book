@@ -20,12 +20,19 @@ function Choice<T extends string>({ label, options, value, onPick }: { label: st
 }
 
 export function SettingsView() {
-  const { settings, updateSettings, store, setCrumb, setCurrent } = useApp();
+  const { settings, updateSettings, store, setCrumb, setCurrent, toast } = useApp();
   useEffect(() => { setCurrent(null); setCrumb(null); }, [setCrumb, setCurrent]);
   const signedIn = store.kind === "supabase";
   // one tab per section (signed in, the player lives under Account → Connections, so Music is signed-out only)
-  const TABS = signedIn ? [["look", "Look"], ["email", "Email"], ["ai", "AI"]] as const : [["look", "Look"], ["music", "Music"]] as const;
+  const TABS = signedIn ? [["look", "Look"], ["email", "Notifications"], ["ai", "AI"]] as const : [["look", "Look"], ["music", "Music"]] as const;
   const [tab, setTab] = useState<"look" | "email" | "ai" | "music">("look");
+  const [updatesAll, setUpdatesAll] = useState<boolean | null>(null);
+  useEffect(() => { if (signedIn) store.listUpdateSubs().then(s => setUpdatesAll(s.all), () => {}); }, [signedIn, store]);
+  const pickUpdatesAll = (v: string) => {
+    const on = v === "on", was = updatesAll;
+    setUpdatesAll(on);
+    store.setUpdateSub({}, on).catch(e => { setUpdatesAll(was); toast(e instanceof Error ? e.message : "Couldn't change that."); });
+  };
   return (
     <>
       <div className="page-head" data-tour="settings"><h1>Settings</h1></div>
@@ -65,7 +72,12 @@ export function SettingsView() {
       )}
 
       {signedIn && tab === "email" && (
-        <section className="acct-sec" role="tabpanel" aria-label="Email">
+        <section className="acct-sec" role="tabpanel" aria-label="Notifications">
+          <h2>In the bell</h2>
+          <div className="acct-field">
+            <span>Updates on all my gigs and bands <Info label="About updates">When details, setlists, notes or files change on anything you&apos;re on. Off by default; you can also turn this on for one gig or band, on its page.</Info></span>
+            {updatesAll === null ? <span className="hint">Loading…</span> : <Choice label="Updates on all my gigs and bands" options={ONOFF} value={updatesAll ? "on" : "off"} onPick={pickUpdatesAll} />}
+          </div>
           <h2>Email me when…</h2>
           {([["emailBand", "Someone adds me to a band"], ["emailGig", "Someone puts me on a gig"]] as const).map(([k, label]) => (
             <div className="acct-field" key={k}>

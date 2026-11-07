@@ -72,6 +72,14 @@ export function Bell() {
     if (n.kind === "added_to_gig") return <>{n.actorName} added you to the lineup of <b>{n.gigTitle}</b></>;
     if (n.kind === "added_to_band") return <>{n.actorName} added you to the band <b>{n.bandName}</b></>;
     if (n.kind === "note_in_band") return <>{n.actorName} added a note in <b>{n.bandName}</b></>;
+    if (n.kind === "gig_update" || n.kind === "band_update") {
+      const where = <b>{n.kind === "gig_update" ? n.gigTitle : n.bandName}</b>;
+      if (n.what === "details") return <>{n.actorName} changed the details of {where}</>;
+      if (n.what === "setlist") return <>{n.actorName} added a setlist to {where}</>;
+      if (n.what === "note") return <>{n.actorName} added a note on a setlist in {where}</>;
+      if (n.what === "file") return <>{n.actorName} added a file in {where}</>;
+      return <>{n.actorName} added a chart in {where}</>;
+    }
     const sl = <b>{n.setlistName}</b>;
     if (n.kind === "added_to_setlist") return <>{n.actorName} added you to {sl}</>;
     if (n.kind === "reply_to_note") return <>{n.actorName} replied to your note in {sl}</>;

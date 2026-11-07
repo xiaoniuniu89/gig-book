@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useApp } from "../AppProvider";
+import { UpdatesToggle } from "../UpdatesToggle";
 import { useUploads } from "../Attachments";
 import { Bio } from "../Bio";
 import { PressKit } from "../PressKit";
@@ -91,7 +92,10 @@ export function BandView() {
             <h1>{band.name}{band.role === "admin" && <button className="btn icon-btn rename-btn" aria-label="Rename band" title="Rename" onClick={() => { setDraft(band.name); setRenaming(true); }}><Icon name="edit" /></button>}</h1>
           )}
         </div>
-        {band.chatUrl && <a className="btn" href={band.chatUrl} target="_blank" rel="noopener noreferrer"><Icon name="chat" size={18} /> Band chat</a>}
+        <div className="row-btns">
+          <UpdatesToggle bandId={band.id} />
+          {band.chatUrl && <a className="btn" href={band.chatUrl} target="_blank" rel="noopener noreferrer"><Icon name="chat" size={18} /> Band chat</a>}
+        </div>
       </div>
       <div className="pl-tabs" role="tablist" aria-label="Band sections">
         {TABS.map(([k, label]) => <button key={k} role="tab" className="pl-tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}

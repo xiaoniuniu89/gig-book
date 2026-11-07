@@ -1,5 +1,5 @@
 "use client";
-// Import from iReal Pro: a shared HTML file or an irealb:// link, then make it a setlist or add it to the library.
+// Import from iReal Pro: a shared HTML file or an irealb:// link. It goes straight into the library; making a setlist from it is an option.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
@@ -15,31 +15,35 @@ export function ImportPanel({ onDone }: { onDone?: () => void }) {
   const [text, setText] = useState("");
   const [over, setOver] = useState(false);
 
-  const handle = (t: string) => setFound(splitPlaylists(t));
+  const handle = async (t: string) => {
+    const lists = splitPlaylists(t);
+    setFound(lists);
+    if (!lists.length) return;
+    setText("");
+    try {
+      for (const p of lists) {
+        // Re-importing a playlist with the same name replaces it.
+        const existing = library.find(x => x.name === p.name || x.id === slug(p.name));
+        const id = existing ? existing.id : app.store.newId(p.name, id => library.some(x => x.id === id));
+        await app.addLibraryPlaylist({ id, name: p.name, songs: p.songs });
+      }
+    } catch (e) { setFound(null); app.toast(e instanceof Error ? e.message : "Couldn't add that to your library."); }
+  };
   const handleFile = (f: File) => {
     const why = checkFile(f, { maxMB: 5, types: /^(text\/|$)/, typeName: "an HTML or .txt file from iReal Pro", exts: /\.(html?|txt)$/i });
     if (why) app.toast(why); else void f.text().then(handle);
   };
 
-  const importAs = async (p: Playlist, as: "set" | "lib") => {
-    if (as === "lib") {
-      // Re-importing a playlist with the same name replaces it.
-      const existing = library.find(x => x.name === p.name || x.id === slug(p.name));
-      const id = existing ? existing.id : app.store.newId(p.name, id => library.some(x => x.id === id));
-      await app.addLibraryPlaylist({ id, name: p.name, songs: p.songs });
-      app.toast(`Added ${p.songs.length} charts to the library.`);
-      setFound(null); setText(""); onDone?.();
-    } else {
-      const id = app.store.newId(p.name, id => !!app.setlistById(id));
-      const half = Math.ceil(p.songs.length / 2);
-      const s: Setlist = {
-        id, name: p.name, spotify: null, visibility: "private", role: "owner",
-        items: p.songs.map((raw, k) => ({ id: newItemId(), raw, set: p.songs.length > 6 && k >= half ? 2 : 1, shift: null, versions: [] })),
-      };
-      await app.addSetlist(s);
-      onDone?.();
-      router.push("/set/" + encodeURIComponent(id));
-    }
+  const makeSetlist = async (p: Playlist) => {
+    const id = app.store.newId(p.name, id => !!app.setlistById(id));
+    const half = Math.ceil(p.songs.length / 2);
+    const s: Setlist = {
+      id, name: p.name, spotify: null, visibility: "private", role: "owner",
+      items: p.songs.map((raw, k) => ({ id: newItemId(), raw, set: p.songs.length > 6 && k >= half ? 2 : 1, shift: null, versions: [] })),
+    };
+    await app.addSetlist(s);
+    onDone?.();
+    router.push("/set/" + encodeURIComponent(id));
   };
 
   return (
@@ -55,19 +59,19 @@ export function ImportPanel({ onDone }: { onDone?: () => void }) {
       </div>
       <div className="new-set">
         <input aria-label="iReal Pro link" placeholder="irealb://…" value={text} onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") handle(text); }} />
-        <button className="btn" onClick={() => handle(text)} disabled={!text.trim()}>Read link</button>
+          onKeyDown={e => { if (e.key === "Enter") void handle(text); }} />
+        <button className="btn" onClick={() => void handle(text)} disabled={!text.trim()}>Read link</button>
       </div>
       {found && !found.length && <p className="flag">No iReal Pro playlist found in that. Share the playlist from iReal Pro as HTML and try again.</p>}
       {found && found.map((p, i) => (
         <div className="imp-row" key={i}>
-          <div><b>{p.name}</b><span className="hint"> · {p.songs.length} tune{p.songs.length === 1 ? "" : "s"}</span></div>
+          <div><b>{p.name}</b><span className="hint"> · {p.songs.length} tune{p.songs.length === 1 ? "" : "s"} added to your library</span></div>
           <div className="row-btns">
-            <button className="btn primary" onClick={() => importAs(p, "set")}>Make it a setlist</button>
-            <button className="btn" onClick={() => importAs(p, "lib")}>Add to library</button>
+            <button className="btn" onClick={() => void makeSetlist(p)}>Make it a setlist too</button>
           </div>
         </div>
       ))}
+      {found && found.length > 0 && onDone && <div className="row-btns"><button className="btn primary" onClick={onDone}>Done</button></div>}
     </div>
   );
 }

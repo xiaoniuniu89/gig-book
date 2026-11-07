@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useApp } from "../AppProvider";
+import { UpdatesToggle } from "../UpdatesToggle";
 import { Icon } from "../Icon";
 import { ConfirmTyped } from "../ConfirmTyped";
 import { Info } from "../Info";
@@ -56,12 +57,13 @@ export function GigView() {
           <span className="eyebrow">{gigWhen(gig)}</span>
           <h1>{gig.title}</h1>
         </div>
-        {gig.canEdit && (
-          <div className="row-btns">
+        <div className="row-btns">
+          <UpdatesToggle gigId={gig.id} />
+          {gig.canEdit && <>
             <button className="btn small" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Edit</button>
             <button className="btn small" onClick={() => setArmed(true)}><Icon name="trash" size={16} /> Delete</button>
-          </div>
-        )}
+          </>}
+        </div>
       <ConfirmTyped open={armed} title={"Delete " + gig.title} action="Delete gig" onClose={() => setArmed(false)} onConfirm={del}>
         This deletes the gig, its lineup and its poster details for everyone on it. The setlists stay.
       </ConfirmTyped>

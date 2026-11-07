@@ -9,6 +9,10 @@ import { chartHTML } from "@/lib/chart";
 import { keyLabel } from "@/lib/theory";
 import { song, norm, songKey, meta } from "@/lib/songs";
 import { TuneTranscriptions } from "../Transcriptions";
+import { MakeChart } from "../MakeChart";
+import { FindLeadSheet } from "../FindLeadSheet";
+import type { ChartGuess } from "@/lib/ai/leadsheetClient";
+import { itemUuid } from "@/lib/data/supabase";
 import { EditSongButton, LeadSheetDownload, LeadSheetPane, OriginalRecording, useOriginal } from "../Originals";
 import { Notes } from "../Notes";
 import { todayIso } from "../Gigs";
@@ -105,6 +109,18 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
   const noChords = cur0.song.bars.every(b => !b.chords.length);
   const sheetOnly = !!orig?.leadSheet && noChords;
   const { tab: chTab, setTab: setChTab } = ch;
+  // who can make the chart: anyone who can edit the setlist or is on a gig it's on; on the library page, the song's owner
+  const [canChart, setCanChart] = useState(false);
+  const chartSet = cur.kind === "set" ? cur.setId : null;
+  useEffect(() => {
+    let gone = false;
+    setCanChart(false);
+    if (noChords && chartSet) app.store.canChartSetlist(chartSet).then(v => { if (!gone) setCanChart(v); }, () => {});
+    return () => { gone = true; };
+  }, [noChords, chartSet, app.store]);
+  // a chart that came from Find a lead sheet, on a tune with no chords, to check and save
+  const [foundChart, setFoundChart] = useState<ChartGuess | null>(null);
+  const chartable = noChords && (cur.kind === "set" ? canChart : cur.kind === "lib" && !!orig?.mine);
   useEffect(() => { if (sheetOnly && chTab === "ireal") setChTab("leadsheet"); /* once per tune, so iReal stays openable */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetOnly, sg.raw]);
   // an arrangement keeps its own private notes, licks and resources under its own key
@@ -225,6 +241,7 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
       <section className="panel" aria-label="Chord chart" data-tour="chart">
         <ChartTabs songKey={songKey(sg.raw)} setlist={shareTo} ch={ch} vs={vs} leadSheet={!!orig?.leadSheet}>
           {ch.tab === "leadsheet" && orig?.leadSheet && <LeadSheetDownload o={orig} />}
+          {app.store.kind === "supabase" && !orig?.leadSheet && <FindLeadSheet key={sg.raw} song={(sg.title + " " + composerName(sg.composer)).trim()} onGuess={chartable ? setFoundChart : undefined} />}
           {orig?.mine && cur.kind === "lib" && <EditSongButton o={orig} />}
           <ReharmButtons sg={cur0.song} vs={vs} original={!!orig} />
         </ChartTabs>
@@ -232,7 +249,10 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
         : ch.tab === "lyrics" ? <LyricsPane songKey={songKey(cur0.song.raw)} title={cur0.song.title} composer={composerName(cur0.song.composer)} form={form}
           chart={<ChartHost html={html} live={app.bandPlaying && app.bandFor === sg} />} />
         : ch.shown ? <ChartPane c={ch.shown} setlist={shareTo} ch={ch} transpose={shift} />
-        : sheetOnly ? <p className="hint pad">No chords typed in for this song yet. Its chords are on the Lead sheet tab.</p> : <>
+        : sheetOnly ? <div className="pad row-btns"><span className="hint">No chords typed in for this song yet. Its chords are on the Lead sheet tab.</span>
+            {orig && cur.kind === "set" && item && s && canChart && <MakeChart o={orig} raw={item.raw} item={{ setlistId: s.id, itemId: itemUuid(s.id, item.id) }} onDone={raw => app.updateItem(s.id, cur.itemIdx, it => ({ ...it, raw }))} />}
+            {orig?.mine && cur.kind === "lib" && <MakeChart o={orig} raw={orig.raw} onDone={() => {}} />}
+          </div> : <>
         <VersionBar sg={cur0.song} vs={vs} />
         <div className="panel-head">
           <span className="seg" role="group" aria-label="Approach">
@@ -256,6 +276,8 @@ function SongBody({ cur: cur0, setlist }: { cur: TuneCurrent; setlist?: Setlist 
           onChange={h => saveItem(it => ({ ...it, hits: h }))} />}
         </>}
       </section>
+      {foundChart && cur.kind === "set" && item && s && <MakeChart o={orig} raw={item.raw} start={foundChart} item={{ setlistId: s.id, itemId: itemUuid(s.id, item.id) }} onClose={() => setFoundChart(null)} onDone={raw => app.updateItem(s.id, cur.itemIdx, it => ({ ...it, raw }))} />}
+      {foundChart && cur.kind === "lib" && orig?.mine && <MakeChart o={orig} raw={orig.raw} start={foundChart} onClose={() => setFoundChart(null)} onDone={() => {}} />}
       {(() => {
         // one panel, one kind at a time: Notes / Licks / Resources / Transcriptions (local mode has notes only)
         const head = kinds.length > 1 ? kindTabs(kinds, kind, setKind) : undefined;
