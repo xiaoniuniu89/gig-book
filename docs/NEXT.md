@@ -10,6 +10,12 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 - No migrations. E2E not run locally (only typecheck + lint); CI runs on the main push. Tests touched: 02, 03, 05, 09, 10.
 - Audit items left: the setlist's "On gigs" line stays a line (not a Gigs tab); iReal and Who can see it collapse under More only in calm mode.
 
+## Draft a setlist from a list (2026-11-07, on develop, not released)
+- Niu AI page: a box to type in, **Add a list** (photo, screenshot or PDF, kept in memory, sent with the request, never stored), and More options holding the chips. No tune count is sent unless picked; the AI defaults to about 10.
+- With a file the AI matches the songs on it to the library in written order, and returns `missing` for ones it can't match. Limits go up with a file: 2500 library tunes, 60 picks. Without a file the old 600-tune cut still applies (alphabetical, so a big library loses the end of the alphabet: worth fixing).
+- Tested for real: a rendered handwriting-style image and PDF through `draftSetlist`, and the page and route end to end on the dev database. Not tried: a real phone photo, or a big imported library.
+- What's new line at release: "Draft a setlist from a list: add a photo, screenshot or PDF of songs, like a handwritten note, and Niu AI finds them in your library."
+
 ## Find address (2026-11-07)
 - Island of Ireland only (north and south). Photon first (forgives typos), Nominatim as backup; venues rank above streets and towns. Code: `lib/venues.ts`, `app/api/venue-search/route.ts`. Photon is a free public service with a fair-use limit and no guarantee: if it throttles us, the backup still answers, but more strictly.
 - Checked live against both services through the URL and cleaning functions; the route itself hasn't been called while signed in.

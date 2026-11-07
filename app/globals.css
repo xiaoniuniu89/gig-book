@@ -126,6 +126,7 @@ p { margin: 0; }
 .play-choice { display: grid; gap: 12px; }
 .ai-form { display: grid; gap: 16px; margin-top: 14px; }
 .ai-q { display: grid; gap: 8px; }
+.ai-more > summary { cursor: pointer; font-weight: 700; font-size: 0.875rem; width: fit-content; }
 .ai-row { display: flex; flex-wrap: wrap; gap: 16px 32px; }
 .ai-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ai-chips .chip { font-size: 0.875rem; padding: 6px 14px; }

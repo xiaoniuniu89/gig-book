@@ -44,7 +44,7 @@ const STEPS: Step[] = [
   { title: "Bands", path: "/bands", targets: ["bands"],
     body: "Make a band and invite your bandmates. Share setlists, gigs, notes and files, and make a press kit and poster for the band." },
   { title: "Niu AI", path: "/ai", targets: ["ai"],
-    body: "Tap what fits the gig and Niu AI drafts a setlist from your library. You check it before saving." },
+    body: "Say what the gig needs or add a list of songs, and Niu AI drafts a setlist from your library. You check it before saving." },
   { title: "Your account", path: "/account", targets: ["account"],
     body: "Your profile and press kit. Already have a press kit? Upload it and AI fills in the details. You can also put your gigs in your phone's calendar. This tour is here again whenever you want it." },
   { title: "Settings", path: "/settings", targets: ["settings"],

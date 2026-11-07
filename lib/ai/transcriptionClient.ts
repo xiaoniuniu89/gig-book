@@ -14,17 +14,18 @@ const toBase64 = (buf: ArrayBuffer): string => {
 
 /** A photo redrawn at most 2000px on its long side, as JPEG. */
 async function shrink(file: File): Promise<string> {
-  const img = await createImageBitmap(file);
+  const img = await createImageBitmap(file).catch(() => { throw new Error("Couldn't read that photo. Try a JPEG or PNG."); });
   const k = Math.min(1, 2000 / Math.max(img.width, img.height));
   const c = document.createElement("canvas");
   c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
   c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
   const blob = await new Promise<Blob | null>(r => c.toBlob(r, "image/jpeg", 0.85));
   if (!blob) throw new Error("Couldn't read that photo.");
+  if (blob.size > MAX) throw new Error("That photo is too big for AI to read.");
   return toBase64(await blob.arrayBuffer());
 }
 
-async function source(file: File): Promise<TranscriptionSource> {
+export async function fileSource(file: File): Promise<TranscriptionSource> {
   if (file.type.startsWith("image/")) return { image: await shrink(file), mime: "image/jpeg" };
   if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
     if (file.size > MAX) throw new Error("That PDF is too big for AI to read (3 MB at most).");
@@ -38,7 +39,7 @@ export async function readTranscriptionFile(file: File): Promise<TranscriptionGu
   const { data } = (await getSupabase()?.auth.getSession()) ?? { data: null };
   const token = data?.session?.access_token;
   if (!token) throw new Error("Sign in to use this.");
-  const body = JSON.stringify(await source(file));
+  const body = JSON.stringify(await fileSource(file));
   let res: Response;
   try {
     res = await fetch("/api/ai/transcription", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body });
