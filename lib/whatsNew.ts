@@ -2,6 +2,12 @@
 // New features only: no entry for bug fixes or small tweaks (musicians don't care about those).
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-23",
+    items: [
+      "Work in progress: draft a setlist from a list. Add a photo, screenshot or PDF of songs, like a handwritten note, and Niu AI finds them in your library.",
+    ],
+  },
+  {
     date: "2026-11-22",
     items: [
       "Tidier pages: the song page has Notes, Licks, Resources and Transcriptions as tabs, and gigs, setlists, bands, settings and Transcribe split into tabs too, so you see one thing at a time.",

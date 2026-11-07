@@ -125,6 +125,7 @@ export function AiDraft() {
               ? <><span className="hint">{file.name}</span><button className="btn small" type="button" disabled={busy} onClick={() => setFile(null)}><Icon name="close" size={16} /> Remove</button></>
               : <button className="btn small" type="button" onClick={() => fileIn.current?.click()}><Icon name="upload" size={16} /> Add a list</button>}
             <Info label="About adding a list">A photo, screenshot or PDF of a list of songs, like a handwritten note from your pianist. Niu AI finds those songs in your library, in the same order, and tells you which ones it couldn&apos;t find. We don&apos;t save the file.</Info>
+            <span className="stamp wip">Work in progress</span>
           </span>
           {file && <AiNote what="your file">We don&apos;t save it.</AiNote>}
         </div>
