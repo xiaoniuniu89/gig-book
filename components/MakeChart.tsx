@@ -65,6 +65,7 @@ export function MakeChart({ o, raw, item, start, onClose, onDone }: { o?: Origin
             <button className="btn primary" type="button" disabled={reading} onClick={read}>{reading ? <><span className="spinner" aria-hidden="true" /> Reading the lead sheet…</> : <><Icon name="sparkle" size={18} /> Read the lead sheet</>}</button>
             <button className="btn" type="button" disabled={reading} onClick={() => setEdit([blankSection("A", "4/4")])}><Icon name="edit" size={18} /> Type it in</button>
           </div>
+          <p className="hint">Prefer to write it by hand? See the <a href="https://www.irealpro.com/ireal-pro-custom-chord-chart-protocol/" target="_blank" rel="noopener noreferrer">iReal Pro custom chord chart guide</a>.</p>
         </> : <>
           <ChartEditor value={edit} onChange={setEdit} ts={ts} />
           {item && o?.mine && <label className="toggle"><input type="checkbox" checked={onSong} onChange={e => setOnSong(e.target.checked)} /> Also save it on my song, for use outside this setlist</label>}
