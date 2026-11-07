@@ -1,16 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cleanVenueHits, type VenueHit } from "@/lib/venues";
+import { cleanPhotonHits, cleanVenueHits, nominatimUrl, photonUrl, type VenueHit } from "@/lib/venues";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/venue-search?q=...  ->  { results: [{ name, address }] }  (up to 5)
-// Needs "Authorization: Bearer <supabase access token>". Asks OpenStreetMap Nominatim, whose policy allows 1 request a second
-// with a real User-Agent. Limits are kept in memory per server instance (best effort): 1 a second overall, 30 a day per person.
+// Needs "Authorization: Bearer <supabase access token>". Searches the island of Ireland: Photon first (forgives typos), then
+// Nominatim as a backup, whose policy allows 1 request a second with a real User-Agent. Limits are kept in memory per server
+// instance (best effort): 1 Nominatim call a second overall, 30 searches a day per person.
 const PER_DAY = 30, DAY = 864e5, CACHE_MS = 10 * 60e3;
 let lastCall = 0;
 const used = new Map<string, { n: number; since: number }>();
 const cache = new Map<string, { at: number; results: VenueHit[] }>();
+
+async function lookup(url: string): Promise<unknown> {
+  const res = await fetch(url, { headers: { "User-Agent": "Niu Real Book (https://www.niurealbook.com)", Accept: "application/json" }, signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error("status " + res.status);
+  return res.json();
+}
 
 export async function GET(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -30,17 +37,20 @@ export async function GET(req: NextRequest) {
   const me = used.get(u.user.id);
   const mine = me && now - me.since < DAY ? me : { n: 0, since: now };
   if (mine.n >= PER_DAY) return NextResponse.json({ error: "You've used today's address searches. Type the address instead, or try tomorrow." }, { status: 429 });
-  if (now - lastCall < 1000) return NextResponse.json({ error: "Busy. Try again in a moment." }, { status: 429 });
-  lastCall = now; mine.n++; used.set(u.user.id, mine);
+  mine.n++; used.set(u.user.id, mine);
   if (cache.size > 200) cache.clear();
 
   try {
-    const res = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&q=" + encodeURIComponent(q), {
-      headers: { "User-Agent": "Niu Real Book (https://www.niurealbook.com)", Accept: "application/json" },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error("status " + res.status);
-    const results = cleanVenueHits(await res.json());
+    let results: VenueHit[] = [], failed = false;
+    try { results = cleanPhotonHits(await lookup(photonUrl(q))); } catch { failed = true; }
+    if (!results.length) {
+      if (Date.now() - lastCall < 1000) {
+        if (failed) return NextResponse.json({ error: "Busy. Try again in a moment." }, { status: 429 });
+        return NextResponse.json({ results }); // Photon found nothing and the backup is busy: don't cache it
+      }
+      lastCall = Date.now();
+      results = cleanVenueHits(await lookup(nominatimUrl(q)));
+    }
     cache.set(key, { at: now, results });
     return NextResponse.json({ results });
   } catch {

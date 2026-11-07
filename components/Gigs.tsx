@@ -58,10 +58,15 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
   const [hits, setHits] = useState<VenueHit[] | null>(null);
   const [finding, setFinding] = useState(false);
   const findAddress = async () => {
-    const q = [f.venue, f.address.replace(/\s*\n\s*/g, ", ")].map(s => s.trim()).filter(Boolean).join(", ");
+    const venue = f.venue.trim();
+    const q = [venue, f.address.replace(/\s*\n\s*/g, ", ").trim()].filter(Boolean).join(", ");
     if (q.length < 3) { toast("Type a venue name or address first."); return; }
     setFinding(true);
-    try { setHits(await searchVenues(q)); } catch (er) { setHits(null); toast(errText(er, "Address search isn't working right now.")); }
+    try {
+      const found = await searchVenues(q);
+      // an old or half-typed address can rule out the venue: try its name alone
+      setHits(!found.length && venue.length >= 3 && venue !== q ? await searchVenues(venue) : found);
+    } catch (er) { setHits(null); toast(errText(er, "Address search isn't working right now.")); }
     setFinding(false);
   };
   const pickHit = (h: VenueHit) => { setF(x => ({ ...x, venue: x.venue.trim() ? x.venue : h.name, address: h.address })); setHits(null); };
@@ -102,9 +107,9 @@ export function GigDialog({ gig, bandId, setlistId, onClose, onSaved }: { gig?: 
         {store.kind === "supabase" && <div className="field">
           <div className="row-btns">
             <button className="btn small" type="button" disabled={finding} onClick={findAddress}><Icon name="search" size={16} /> {finding ? "Searching…" : "Find address"}</button>
-            <Info label="About finding an address">Searches OpenStreetMap for what is typed in Venue (and Address, if filled). Pick a result to fill in the address.</Info>
+            <Info label="About finding an address">Searches the map of Ireland, north and south, for what is typed in Venue (and Address, if filled). Pick a result to fill in the address. Playing somewhere else, or not found? Type the address yourself.</Info>
           </div>
-          {hits && (hits.length === 0 ? <p className="sub">Nothing found. Try the street or town too.</p> : <>
+          {hits && (hits.length === 0 ? <p className="sub">Nothing found in Ireland. Try adding the town, or type the address yourself.</p> : <>
             <div className="panel list">
               {hits.map((h, i) => <button key={i} className="row" type="button" onClick={() => pickHit(h)}><span className="tr-main"><span className="tr-title">{h.name}</span><span className="sub">{h.address}</span></span></button>)}
             </div>
