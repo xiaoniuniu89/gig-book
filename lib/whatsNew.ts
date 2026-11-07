@@ -2,6 +2,18 @@
 // New features only: no entry for bug fixes or small tweaks (musicians don't care about those).
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-27",
+    items: [
+      "A note can now be just a recording or a file, with no need to type anything.",
+      "How to add a recording: open a tune, tap Recordings, then Upload. Upload a file or record on your phone. MP3, WAV and AAC M4A all work. Apple Lossless won't, so save those as MP3 or AAC first.",
+      "How to add a note: open a tune, go to Notes and tap Add note. Type something, or add a file or recording, then save it.",
+      "How to add a chart: open a tune, tap Upload chart and choose a PDF or photo.",
+      "How to make a setlist: go to Setlists, tap New setlist, give it a name, then tap Add tunes.",
+      "How to make a gig: go to Gigs, tap New gig, fill in the details, then add a setlist and the lineup.",
+      "How to make a band: go to Bands, tap New band, then tap Invite and send the link to your bandmates.",
+    ],
+  },
+  {
     date: "2026-11-26",
     items: [
       "Your original songs can have up to 10 recordings: upload several takes or record one on your phone under Recordings, and everyone who can see the song can play them.",

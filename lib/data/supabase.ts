@@ -1,5 +1,6 @@
 // Supabase adapter: setlists, their items and library playlists in Postgres, guarded by row-level security
 // (see supabase/migrations/0001_init.sql). Used when Supabase is configured and someone is signed in.
+import { checkAudio } from "../audioFile";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "../settings";
 import { plainError } from "../validate";
@@ -321,6 +322,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
   const upload = async (dir: string, parent: { note_id: string } | { lick_id: string } | { profile_id: string } | { resource_id: string } | { band_id: string }, file: File, onProgress?: (p: number) => void): Promise<Attachment> => {
     const kind = attachmentKind(file.type, file.name);
     if (!kind) throw new Error("Only PDF, image, audio and MusicXML files can be attached.");
+    if (kind === "audio") await checkAudio(file);
     const mime = mimeOf(file);
     const path = `${dir}/${newUuid()}-${safeName(file.name)}`;
     await putFile(BUCKET, path, file, mime, onProgress);
@@ -861,6 +863,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
 
     async setChartAudio(c, audio, onProgress) {
       if (audio && attachmentKind(audio.type, audio.name) !== "audio") throw new Error("The recording has to be an audio file.");
+      if (audio) await checkAudio(audio);
       const old = c.audio?.path ?? null;
       const mime = audio ? mimeOf(audio) : null;
       const path = audio ? `${userId}/${c.id}/${newUuid()}-${safeName(audio.name)}` : null;
@@ -984,6 +987,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async addTuneRecording(setlistId, key, file, onProgress) {
       if (attachmentKind(file.type, file.name) !== "audio") throw new Error("That isn't an audio file. Try an MP3, M4A or WAV.");
       if (file.size > MAX_RECORDING_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_RECORDING_MB} MB.`);
+      await checkAudio(file);
       const rec = { path: `${userId}/${setlistId}/${newUuid()}-${safeName(file.name)}`, name: file.name.slice(0, 300), mime: mimeOf(file), size: file.size };
       const { error } = await sb.from("setlist_recordings").insert({ setlist_id: setlistId, song_key: key, ...rec });
       if (error) {
@@ -1010,6 +1014,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     async addOriginalRecording(o, file, onProgress) {
       if (attachmentKind(file.type, file.name) !== "audio") throw new Error("That isn't an audio file. Try an MP3, M4A or WAV.");
       if (file.size > MAX_RECORDING_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_RECORDING_MB} MB.`);
+      await checkAudio(file);
       const rec = { path: `${userId}/${o.id}/${newUuid()}-${safeName(file.name)}`, name: file.name.slice(0, 300), mime: mimeOf(file), size: file.size };
       const { error } = await sb.from("original_recordings").insert({ song_id: o.id, ...rec });
       if (error) {

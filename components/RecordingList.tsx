@@ -38,7 +38,7 @@ function Row<R extends Rec>({ rec, by, url: urlOf, title, onRemove }: { rec: R; 
           { label: <><Icon name="trash" size={16} /> Remove</>, onClick: onRemove },
         ]} />}
       </span>
-      {failed && <p className="flag" role="alert">This recording won&apos;t play here. {url && <a href={url} download={rec.name}>Download it</a>}</p>}
+      {failed && <p className="flag" role="alert">This recording won&apos;t play in this browser. It may be Apple Lossless: save it as MP3 or AAC and upload it again. {url && <a href={url} download={rec.name}>Download it</a>}</p>}
     </div>
   );
 }
@@ -89,7 +89,7 @@ export function RecordingList<R extends Rec>({ items, title, by, url, canRemove,
           : <span className="orig-rec-row">
             <button className="btn" disabled={full} onClick={() => input.current?.click()}><Icon name="upload" size={16} /> Upload {items.length ? "another recording" : "a recording"}</button>
             {canRecord && <button className="btn" disabled={full} onClick={() => setRecording(true)}><Icon name="music" size={16} /> Record</button>}
-            <Info label="About recordings">MP3, M4A or WAV, up to {MAX_RECORDING_MB} MB each and {MAX_SONG_RECORDINGS} here. {about}</Info>
+            <Info label="About recordings">MP3, WAV or AAC M4A (not Apple Lossless), up to {MAX_RECORDING_MB} MB each and {MAX_SONG_RECORDINGS} here. {about}</Info>
           </span>}
         {full && !status && <p className="hint">That&apos;s the most you can add here. Remove one to add another.</p>}
       </div>

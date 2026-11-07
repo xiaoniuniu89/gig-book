@@ -16,6 +16,39 @@ Old static version (until it is retired): https://xiaoniuniu89.github.io/niu-rea
 
 Without Supabase settings, everything lives in your browser (IndexedDB), exactly like the static version.
 
+## How to use it
+
+**Add a recording to a tune**
+1. Open the setlist and tap the tune.
+2. Tap **Recordings** (on a computer it's already on the right).
+3. Tap **Upload**, then **Upload a recording** or **Record**.
+
+Audio files can be MP3, WAV or AAC M4A, up to 25 MB on a tune or song, or 20 MB on a note or chart. Apple Lossless files won't upload, because most browsers can't play them. In Voice Memos, set Audio Quality to Compressed.
+
+**Add a note, with or without audio**
+1. Open the tune and go to **Notes**.
+2. Tap **Add note**.
+3. Type something, or tap **Upload file** or **Record audio**.
+4. Tap the button to save it. Nothing is saved until you do.
+
+**Add a chart**
+1. Open the tune.
+2. Tap **Upload chart** and choose a PDF or photo.
+
+**Make a setlist**
+1. Go to **Setlists** and tap **New setlist**.
+2. Give it a name, then tap **Add tunes**.
+
+**Make a gig**
+1. Go to **Gigs** and tap **New gig**.
+2. Fill in the details, then add a setlist and the lineup.
+
+**Make a band**
+1. Go to **Bands** and tap **New band**.
+2. Tap **Invite** and send the link to your bandmates.
+
+**Something not working?** Tap **Bugs & ideas** at the top and tell us what you tried.
+
 ## Deploying (Vercel + Supabase + Spotify)
 
 Do these in order. Each part works on its own: the site runs without Supabase (local-only) and without the Spotify secret (no search).
