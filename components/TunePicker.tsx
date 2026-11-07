@@ -98,6 +98,7 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
           <button role="tab" className="pl-tab" aria-selected={tab === "band"} onClick={() => setTab("band")}>Band members&apos; originals</button>
         </div>
       )}
+      {addOwn}
       {tab === "band" ? (
         <div className="sheet-list">
           {bandSongs === null ? <p className="hint pad">Loading…</p> : !bandShown.length
@@ -112,7 +113,6 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
                 </label>
               );
             })}
-          {addOwn}
         </div>
       ) : (
       <div className="sheet-list">
@@ -140,7 +140,6 @@ export function TunePicker({ library, have, sets = 1, single, bandId, onAdd, onC
           })}
         </>}
         {!shown.length && !extra.length && <p className="hint pad">{all.length ? "No match in the library." : "The library is empty. Import a playlist first."}</p>}
-        {addOwn}
       </div>
       )}
       <div className="sheet-foot">
