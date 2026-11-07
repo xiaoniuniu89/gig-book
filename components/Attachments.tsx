@@ -24,7 +24,7 @@ export function useSignedUrl(store: DataStore, a: Attachment, on = true): string
   return url;
 }
 
-const recMime = () => typeof MediaRecorder === "undefined" ? "" : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(t => MediaRecorder.isTypeSupported(t)) || "";
+const recMime = () => typeof MediaRecorder === "undefined" ? "" : ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find(t => MediaRecorder.isTypeSupported(t)) || "";
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 
 /** Record / stop / preview / discard. Hands back a File on "Use recording". */

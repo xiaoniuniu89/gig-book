@@ -91,10 +91,10 @@ const RECORDING_BUCKET = "original-recordings";
 interface OriginalRow {
   id: string; owner: string; raw: string; title: string; composer: string; visibility: "private" | "band" | "public"; band_id: string | null;
   lead_sheet_path: string | null; lead_sheet_kind: "pdf" | "image" | null; lead_sheet_name: string | null; lead_sheet_mime: string | null; lead_sheet_size: number | null;
-  recording_path: string | null; recording_name: string | null; recording_mime: string | null; recording_size: number | null;
+  original_recordings: { path: string; name: string; mime: string; size: number; created_at: string }[] | null;
   created_at: string; updated_at: string;
 }
-const OR_COLS = "id, owner, raw, title, composer, visibility, band_id, lead_sheet_path, lead_sheet_kind, lead_sheet_name, lead_sheet_mime, lead_sheet_size, recording_path, recording_name, recording_mime, recording_size, created_at, updated_at";
+const OR_COLS = "id, owner, raw, title, composer, visibility, band_id, lead_sheet_path, lead_sheet_kind, lead_sheet_name, lead_sheet_mime, lead_sheet_size, created_at, updated_at, original_recordings(path, name, mime, size, created_at)";
 interface LickRow {
   id: string;
   owner: string;
@@ -271,7 +271,8 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
     title: r.title, composer: r.composer, visibility: r.visibility, bandId: r.band_id, createdAt: r.created_at, updatedAt: r.updated_at,
     leadSheet: r.lead_sheet_path && r.lead_sheet_kind
       ? { path: r.lead_sheet_path, kind: r.lead_sheet_kind, name: r.lead_sheet_name || "lead sheet", mime: r.lead_sheet_mime || "", size: Number(r.lead_sheet_size) || 0 } : null,
-    recording: r.recording_path ? { path: r.recording_path, name: r.recording_name || "recording", mime: r.recording_mime || "", size: Number(r.recording_size) || 0 } : null,
+    recordings: (r.original_recordings ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map(x => ({ path: x.path, name: x.name, mime: x.mime, size: Number(x.size) || 0 })),
   });
   const leadSheetCols = (path: string, file: File, mime: string) => {
     const kind = attachmentKind(file.type, file.name);
@@ -959,7 +960,7 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       if (error) fail("delete that song", error);
       if (!data?.length) throw new Error("Couldn't delete that song: you can't change it.");
       if (o.leadSheet) await sb.storage.from(LEADSHEET_BUCKET).remove([o.leadSheet.path]);
-      if (o.recording) await sb.storage.from(RECORDING_BUCKET).remove([o.recording.path]);
+      if (o.recordings.length) await sb.storage.from(RECORDING_BUCKET).remove(o.recordings.map(r => r.path));
     },
 
     async originalLeadSheetUrl(o) {
@@ -967,32 +968,30 @@ export function supabaseStore(sb: SupabaseClient, userId: string): DataStore {
       return signedUrl(LEADSHEET_BUCKET, o.leadSheet.path, "open the lead sheet");
     },
 
-    async setOriginalRecording(o, file, onProgress) {
-      const none = { recording_path: null, recording_name: null, recording_mime: null, recording_size: null };
-      let patch: Record<string, unknown> = none, mime = "";
-      if (file !== "remove") {
-        if (attachmentKind(file.type, file.name) !== "audio") throw new Error("That isn't an audio file. Try an MP3, M4A or WAV.");
-        if (file.size > MAX_RECORDING_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_RECORDING_MB} MB.`);
-        mime = mimeOf(file);
-        patch = { recording_path: `${userId}/${o.id}/${newUuid()}-${safeName(file.name)}`, recording_name: file.name.slice(0, 300), recording_mime: mime, recording_size: file.size };
-      }
-      const { data, error } = await sb.from("original_songs").update(patch).eq("id", o.id).select(OR_COLS);
+    async addOriginalRecording(o, file, onProgress) {
+      if (attachmentKind(file.type, file.name) !== "audio") throw new Error("That isn't an audio file. Try an MP3, M4A or WAV.");
+      if (file.size > MAX_RECORDING_MB * 1024 * 1024) throw new Error(`That file is over ${MAX_RECORDING_MB} MB.`);
+      const rec = { path: `${userId}/${o.id}/${newUuid()}-${safeName(file.name)}`, name: file.name.slice(0, 300), mime: mimeOf(file), size: file.size };
+      const { error } = await sb.from("original_recordings").insert({ song_id: o.id, ...rec });
       if (error) {
-        if (/new songs or lead sheets today/.test(error.message)) throw new Error(error.message);
+        if (/new songs or lead sheets today|already has/.test(error.message)) throw new Error(error.message);
         fail("save the recording", error);
       }
-      if (!data?.length) throw new Error("Couldn't save the recording: you can't change this song.");
-      if (file !== "remove") {
-        try { await putFile(RECORDING_BUCKET, patch.recording_path as string, file, mime, onProgress); }
-        catch (e) { await sb.from("original_songs").update(o.recording ? { recording_path: o.recording.path, recording_name: o.recording.name, recording_mime: o.recording.mime, recording_size: o.recording.size } : none).eq("id", o.id); throw e; }
-      }
-      if (o.recording) await sb.storage.from(RECORDING_BUCKET).remove([o.recording.path]);
-      return toOriginal(data[0] as unknown as OriginalRow, new Map([[o.ownerId, o.ownerName]]));
+      try { await putFile(RECORDING_BUCKET, rec.path, file, rec.mime, onProgress); }
+      catch (e) { await sb.from("original_recordings").delete().eq("path", rec.path); throw e; }
+      return { ...o, recordings: [...o.recordings, rec] };
     },
 
-    async originalRecordingUrl(o) {
-      if (!o.recording) throw new Error("This song has no recording.");
-      return signedUrl(RECORDING_BUCKET, o.recording.path, "play the recording");
+    async removeOriginalRecording(o, rec) {
+      const { data, error } = await sb.from("original_recordings").delete().eq("path", rec.path).select("id");
+      if (error) fail("remove the recording", error);
+      if (!data?.length) throw new Error("Couldn't remove the recording: you can't change this song.");
+      await sb.storage.from(RECORDING_BUCKET).remove([rec.path]);
+      return { ...o, recordings: o.recordings.filter(r => r.path !== rec.path) };
+    },
+
+    async originalRecordingUrl(rec) {
+      return signedUrl(RECORDING_BUCKET, rec.path, "play the recording");
     },
 
     async listTranscriptions(q) {

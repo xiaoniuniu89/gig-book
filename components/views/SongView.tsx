@@ -13,7 +13,7 @@ import { MakeChart } from "../MakeChart";
 import { FindLeadSheet } from "../FindLeadSheet";
 import type { ChartGuess } from "@/lib/ai/leadsheetClient";
 import { itemUuid } from "@/lib/data/supabase";
-import { EditSongButton, LeadSheetDownload, LeadSheetPane, OriginalRecording, useOriginal } from "../Originals";
+import { EditSongButton, LeadSheetDownload, LeadSheetPane, OriginalRecordings, useOriginal } from "../Originals";
 import { Notes } from "../Notes";
 import { todayIso } from "../Gigs";
 import { Licks } from "../Licks";
@@ -628,9 +628,9 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
     onVersions?.(have => have.filter(v => v.uri !== uri));
   };
   // tabs: what's saved, finding one on the chosen player, and (your originals) uploading your own
-  const nSaved = vs.length + (orig?.recording ? 1 : 0);
+  const nSaved = vs.length + (orig?.recordings.length ?? 0);
   const tabs: ["saved" | "find" | "upload", string, number?][] = [
-    ...(onVersions || orig?.recording ? [["saved", "Saved", nSaved] as ["saved", string, number]] : []),
+    ...(onVersions || orig?.recordings.length ? [["saved", "Saved", nSaved] as ["saved", string, number]] : []),
     ["find", "Find on " + pName],
     ...(orig?.mine ? [["upload", "Upload"] as ["upload", string]] : []),
   ];
@@ -647,9 +647,9 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
           ))}
         </div>
       )}
-      {tab === "upload" && orig ? <div role="tabpanel"><OriginalRecording o={orig} /></div>
+      {tab === "upload" && orig ? <div role="tabpanel"><OriginalRecordings o={orig} /></div>
       : tab === "saved" ? <div role="tabpanel">
-      {orig?.recording && <OriginalRecording o={orig} readOnly />}
+      {orig && <OriginalRecordings o={orig} readOnly />}
       <div id="versions">
         {!onVersions ? null
           : vs.length ? vs.map(v => (
@@ -659,7 +659,7 @@ function Recordings({ cur, versions, onVersions, canEdit }: { cur: Current; vers
               {canEdit && isYtUri(v.uri) && <button className="btn small" aria-label={"Start and end for " + v.name} title="Play just part of it" onClick={() => openTimes(v)}><Icon name="clock" size={14} /></button>}
               {canEdit && <button className="btn small" aria-label="Remove" onClick={() => removeVersion(v.uri)}>✕</button>}
             </div>
-          )) : !playing && orig?.recording ? null
+          )) : !playing && orig?.recordings.length ? null
           : !playing && <p className="hint">{orig?.mine ? "Nothing yet. Upload your own recording, or add one here." : "Nothing saved yet."}</p>}
         {playing && (
           <div className="ver">

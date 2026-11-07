@@ -8,6 +8,7 @@ import { PlaybackHelpLink, useMyPlayback } from "./PlaybackHelp";
 import { Icon } from "./Icon";
 import { PREMIUM_NOTE, YOUTUBE_SIGN_IN } from "./YoutubePremium";
 import { TranscribeButton } from "./TranscribeButton";
+import { useOriginal } from "./Originals";
 import { tuneQueueItem } from "@/lib/youtube/queue";
 import { songKey } from "@/lib/songs";
 import { GENERAL_HINT } from "@/lib/playback";
@@ -51,6 +52,8 @@ export function Dock() {
 
   // this tune's video is the one loaded: Play/Pause and Restart instead of starting it again
   const thisTune = !!(app.ytNow && current && current.kind !== "lick" && app.ytNow.key === songKey(current.song.raw));
+  // a song with uploaded recordings plays those, not whatever a YouTube search turns up
+  const uploaded = (useOriginal(current && current.kind !== "lick" ? current.song.raw : "")?.recordings.length ?? 0) > 0;
   const open = (t: "band" | "record") => { app.setDockTab(t); app.setDockSize("full"); };
 
   return (
@@ -148,7 +151,7 @@ export function Dock() {
                     <a className="btn small" href={YOUTUBE_SIGN_IN} target="_blank" rel="noopener noreferrer"><Icon name="youtube" size={16} /> Connect YouTube Premium</a>
                   </Info>
                 : <Info label="About playing recordings here">{mine ? mine.hint : GENERAL_HINT} <PlaybackHelpLink /></Info>}
-              {yTube && current && current.kind !== "lick" && (thisTune
+              {yTube && current && current.kind !== "lick" && (thisTune || !uploaded) && (thisTune
                 ? <>
                     <button className="btn small" id="rec-play-tune" onClick={app.ytToggle}>{app.ytPlaying ? "❚❚ Pause" : "▶ Play"}</button>
                     <button className="btn icon-btn small" aria-label="Play from the start" title="Play from the start" onClick={playTune}>↺</button>
@@ -173,7 +176,9 @@ export function Dock() {
             {app.recIdle && !app.recStatus && (
               <div className="rec-empty">
                 <b>Nothing playing yet</b>
-                {current && current.kind !== "lick"
+                {uploaded
+                  ? <span>Press ▶ on a recording under <b>Recordings</b> below.</span>
+                  : current && current.kind !== "lick"
                   ? <span>{yTube ? <>Press <b>Play this tune</b> above to hear a recording of this tune.</> : <>Find a recording under <b>Recordings</b> below and press ▶ to play it.</>}</span>
                   : <span>To hear a recording, open a tune and press <b>Play this tune</b> here. To hear a whole setlist, open it and press <b>Play</b> under Listen.</span>}
                 <span>Want to play with a band instead? Switch to <b>Play along</b>.</span>

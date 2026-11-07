@@ -26,8 +26,8 @@ async function clear(who: Who) {
   const { data } = await a.from("original_songs").select("lead_sheet_path").eq("owner", USERS[who].id);
   const paths = (data ?? []).map(r => r.lead_sheet_path as string | null).filter((p): p is string => !!p);
   if (paths.length) await a.storage.from("leadsheets").remove(paths);
-  const recs = (await a.from("original_songs").select("recording_path").eq("owner", USERS[who].id)).data ?? [];
-  const rp = recs.map(r => r.recording_path as string | null).filter((p): p is string => !!p);
+  const recs = (await a.from("original_recordings").select("path").eq("owner", USERS[who].id)).data ?? [];
+  const rp = recs.map(r => r.path as string);
   if (rp.length) await a.storage.from("original-recordings").remove(rp);
   await a.from("original_songs").delete().eq("owner", USERS[who].id);
   await a.from("original_upload_log").delete().eq("owner", USERS[who].id);
@@ -182,7 +182,7 @@ describe("originals: the daily cap", () => {
     const sheet = await M.dev.sb.from("original_songs").update({ lead_sheet_path: path, lead_sheet_kind: "pdf", lead_sheet_name: "new.pdf", lead_sheet_mime: "application/pdf", lead_sheet_size: 1 }).eq("id", one.id);
     expect(sheet.error?.message).toMatch(/new songs or lead sheets today/);
     // and so is a new recording
-    const rec = await M.dev.sb.from("original_songs").update({ recording_path: `${USERS.dev.id}/${one.id}/take.mp3`, recording_name: "take.mp3", recording_mime: "audio/mpeg", recording_size: 1 }).eq("id", one.id);
+    const rec = await M.dev.sb.from("original_recordings").insert({ song_id: one.id, path: `${USERS.dev.id}/${one.id}/take.mp3`, name: "take.mp3", mime: "audio/mpeg", size: 1 });
     expect(rec.error?.message).toMatch(/new songs or lead sheets today/);
     // the log can't be read or changed by anyone signed in
     expect((await M.dev.sb.from("original_upload_log").select("owner")).error).toBeTruthy();
@@ -190,55 +190,66 @@ describe("originals: the daily cap", () => {
   });
 });
 
-describe("originals: the recording (0049)", () => {
+describe("originals: recordings (0053)", () => {
   const MP3 = new Blob(["ID3"], { type: "audio/mpeg" });
+  let n = 0;
   const addRec = async (who: Who, id: string, owner: Who = who) => {
-    const path = `${USERS[owner].id}/${id}/take.mp3`;
-    const up = await M[who].sb.from("original_songs").update({ recording_path: path, recording_name: "take.mp3", recording_mime: "audio/mpeg", recording_size: MP3.size }).eq("id", id).select("id");
+    const path = `${USERS[owner].id}/${id}/take-${++n}.mp3`;
+    const up = await M[who].sb.from("original_recordings").insert({ song_id: id, path, name: "take.mp3", mime: "audio/mpeg", size: MP3.size }).select("id");
     return { path, up };
   };
   const canPlay = async (who: Who, path: string) => !(await M[who].sb.storage.from("original-recordings").download(path)).error;
 
-  it("whoever can see the song can play it; nobody else", async () => {
+  it("whoever can see the song can play each one; nobody else", async () => {
     const s = await make("ava");
-    const { path, up } = await addRec("ava", s.id);
-    expect(up.error).toBeNull();
-    must(await M.ava.sb.storage.from("original-recordings").upload(path, MP3, { contentType: "audio/mpeg" }), "ava upload");
-    expect(await canPlay("ava", path)).toBe(true);
-    expect(await canPlay("ben", path)).toBe(false);
+    const first = await addRec("ava", s.id), second = await addRec("ava", s.id);
+    expect(first.up.error).toBeNull();
+    expect(second.up.error).toBeNull();
+    for (const { path } of [first, second]) must(await M.ava.sb.storage.from("original-recordings").upload(path, MP3, { contentType: "audio/mpeg" }), "ava upload");
+    expect(await canPlay("ava", second.path)).toBe(true);
+    expect(await canPlay("ben", second.path)).toBe(false);
+    expect(must(await M.ben.sb.from("original_recordings").select("id").eq("song_id", s.id), "ben reads")).toHaveLength(0);
     must(await M.ava.sb.from("original_songs").update({ visibility: "public" }).eq("id", s.id), "make public");
-    expect(await canPlay("ben", path)).toBe(true);
-    expect((await anon().storage.from("original-recordings").download(path)).error).toBeTruthy();
+    expect(await canPlay("ben", first.path)).toBe(true);
+    expect(await canPlay("ben", second.path)).toBe(true);
+    expect((await anon().storage.from("original-recordings").download(first.path)).error).toBeTruthy();
     must(await M.ava.sb.from("original_songs").update({ visibility: "private" }).eq("id", s.id), "make private");
-    expect(await canPlay("ben", path)).toBe(false);
+    expect(await canPlay("ben", first.path)).toBe(false);
   });
 
-  it("only the owner puts one in, and only under their own folder and song", async () => {
+  it("only the owner adds or removes one, and only under their own folder and song", async () => {
     const s = await make("ava", { visibility: "public" });
-    // someone else can't set it on Ava's row
-    expect((await addRec("ben", s.id)).up.data ?? []).toHaveLength(0);
+    // someone else can't add one to Ava's song, even under their own folder
+    expect((await addRec("ben", s.id)).up.error).toBeTruthy();
     // Ava can't point it outside her folder
     expect((await addRec("ava", s.id, "ben")).up.error).toBeTruthy();
     // and nobody can upload a file no row names
     const stray = `${USERS.ben.id}/${s.id}/stray.mp3`;
     expect((await M.ben.sb.storage.from("original-recordings").upload(stray, MP3, { contentType: "audio/mpeg" })).error).toBeTruthy();
+    // someone who can see it can't delete hers
+    const mine = await addRec("ava", s.id);
+    expect(must(await M.ben.sb.from("original_recordings").delete().eq("path", mine.path).select("id"), "ben deletes")).toHaveLength(0);
+    expect(must(await M.ava.sb.from("original_recordings").select("id").eq("path", mine.path), "still there")).toHaveLength(1);
   });
 
-  it("a recording's columns are all there or all empty", async () => {
+  it("a song holds 10 at most", async () => {
+    await clear("ava");
     const s = await make("ava");
-    const half = await M.ava.sb.from("original_songs").update({ recording_path: `${USERS.ava.id}/${s.id}/x.mp3` }).eq("id", s.id);
-    expect(half.error).toBeTruthy();
+    for (let k = 0; k < 10; k++) expect((await addRec("ava", s.id)).up.error).toBeNull();
+    expect((await addRec("ava", s.id)).up.error?.message).toMatch(/already has 10/);
+    await clear("ava");
   });
 
-  it("the store reads, plays and removes it (uploads go by XHR, which the tests can't run)", async () => {
+  it("the store reads, plays and removes them (uploads go by XHR, which the tests can't run)", async () => {
     const s = await make("ava");
-    const { path } = await addRec("ava", s.id);
-    must(await M.ava.sb.storage.from("original-recordings").upload(path, MP3, { contentType: "audio/mpeg" }), "ava upload");
+    const first = await addRec("ava", s.id), second = await addRec("ava", s.id);
+    for (const { path } of [first, second]) must(await M.ava.sb.storage.from("original-recordings").upload(path, MP3, { contentType: "audio/mpeg" }), "ava upload");
     const o = (await M.ava.store.listOriginals()).find(x => x.id === s.id)!;
-    expect(o.recording?.name).toBe("take.mp3");
-    expect(await M.ava.store.originalRecordingUrl(o)).toMatch(/^https?:/);
-    const gone = await M.ava.store.setOriginalRecording(o, "remove");
-    expect(gone.recording).toBeNull();
-    expect(await canPlay("ava", path)).toBe(false);
+    expect(o.recordings.map(r => r.path)).toEqual([first.path, second.path]);
+    expect(await M.ava.store.originalRecordingUrl(o.recordings[1])).toMatch(/^https?:/);
+    const left = await M.ava.store.removeOriginalRecording(o, o.recordings[0]);
+    expect(left.recordings.map(r => r.path)).toEqual([second.path]);
+    expect(await canPlay("ava", first.path)).toBe(false);
+    expect(await canPlay("ava", second.path)).toBe(true);
   });
 });

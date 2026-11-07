@@ -2,6 +2,12 @@
 // New features only: no entry for bug fixes or small tweaks (musicians don't care about those).
 export const WHATS_NEW: { date: string; items: string[] }[] = [
   {
+    date: "2026-11-26",
+    items: [
+      "Your original songs can have up to 10 recordings: upload several takes or record one on your phone under Recordings, and everyone who can see the song can play them.",
+    ],
+  },
+  {
     date: "2026-11-25",
     items: [
       "Choose your updates: tick Tell me about updates on a gig or band, or turn it on for everything in Settings → Notifications, and the bell tells you when details, setlists, notes or files change. It's off until you turn it on.",

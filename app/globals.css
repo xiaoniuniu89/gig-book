@@ -364,8 +364,9 @@ span.chip { display: inline-block; padding: 2px 8px; }
 .rec-empty > b { color: var(--ink); }
 .orig-rec { display: grid; gap: 6px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--rule); }
 .orig-rec .name { display: grid; gap: 2px; font-size: 0.9rem; overflow-wrap: anywhere; }
-.orig-rec-row { display: flex; align-items: center; gap: 8px; }
-.orig-rec-row audio { flex: 1; min-width: 0; height: 36px; }
+.orig-rec-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.orig-rec-row audio { flex: 1 1 100%; min-width: 0; height: 36px; }
+.orig-rec-row .more-panel { left: 0; right: auto; }
 .dock-slot { display: grid; gap: 16px; }
 .dock-slot:not(:empty) { border-top: 1px solid var(--rule); padding-top: 16px; }
 .dock-slot .panel { padding: 0; border: 0; background: none; }

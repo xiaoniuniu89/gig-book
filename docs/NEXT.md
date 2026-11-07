@@ -10,6 +10,10 @@ What's left to do, in order. Last updated 2026-11-06. Update it at the end of ea
 - No migrations. E2E not run locally (only typecheck + lint); CI runs on the main push. Tests touched: 02, 03, 05, 09, 10.
 - Audit items left: the setlist's "On gigs" line stays a line (not a Gigs tab); iReal and Who can see it collapse under More only in calm mode.
 
+## Several recordings on an original (2026-11-07, released)
+- `original_recordings` (0053) holds up to 10 per song; Upload tab has Upload and Record. Listen on a song with uploads points at them instead of searching YouTube.
+- Still to do: drop the empty `recording_*` columns on `original_songs` in a new migration. Only a song's owner can upload, so bandmates have nowhere obvious for a recording on a setlist tune.
+
 ## Recordings and lead sheets (2026-11-07, released)
 - **Find a lead sheet** (Library, Work in progress): `components/FindLeadSheet.tsx`, `lib/ai/leadsheetSearch.ts`, `app/api/ai/leadsheet-search`, `lib/ai/sheetLink.ts`. It never listens to audio: the song name, YouTube title or MP3 file name is searched via OpenRouter's web plugin. The player picks a result and presses Generate; `/api/ai/leadsheet { url }` opens it (public addresses only, 3 MB) and reads a PDF, an image, a PDF linked on the page, or the page text. The sheet isn't kept. An MP3 is kept only if the song is saved. A YouTube link isn't attached to the new song yet.
 - **Transcribe button**: `components/TranscribeButton.tsx`, `lib/transcribeHandoff.ts` (in memory, so signed URLs stay out of links). On the YouTube player, chart audio, original recordings and audio on notes. Not on Spotify.
